@@ -30,6 +30,7 @@ nav = [
   { "Reportes" = [
       { "Índice" = "reports/index.md" },
       { "Al cliente" = [
+        { "Reporte No. 0" = "reports/report0-2026-07-29/report0.md" },
         { "Reporte No. 1" = "reports/report1-2026-08-19/report1.md" },
         { "Reporte No. 2" = "reports/report2-2026-09-09/report2.md" },
       ]},
