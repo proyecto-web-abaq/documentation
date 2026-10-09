@@ -24,6 +24,7 @@ nav = [
   { "Documentación Técnica" = [
     { "Índice" = "technical/index.md" },
     { "Arquitectura" = "technical/architecture.md" },
+    { "Despliegue en la nube (Azure)" = "technical/cloud-deployment.md" },
     { "Requisitos (SRS)" = "technical/srs.md" },
     { "Tareas y progreso" = "technical/tasks.md" },
   ]},
