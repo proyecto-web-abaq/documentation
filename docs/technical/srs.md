@@ -2,9 +2,9 @@
 **Estándar:** ISO/IEC/IEEE 29148:2018  
 **Proyecto:** Plataforma Web ABAQ (Servicio Social, Censo Comunitario y Documentación Pedagógica)  
 **Módulos:** Autenticación, Experiencia Typeform, Seguridad, Documentación de Código y Guía de Lectura  
-**Versión:** 2.0.0  
-**Fecha:** 2026-09-03  
-**Estado:** Aprobado  
+**Versión:** 2.1.0  
+**Fecha:** 2026-10-22 (v2.0.0: 2026-09-03)  
+**Estado:** Aprobado (v2.0.0) · Propuesta (§7, adiciones v2.1.0)  
 **Autores:** Equipo de Ingeniería de Requerimientos ABAQ  
 
 ---
@@ -28,7 +28,9 @@ El propósito de este documento es especificar formalmente los requerimientos de
 - **TSDoc**: Estándar de documentación de TypeScript compatible con TypeDoc y analizadores semánticos.
 - **GridFS**: Especificación y protocolo de MongoDB para almacenar y recuperar archivos que superan el límite de 16MB de documentos BSON mediante fragmentación en colecciones `files` y `chunks`.
 - **Typeform UX**: Patrón interactivo de formularios presentado en tarjetas temáticas secuenciales asistidas por navegación de teclado.
-- **RBAC**: *Role-Based Access Control* (Control de Acceso Basado en Roles: `student` y `admin`).
+- **RBAC**: *Role-Based Access Control* (Control de Acceso Basado en Roles: `admin`, `student` y `volunteer`).
+- **SS / VG**: Estudiante de servicio social / Voluntario general.
+- **Vinculación**: Oportunidad de ABAQ (plática, campaña de esterilización, adopción o placa de identificación) que genera horas para el estudiante vinculado.
 - **DTO**: *Data Transfer Object* (Objeto de Transferencia de Datos).
 
 ### 1.4 Referencias Normativas
@@ -153,3 +155,64 @@ El formulario de censo animal (`/survey/form/submit` y `FormComponent`) debe agr
 - [ ] **AC-04 (Validación Bloqueante por Lote)**: Imposibilidad de avanzar de tarjeta si los campos requeridos del lote actual no son válidos.
 - [ ] **AC-05 (Preservación de Datos al Retroceder)**: Retención íntegra de la información capturada al regresar a lotes anteriores.
 - [ ] **AC-06 (Asignación de Rol Admin y Passkey)**: Protección del endpoint `POST /auth/admin/register` mediante clave secreta, asignando `role: "admin"` únicamente con passkey correcta y rechazando con 403 Forbidden en caso de clave inválida.
+
+---
+
+## 7. Roles, navegación, vinculaciones y folios (adiciones v2.1.0)
+
+Ideas acordadas el 2026-10-22 para la nueva interfaz. Complementan el [Diseño de Autenticación](auth-design.md) v1.1.0.
+
+### 7.1 Roles y secciones por rol
+
+La barra de navegación tiene dos estilos (vertical y horizontal). Ambos muestran **las mismas secciones**; solo cambia la presentación.
+
+| Rol | Secciones principales | Menú de perfil |
+|---|---|---|
+| Administrador | Inicio · Voluntarios · Actividades · Acreditaciones · Vinculaciones · Respaldos | Reporte de información · Configuración |
+| Estudiante (SS) | Inicio · Actividades · Acreditaciones | Reporte de información · Configuración |
+| Voluntario general (VG) | Inicio · Actividades · Historial de colaboraciones | Reporte de información y actividades · Configuración |
+
+### `[SRS 7.2 Requerimientos Funcionales - Roles y Navegación]`
+- **RF-ROL-01 (Tres roles)**: el sistema distingue `admin`, `student` (SS) y `volunteer` (VG). Solo el estudiante SS acumula y valida horas; el voluntario general solo se inscribe a actividades y se registra su asistencia.
+- **RF-ROL-02 (Secciones por rol)**: cada rol ve únicamente las secciones de la tabla 7.1.
+- **RF-ROL-03 (Inicio del estudiante)**: el Inicio del estudiante es un panel nuevo; la información personal y las horas validadas viven en *Reporte de información*.
+- **RF-ROL-04 (Configuración)**: *Configuración* reúne los datos de la cuenta que antes estaban en "Mi perfil" (estudiante y voluntario).
+- **RF-ROL-05 (Reporte del voluntario general)**: *Reporte de información y actividades* muestra sus datos, redes y las actividades en que participó.
+- **RF-ROL-07 (Filosofía de tiempo por pantalla)**:
+  - *Inicio*: presente y futuro en una ventana corta de **14 días** (pendientes de hoy y lo que viene). Nada del pasado; ofrece un enlace al Reporte.
+  - *Secciones* (Actividades, Acreditaciones, Vinculaciones, Voluntarios…): pasado, presente y futuro, con filtros **Próximas · En curso · Pasadas**.
+  - *Reporte de información*: información completa de la persona y su pasado, incluidas **las dos acreditaciones** (horas validadas de actividades y solicitudes de acreditación). Se construye desde las antiguas páginas de inicio de Angular.
+  - Lo que está en curso (adopción en prueba, placa pendiente, solicitud por validar) cuenta como presente.
+- **RF-ROL-06 (Página de error general)**: cualquier ruta inexistente o petición fallida (404 u otro error de la API) muestra una sola página de error general.
+
+### `[SRS 7.3 Requerimientos Funcionales - Vinculaciones]`
+- **RF-VIN-01 (Sección del administrador)**: *Vinculaciones* es una sección del administrador con un menú desplegable de cuatro tipos: **Pláticas**, **Campañas**, **Adopciones** y **Placas de identificación**. Cada tipo tiene lista y detalle.
+- **RF-VIN-02 (Registro solo por el administrador)**: por ahora solo el administrador registra vinculaciones.
+- **RF-VIN-03 (Horas del estudiante)**: el estudiante suma las horas de una vinculación desde *Acreditaciones*.
+- **Idea futura**: que el estudiante vea en una sección las vinculaciones donde aparece, y que el voluntario general pueda proponer oportunidades a ABAQ.
+
+### `[SRS 7.4 Requerimientos Funcionales - Folios]`
+- **RF-FOL-01 (Folio de expediente)**: cada registro recibe `<TIPO>-<AAMMDD>-<NN>`, p. ej. `SS-261022-07` (ver [auth-design §5.1](auth-design.md#51-folio-de-expediente)).
+- **RF-FOL-02 (Folio de oportunidad)**: cada vinculación que genera horas a un estudiante recibe `OP-AAMMDD-00000`.
+- **RF-FOL-03 (Folio de acreditación)**: cada solicitud de acreditación de horas recibe `AC-AAMMDD-00000`.
+- **RF-FOL-04 (Uso del folio)**: el estudiante usa el folio `OP` o `AC` como referencia para pedir aclaraciones o correcciones de horas al administrador.
+- **RF-FOL-05 (Alcance)**: los folios `OP` y `AC` existen solo para estudiantes SS y los ven el estudiante y el administrador. El voluntario general no recibe estos folios.
+
+### `[SRS 7.5 Requerimientos No Funcionales - Folios e Interfaz]`
+- **RNF-FOL-01 (Ceros ocultos)**: el backend guarda el consecutivo con cinco dígitos (`00007`); la interfaz lo muestra sin ceros a la izquierda (`OP-261022-7`).
+- **RNF-FOL-02 (Reinicio anual)**: el consecutivo de `OP` y `AC` vuelve a 0 cada 1 de enero.
+- **RNF-FOL-03 (Unicidad)**: ningún folio puede repetirse dentro de su tipo.
+- **RNF-UI-01 (Navbar equivalente)**: las navbars vertical y horizontal exponen exactamente las mismas secciones y permisos.
+- **RNF-UI-02 (Tema)**: todas las vistas funcionan en tema claro y oscuro con el sistema de diseño institucional.
+- **RNF-UI-03 (TypeScript)**: las vistas nuevas del frontend React se escriben en TypeScript.
+
+### 7.6 Criterios de aceptación
+- [ ] **AC-ROL-01**: Cada rol ve solo sus secciones, igual en navbar vertical y horizontal.
+- [ ] **AC-VIN-01**: El administrador abre *Vinculaciones* y elige uno de los cuatro tipos en un menú desplegable.
+- [ ] **AC-FOL-01**: Un estudiante ve folios con el formato correcto y sin ceros a la izquierda.
+- [ ] **AC-FOL-02**: El primer folio `OP` o `AC` de cada año empieza de nuevo en 1.
+- [ ] **AC-ERR-01**: Una URL inexistente muestra la página de error general.
+
+### 7.7 Pendientes de definición
+- Fases y campos del registro para el voluntario general (las Fases 1–4 están pensadas para SS).
+- Qué evento exacto asigna el folio `OP` (al registrar la vinculación o al vincular al estudiante).
