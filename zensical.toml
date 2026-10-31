@@ -40,6 +40,7 @@ nav = [
     { "Arquitectura y Diseño" = [
       "technical/arquitectura-y-diseno/index.md",
       { "Arquitectura" = "technical/architecture.md" },
+      { "Sistema de Diseño (DESIGN.md)" = "technical/design-system.md" },
       { "Diseño de Autenticación (Login y Registro)" = "technical/auth-design.md" },
       { "Mapa de Interfaces y Prompts para Figma" = "technical/ui-prompts-figma.md" },
     ]},

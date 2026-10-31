@@ -166,3 +166,24 @@ Para garantizar la estabilidad y la trazabilidad del código en futuras fases de
 3. **Cortes de Producción (`main`):**
    - La rama `main` contiene únicamente código verificado y listo para producción sin servicios que dependan de cuentas de prueba o cuotas efímeras no garantizadas.
    - Todo código en evaluación, experimental o que exceda el alcance del release actual debe quedar respaldado en ramas de archivo (como `dev-rivers`).
+
+---
+
+## 6. Política de Versionado y Etiquetas (CalVer — Calendar Versioning)
+
+El proyecto ABAQ adopta formalmente el estándar de **Versionado Basado en Calendario (CalVer)** con la convención canónica `vYYYY.MM.DD` en los tres repositorios del ecosistema (`backend`, `frontend` y `documentation`), sustituyendo el versionado semántico tradicional (`SemVer: v1.x.x`, `v2.x.x`).
+
+### 6.1. Justificación Técnica e Institucional
+1. **Alineación con Hitos y Auditorías Reales**: Los entregables de ABAQ responden a bi-semanas de avance, reportes oficiales y cortes de ciclo de servicio social universitario en Querétaro. Un número SemVer abstracto ocultaba la vigencia y frescura del software frente a las fechas reales de auditoría.
+2. **Sincronización Multi-Repositorio**: Permite que Frontend, Backend y Documentación compartan la misma etiqueta de versión cuando corresponden a un mismo corte operativo (p. ej. `v2026.10.31`), eliminando desalineaciones entre micro-versiones de librerías y componentes.
+3. **Consistencia con Folios Institucionales**: Los folios reglamentarios de la organización (`SS-YYMMDD-HEX` y `VG-YYMMDD-HEX`) utilizan la misma lógica temporal de fecha (`YYMMDD`), reforzando una única convención en base de datos, interfaces y Git.
+
+### 6.2. Reglas de Etiquetado Git (Git Tags)
+- Toda etiqueta de release se genera como un **tag anotado** en Git:
+  ```bash
+  git tag -a vYYYY.MM.DD -m "release: <descripcion del corte> (CalVer YYYY.MM.DD)"
+  ```
+- En caso de múltiples despliegues en una misma jornada, se añade un micro-sufijo incremental: `vYYYY.MM.DD.1`, `vYYYY.MM.DD.2`.
+- Los paquetes `package.json` en Backend y Frontend reflejan la versión CalVer en formato `YYYY.MM.DD` (p. ej. `"version": "2026.10.31"`).
+- Se deprecian formalmente las etiquetas SemVer (`vX.Y.Z`) en el historial de producción.
+

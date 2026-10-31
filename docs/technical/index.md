@@ -66,6 +66,7 @@ icon: lucide/folder-git-2
     Estructura modular del sistema, diagramas de flujo y modelado de interfaces:
     
     * **[Arquitectura C4](architecture.md)**: Diagramas de Contexto, Contenedores y Componentes.
+    * **[Sistema de Diseño](design-system.md)**: Tokens visuales, gradientes, layout adaptativo y patrones.
     * **[Diseño de Autenticación](auth-design.md)**: Flujo de onboarding en 4 fases, validación e inmutabilidad.
     * **[Mapa de Interfaces Figma](ui-prompts-figma.md)**: Prompts y especificaciones de pantalla.
     * **Esquema de Datos Mongoose**: Modelos relacionales desacoplados de estudiantes y voluntarios.
