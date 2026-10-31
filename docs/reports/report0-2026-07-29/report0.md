@@ -1,7 +1,3 @@
----
-icon: lucide/file-text
----
-
 # Reporte de Avance No. 0
 
 | | |

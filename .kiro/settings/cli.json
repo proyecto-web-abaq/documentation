@@ -1,0 +1,5 @@
+{
+  "toolSearch.enabled": true,
+  "kirocrew.skillDiscovery.inheritFiles": true,
+  "kirocrew.skillDiscovery.inheritSource": "workspace"
+}

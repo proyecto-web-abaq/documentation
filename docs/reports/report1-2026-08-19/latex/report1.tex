@@ -1,0 +1,292 @@
+% Options for packages loaded elsewhere
+\PassOptionsToPackage{unicode}{hyperref}
+\PassOptionsToPackage{hyphens}{url}
+\PassOptionsToPackage{dvipsnames,svgnames,x11names}{xcolor}
+\documentclass[
+]{article}
+\usepackage{xcolor}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb}
+\setcounter{secnumdepth}{-\maxdimen} % remove section numbering
+\usepackage{iftex}
+\ifPDFTeX
+  \usepackage[T1]{fontenc}
+  \usepackage[utf8]{inputenc}
+  \usepackage{textcomp} % provide euro and other symbols
+\else % if luatex or xetex
+  \usepackage{unicode-math} % this also loads fontspec
+  \defaultfontfeatures{Scale=MatchLowercase}
+  \defaultfontfeatures[\rmfamily]{Ligatures=TeX,Scale=1}
+\fi
+\usepackage{lmodern}
+\ifPDFTeX\else
+  % xetex/luatex font selection
+  \setmainfont[]{Helvetica Neue}
+\fi
+% Use upquote if available, for straight quotes in verbatim environments
+\IfFileExists{upquote.sty}{\usepackage{upquote}}{}
+\IfFileExists{microtype.sty}{% use microtype if available
+  \usepackage[]{microtype}
+  \UseMicrotypeSet[protrusion]{basicmath} % disable protrusion for tt fonts
+}{}
+\makeatletter
+\@ifundefined{KOMAClassName}{% if non-KOMA class
+  \IfFileExists{parskip.sty}{%
+    \usepackage{parskip}
+  }{% else
+    \setlength{\parindent}{0pt}
+    \setlength{\parskip}{6pt plus 2pt minus 1pt}}
+}{% if KOMA class
+  \KOMAoptions{parskip=half}}
+\makeatother
+\usepackage{longtable,booktabs,array}
+\usepackage{caption}
+\captionsetup[table]{skip=6pt}
+\newcounter{none} % for unnumbered tables
+\usepackage{calc} % for calculating minipage widths
+% Correct order of tables after \paragraph or \subparagraph
+\usepackage{etoolbox}
+\makeatletter
+\patchcmd\longtable{\par}{\if@noskipsec\mbox{}\fi\par}{}{}
+\makeatother
+\setlength{\emergencystretch}{3em} % prevent overfull lines
+\providecommand{\tightlist}{%
+  \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+\usepackage{bookmark}
+\IfFileExists{xurl.sty}{\usepackage{xurl}}{} % add URL line breaks if available
+\urlstyle{same}
+% fallback for those not using the hyperref driver hyperxmp:
+\makeatletter
+\@ifundefined{xmpquote}{\newcommand{\xmpquote}[1]{#1}}{}
+\makeatother
+\hypersetup{
+  pdftitle={Reporte de Avance No. 1},
+  pdfauthor={Equipo de Desarrollo ABAQ},
+  colorlinks=true,
+  linkcolor={Maroon},
+  filecolor={Maroon},
+  citecolor={Blue},
+  urlcolor={Blue},
+  pdfcreator={LaTeX via pandoc}}
+
+\title{Reporte de Avance No. 1}
+\author{Equipo de Desarrollo ABAQ}
+\date{}
+
+\begin{document}
+\maketitle
+
+{
+\setcounter{tocdepth}{3}
+\tableofcontents
+}
+\section{Reporte de Avance No.~1}\label{reporte-de-avance-no.-1}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}ll@{}}
+\toprule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+\textbf{Fecha} & 19 de agosto de 2026 \\
+\textbf{Versión} & v1.0.0 \\
+\textbf{Estado} & En planeación / Prototipado \\
+\textbf{Preparado por} & Equipo de Desarrollo ABAQ \\
+\end{longtable}
+}
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\textbf{Descargas} Puedes descargar este documento en los siguientes
+formatos:
+
+\begin{verbatim}
+-  **[Descargar PDF](latex/report1.pdf)**
+-  **[Descargar Word (.docx)](latex/report1.docx)**
+\end{verbatim}
+
+\subsection{Resumen ejecutivo}\label{resumen-ejecutivo}
+
+Este documento presenta el primer reporte de avance del proyecto ABAQ.
+Durante este período se llevó a cabo la presentación oficial del primer
+prototipo funcional de la plataforma a la asociación ABAQ Querétaro,
+logrando alinear las expectativas sobre el diseño y la arquitectura del
+sistema. Se acordó el desarrollo de un sistema con accesos separados
+para administradores y estudiantes, garantizando la seguridad de la
+información. Finalmente, se negoció un esquema de trabajo de 8 entregas
+quincenales para la liberación del servicio social.
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\subsection{1. Introducción}\label{introducciuxf3n}
+
+Este documento resume los acuerdos y requerimientos recabados en la
+primera reunión oficial de seguimiento (19 de agosto de 2026) entre el
+equipo de desarrollo de software y ABAQ Querétaro. El propósito
+principal de la sesión fue validar el rumbo técnico del proyecto y
+formalizar las condiciones operativas.
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\subsection{2. Detalles del Acuerdo}\label{detalles-del-acuerdo}
+
+\subsubsection{2.1 Roles por equipo}\label{roles-por-equipo}
+
+El desarrollo del aplicativo está a cargo de un equipo de tres
+integrantes. Los tres conforman, de manera conjunta, el \textbf{equipo
+de base de datos del aplicativo}, responsable del modelo de datos que
+sustenta la plataforma.
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}ll@{}}
+\toprule\noalign{}
+Integrante & Rol \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+Fernando Israel Ríos García & Documentación \\
+Johan & Developer general \\
+Brahn & Developer y diseñador gráfico \\
+\end{longtable}
+}
+
+El modelo de datos sobre el que trabaja este equipo está implementado en
+MongoDB (Mongoose) y se compone, en su estado actual, de las siguientes
+colecciones:
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{Estudiante (\texttt{Student}):} expediente del voluntario ---
+  nombre completo, matrícula, correos personal e institucional, escuela,
+  carrera, fecha de arranque, auditor asignado, teléfono, fecha de
+  nacimiento, horas (a cubrir, acreditadas y pendientes), documentos
+  oficiales (carta de aceptación, carta de término, constancia de
+  plática), redes sociales, periodo y estado de conclusión.
+\item
+  \textbf{Contacto (\texttt{Contact}):} seguimiento de comunicaciones
+  --- correo de contacto, estudiante asociado, estado y fechas de
+  seguimiento.
+\item
+  \textbf{Encuesta (\texttt{Survey}):} instrumento de bienestar animal
+  --- estudiante asociado, datos de mascotas, esterilización,
+  vacunación, condiciones de vida y campos de concientización.
+\item
+  \textbf{Actividad (\texttt{Activity}):} actividades del servicio
+  social --- título, descripción, tipo (obligatoria, opcional o
+  específica), fechas, valor en horas y horas validadas.
+\end{itemize}
+
+\subsubsection{2.2 Fechas de entrega}\label{fechas-de-entrega}
+
+Se acordó un esquema de \textbf{8 sesiones quincenales} (una cada 15
+días) a partir de la primera sesión oficial del 19 de agosto de 2026. Se
+incluye además la sesión 0 correspondiente a la presesión de
+presentación inicial.
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.3333}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.3333}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.3333}}@{}}
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+Sesión N
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Fecha
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Descripción
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+0 & 29 jul 2026 & Presesión de presentación inicial (ver Reporte
+No.~0) \\
+1 & 19 ago 2026 & Validación del prototipo y definición de
+requerimientos (Reporte No.~1) \\
+2 & 2 sep 2026 & Avance de seguridad y nuevas pantallas de
+administración (documentado en el Reporte No.~2, fechado el 9 sep
+2026) \\
+3 & 16 sep 2026 & Seguimiento de desarrollo según próximos pasos
+acordados \\
+4 & 30 sep 2026 & Seguimiento de desarrollo según próximos pasos
+acordados \\
+5 & 14 oct 2026 & Seguimiento de desarrollo según próximos pasos
+acordados \\
+6 & 28 oct 2026 & Seguimiento de desarrollo según próximos pasos
+acordados \\
+7 & 11 nov 2026 & Seguimiento de desarrollo según próximos pasos
+acordados \\
+8 & 25 nov 2026 & Sesión de cierre y entrega final del sistema \\
+\end{longtable}
+}
+
+\subsubsection{2.3 Acuerdos obtenidos}\label{acuerdos-obtenidos}
+
+Sobre lo solicitado en la reunión, se obtuvieron los siguientes
+acuerdos:
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  \textbf{Entrega del modelo de datos de voluntarios:} se entregará un
+  archivo Excel con el modelo de datos de los voluntarios guardados en
+  la plataforma.
+\item
+  \textbf{Cumplimiento de las sesiones quincenales:} se cumplirá con el
+  esquema de \textbf{8 sesiones quincenales} hasta diciembre de 2026,
+  conforme al conteo iniciado en el primer reporte (19 de agosto de
+  2026), culminando con la entrega del sistema completo.
+\end{enumerate}
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\subsection{3. Cambios en el Servidor
+(Backend)}\label{cambios-en-el-servidor-backend}
+
+Sin información, no requerido.
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\subsection{4. Cambios en la Aplicación Web
+(Frontend)}\label{cambios-en-la-aplicaciuxf3n-web-frontend}
+
+Sin información, no requerido.
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\subsection{5. Evidencia Visual}\label{evidencia-visual}
+
+Falta de información.
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\subsection{6. Estado Actual del
+Proyecto}\label{estado-actual-del-proyecto}
+
+\textbf{En Prototipado y Negociación} Se validó el prototipo funcional
+inicial y se acordó formalmente la liberación del servicio social a
+cambio de la entrega del sistema completo para diciembre de 2026.
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\subsection{7. Próximos Pasos}\label{pruxf3ximos-pasos}
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  \textbf{Vistas Separadas:} Desarrollar y presentar el panel dividido
+  entre Administrador y Estudiante.
+\item
+  \textbf{Datos de Prueba:} Alimentar la plataforma con registros de
+  prueba realistas.
+\item
+  \textbf{Documentación Formal:} Elaborar un documento formal que
+  detalle la propuesta técnica y el calendario de entregas.
+\end{enumerate}
+
+\end{document}

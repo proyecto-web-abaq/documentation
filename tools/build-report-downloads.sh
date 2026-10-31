@@ -81,9 +81,23 @@ rm -f "$TMP_MD.step1" "$TMP_MD.step2"
 # --- Metadatos de titulo/subtitulo tomados del H1 del documento ---
 TITLE="$(grep -m1 '^# ' "$SRC_MD" | sed 's/^# //')"
 
+echo "==> Generando LaTeX (.tex): $OUT_DIR/$BASENAME.tex"
+pandoc "$TMP_MD" \
+  --from=markdown+pipe_tables \
+  --resource-path="$REPORT_DIR" \
+  --metadata title="${TITLE:-Reporte ABAQ}" \
+  --metadata author="Equipo de Desarrollo ABAQ" \
+  -V geometry:margin=1in \
+  -V mainfont="Helvetica Neue" \
+  -V colorlinks=true \
+  --toc \
+  -s \
+  -o "$OUT_DIR/$BASENAME.tex"
+
 echo "==> Generando PDF: $OUT_DIR/$BASENAME.pdf"
 pandoc "$TMP_MD" \
   --from=markdown+pipe_tables \
+  --resource-path="$REPORT_DIR" \
   --metadata title="${TITLE:-Reporte ABAQ}" \
   --metadata author="Equipo de Desarrollo ABAQ" \
   --pdf-engine=xelatex \
@@ -96,11 +110,13 @@ pandoc "$TMP_MD" \
 echo "==> Generando DOCX: $OUT_DIR/$BASENAME.docx"
 pandoc "$TMP_MD" \
   --from=markdown+pipe_tables \
+  --resource-path="$REPORT_DIR" \
   --metadata title="${TITLE:-Reporte ABAQ}" \
   --metadata author="Equipo de Desarrollo ABAQ" \
   --toc \
   -o "$OUT_DIR/$BASENAME.docx"
 
 echo "==> Listo:"
+echo "    $OUT_DIR/$BASENAME.tex"
 echo "    $OUT_DIR/$BASENAME.pdf"
 echo "    $OUT_DIR/$BASENAME.docx"
