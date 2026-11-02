@@ -32,6 +32,7 @@ nav = [
       { "Sistema de Notificaciones" = "technical/notificaciones-design.md" },
       { "Perfil del Usuario y Flujo de Aprobación" = "technical/perfil-usuario-design.md" },
       { "Datos: Respaldo, Recuperación y Ciclo de Vida" = "technical/datos-respaldo-recuperacion-design.md" },
+      { "Ciclo de Vida, Deshidratación y Folios" = "technical/ciclo-vida-voluntarios-deshidratacion-design.md" },
     ]},
     { "Requisitos" = [
       "technical/requisitos/index.md",
@@ -42,6 +43,7 @@ nav = [
       { "Arquitectura" = "technical/architecture.md" },
       { "Sistema de Diseño (DESIGN.md)" = "technical/design-system.md" },
       { "Diseño de Autenticación (Login y Registro)" = "technical/auth-design.md" },
+      { "Contrato de Datos: Folios y Desacoplamiento" = "technical/contrato-folios-desacoplamiento.md" },
       { "Mapa de Interfaces y Prompts para Figma" = "technical/ui-prompts-figma.md" },
     ]},
     { "Operación" = [
@@ -53,6 +55,7 @@ nav = [
     { "Gestión del proyecto" = [
       "technical/gestion-proyecto/index.md",
       { "Tareas y progreso" = "technical/tasks.md" },
+      { "Plan de Pruebas: Ciclo de Vida" = "technical/gestion-proyecto/plan-pruebas-ciclo-vida.md" },
       { "Estrategia de Ramas Git" = "technical/gestion-proyecto/estrategia-ramas.md" },
     ]},
   ]},

@@ -613,5 +613,188 @@ abaq-backup-YYYY-MM-DD-HHmmss.zip
   - El backend valida el token `cf-turnstile-response` mediante llamada segura a `https://challenges.cloudflare.com/turnstile/v0/siteverify` antes de procesar contraseñas o generar documentos.
   - Se implementa arquitectura de Proxy Inverso Cloudflare sobre el dominio institucional con reglas de firewall WAF y limitación de tasa (*rate limiting*) para mitigar ataques DDoS y ataques de fuerza bruta.
 
+---
+
+## 13. Módulo de Ciclo de Vida, Inactivación Automática y Deshidratación de Base de Datos (v2.4.0)
+
+### `[SRS 13.1 Requerimientos Funcionales - Máquina de Estados del Usuario]`
+
+- **RF-STATE-01 (Enum Unificado de Estado de Cuenta)**:
+  - Los esquemas `Student` y `Volunteer` implementan de forma obligatoria el atributo `accountStatus` con el enum: `['pending', 'active', 'inactive', 'rejected']`.
+  - El estado inicial al concluir el onboarding en 4 fases es `pending`.
+
+- **RF-STATE-02 (Aislamiento de Cuentas Pendientes en Login)**:
+  - Si un usuario con `accountStatus: 'pending'` inicia sesión, el sistema intercepta la navegación y lo redirige exclusivamente a `/onboarding/expediente`. Se bloquea el acceso a rutas internas mediante `AuthGuard`.
+
+- **RF-STATE-03 (Primer Ingreso Obligatorio tras Aceptación)**:
+  - Los esquemas `Student` y `Volunteer` incorporan el campo booleano `primerIngresoRealizado` (default: `false`).
+  - Al autenticarse por primera vez tras ser aprobado por el administrador (`accountStatus: 'active'` y `primerIngresoRealizado: false`), el usuario es redirigido a `/onboarding/expediente`.
+  - En esta pantalla, el colaborador visualiza su confirmación de alta, descarga su **Carta de Aceptación y Felicitación Oficial** (`cartaAceptacion`), y pulsa el botón **"Ingresar a la Plataforma ABAQ"**.
+  - Al hacer clic en dicho botón, el frontend solicita al backend la actualización persistente `primerIngresoRealizado: true` y lo redirige a la vista inicial de su rol (`/activity-list`).
+  - En inicios de sesión subsecuentes (`primerIngresoRealizado: true`), el usuario ya no pasa por el expediente e ingresa directamente a su rol.
+  - Si el usuario intenta forzar la navegación por URL a `/activity-list` antes de pulsar el botón de primer ingreso, `AuthGuard` lo devuelve a `/onboarding/expediente`.
+
+- **RF-STATE-04 (Re-registro Idempotente de Usuarios Rechazados)**:
+  - Cuando un administrador rechaza una solicitud, el backend actualiza `accountStatus: 'rejected'` y registra el motivo en `statusHistory`. No se elimina el documento de MongoDB.
+  - El correo electrónico del colaborador **no queda bloqueado**.
+  - Si un usuario rechazado vuelve a registrarse con su mismo correo, el backend reutiliza su `_id` original:
+    1. Reemplaza los datos personales, académicos y respuestas de formulario.
+    2. Hashea y actualiza la nueva contraseña.
+    3. Limpia las causales de rechazo previas.
+    4. Cambia `accountStatus` a `'pending'`.
+    5. Inserta una entrada en `statusHistory` con motivo `'re_registration'`.
+
+- **RF-STATE-05 (Bitácora statusHistory y Trazabilidad de Comentarios)**:
+  - Cada entrada de `statusHistory` en `Student` y `Volunteer` debe persistir: `previousStatus`, `newStatus`, `changedAt`, `changedBy` (ObjectId del User admin o `'system_cron'`), `changedByEmail` (`req.user.email` o `'system_cron'`), `changedByRole` (`'admin' | 'system'`), `reason` y `comments`.
+  - **Alineación con el Esquema de Usuarios:** Como el modelo `User` en MongoDB no cuenta con atributo de nombre propio para las cuentas de rol `admin`, la auditoría se asocia fehacientemente al correo electrónico autenticado (`changedByEmail = req.user.email`).
+  - **Llenado Autónomo vs. Manual:**
+    - Eventos del sistema (cumplimiento de 480 hrs, inactividad a los 60 días, re-registro): El sistema asigna un comentario institucional predeterminado.
+    - Eventos manuales del Administrador (rechazo de expediente, baja discrecional, aceptación): La interfaz web despliega un modal con campo de texto para que el admin justifique el dictamen. Si se deja en blanco, aplica un comentario formal por defecto.
+  - **Visibilidad en Interfaz de Expediente (`/onboarding/expediente`)**:
+    - Aplica a ambos roles de voluntario (`SS` y `VG`).
+    - En estado `accepted` (`active`), muestra el comentario de aprobación y felicitación institucional de la Coordinación (`comments`).
+    - En estado `rejected`, despliega la tarjeta destacada con las *"Observaciones de la Coordinación: {{comments}}"*, instruyendo qué corregir antes del re-registro.
+  - **Consumo en Notificaciones Resend:**
+    - El cuerpo del correo transaccional incorpora el campo `comments` en una caja destacada (*callout*), asegurando que el voluntario conozca formalmente la razón del cambio de estado en su bandeja de entrada.
+
+### `[SRS 13.2 Requerimientos Funcionales - Inactivación Automática Dual]`
+
+- **RF-AUTO-01 (Inactivación Inmediata por Cumplimiento de 480 Horas)**:
+  - Aplica exclusivamente al rol `student` (Servicio Social).
+  - En la misma transacción donde el administrador aprueba una acreditación y el total de horas acreditadas alcanza o supera las 480 horas, el backend:
+    1. Actualiza `accountStatus = 'inactive'`.
+    2. Asigna `fechaDesactivacion = Date.now()`.
+    3. Genera la URL con token criptográfico para el **Certificado de Finalización Oficial** (`renderCompletionCertificateHtml`).
+    4. Registra el evento en `statusHistory` con motivo `'hours_completed'`.
+    5. Despacha vía Resend el correo transaccional de finalización con el enlace de descarga oficial.
+
+- **RF-AUTO-02 (Inactivación Integral por 2 Meses de Inactividad - 60 Días)**:
+  - Aplica a ambos roles de voluntarios (`student` y `volunteer`).
+  - La última actividad se calcula mediante:
+    $$\text{fechaUltimaActividad} = \max(\text{lastLogin}, \text{fechaUltimaAcreditacion}, \text{fechaInscripcionActividad}, \text{fechaAceptacionExpediente})$$
+  - Un proceso programado (Cron Job diario en backend) evalúa los días de ausencia:
+    - **A los 45 días continuos sin actividad (15 días antes del corte):** Envía al voluntario el correo de alerta preventiva urgente (`sendInactivityWarningEmail(stage='day45')`).
+    - **A los 60 días continuos sin actividad:** Actualiza `accountStatus = 'inactive'`, asigna `fechaDesactivacion = Date.now()`, registra en `statusHistory` (`'inactivity_60_days'`) y envía el correo de rescisión por abandono (`sendInactivityWarningEmail(stage='day60')`). No se emite constancia de mérito.
+
+- **RF-AUTO-03 (Desactivación Administrativa)**:
+  - El administrador puede desactivar manualmente a un colaborador desde la tabla de voluntarios, especificando el motivo del cese en `statusHistory` (`'administrative_decision'`). La emisión de constancia queda restringida únicamente a casos donde concluyó formalmente.
+
+### `[SRS 13.3 Requerimientos Funcionales - Permisos y Restricción Operativa de Inactivos]`
+
+- **RF-INACT-01 (Modo de Solo Consulta Histórica Previa a la Baja)**:
+  - Un usuario con `accountStatus: 'inactive'` puede autenticarse para consultar su perfil e historial pasado.
+  - El endpoint `GET /activities` detecta si el usuario está inactivo e inyecta el filtro obligatorio:
+    $$\{ \text{createdAt}: \{ \$lte: \text{fechaDesactivacion} \} \}$$
+    Impidiendo que reciba convocatorias o actividades creadas con posterioridad a su baja.
+
+- **RF-INACT-02 (Bloqueo de Acciones de Modificación e Inscripción)**:
+  - Toda petición de un usuario inactivo para inscribirse a actividades (`POST /activities/:id/enroll`), solicitar nuevas acreditaciones (`POST /accreditations`) o editar datos del expediente es interceptada y rechazada con código HTTP `403 Forbidden`.
+
+- **RF-INACT-03 (Banner Fijo de Comentario de Inactivación en Perfiles de Usuario y Administración)**:
+  - **Perfil Personal del Voluntario (`/volunteer-profile` o perfil de estudiante):**
+    - Cuando la cuenta tiene `accountStatus: 'inactive'`, la vista de perfil muestra de **forma fija y permanente en la parte superior (inmediatamente debajo del header)** un banner destacado que le comunica su estatus de baja/inactivo, la fecha de desactivación, la causal (`reason`) y el comentario explicativo oficial (`comments`).
+  - **Ficha del Voluntario en Administración (`StudentDetailComponent` y `VolunteerDetailComponent`):**
+    - Mientras el colaborador inactivo sea visible en las interfaces normales operativas ($< 12$ meses), la ficha de detalle que consulta el administrador renderiza permanentemente en la parte superior (cerca del header) una tarjeta informativa con el comentario del cambio a `inactive`, el responsable (`changedByEmail`), la fecha y la causal, permitiendo que el admin distinga de inmediato la justificación de la baja (cumplimiento de horas, inactividad de 60 días, o baja administrativa).
+
+### `[SRS 13.4 Requerimientos Funcionales - Visibilidad Escalonada y Voluntarios Pasados]`
+
+- **RF-VIS-01 (Ventana Operativa de 12 Meses en Tabla Principal)**:
+  - Los colaboradores inactivos con menos de 12 meses de antigüedad desde su `fechaDesactivacion` permanecen en la tabla general de voluntarios (`/volunteers` o `/student`).
+  - La fila del registro se estiliza con fondo gris claro (`#f1f5f9`) y texto atenuado (`#64748b`), ordenándose al final de la paginación.
+
+- **RF-VIS-02 (Retiro de Vistas Operativas a los 12 Meses)**:
+  - Al cumplirse 1 año (365 días) de su fecha de desactivación, los registros quedan excluidos de la consulta principal y sólo son accesibles en la vista de historial.
+
+- **RF-VIS-03 (Vista Dedicada de Voluntarios Pasados - `/volunteers/history`)**:
+  - Se implementa un botón principal en el encabezado de voluntarios: *"Ver Voluntarios Pasados"*, que redirige a `/volunteers/history`.
+  - La vista cuenta con dos pestañas alimentadas por Aggregation Pipelines que proyectan de forma ligera los campos exactos:
+    1. **Pestaña Estudiantes Pasados:** Nombre completo, contacto (teléfono y correo), edad, fecha en la organización, fecha de activación, fecha de desactivación, total de acreditaciones, total de horas cubiertas, tipo de periodo cursado (enum universitario) y universidad.
+    2. **Pestaña Voluntarios Generales Pasados:** Nombre completo, contacto, edad, fecha en la organización, fecha de activación, fecha de desactivación y total de acreditaciones (sin conteo de horas).
+    3. **Pestaña Bitácora de Estados:** Visualización del historial de transiciones (`statusHistory`).
+
+### `[SRS 13.5 Requerimientos Funcionales - Deshidratación Indivisible de Base de Datos]`
+
+- **RF-DEHYD-01 (Principio del Corte Limpio e Indivisible)**:
+  - El sistema no permite purgas parciales. Para que una actividad u oportunidad sea purgada y deshidratada, **no puede haber ni un solo alumno activo** vinculado a ella.
+  - Si una actividad u oportunidad cuenta con al menos un alumno activo o con inactividad menor a 1 año, **no se elimina nada** y permanece íntegra en la base de datos operativa.
+  - Cuando se cumple la condición (todos los participantes inactivos $> 1$ año y actividad/oportunidad concluida en el pasado), se purga simultáneamente todo el bloque relacional: el usuario inactivo, sus acreditaciones y los registros hijos de las oportunidades pasadas.
+
+- **RF-DEHYD-02 (Catálogo Unificado de Oportunidades - 11 Modalidades)**:
+  - El concepto de oportunidad abarca cualquier vía formal de participación en ABAQ. El proceso de deshidratación barre los modelos de las 11 opciones operativas:
+    `EVENT`, `INDUCTION`, `IDENTIFICATION`, `STERILIZATION`, `ADOPTION`, `ADOPTION_MODULE`, `TALK`, `CAMPAIGN`, `MEDIA`, `SOCIAL_MEDIA`, `DONATION` y `ADMINISTRATIVE`.
+  - Las plantillas maestras de actividades rápidas (`QuickActivity`) quedan permanentemente excluidas de la purga.
+
+### `[SRS 13.6 Requerimientos Funcionales - Flujo en Dos Pasos y Token Criptográfico de Purga]`
+
+- **RF-PURGE-01 (Tercera Columna en Sección de Respaldos e Indicador de Carga Operativa)**:
+  - En la vista `/backup` ("Generar y Descargar Copias Locales"), la cuadrícula de acciones se extiende a un **diseño de tres columnas (3 tarjetas)**:
+    - *Tarjeta 1:* Respaldo Completo del Sistema (`.ZIP / JSON` para rollback).
+    - *Tarjeta 2:* Libro Consolidado en Excel (`.XLSX` para auditoría y patronato).
+    - *Tarjeta 3:* Corte y Deshidratación de Base de Datos (`.ZIP / PURGA` para depuración histórica).
+  - La Tarjeta 3 expone de forma obligatoria una **alerta visual preventiva de procesamiento**:
+    > *"⚠️ Aviso: Se recomienda ejecutar esta operación fuera de horarios operativos durante el día. La verificación relacional de las 14 colecciones, empaquetado y purga demandan recursos intensivos de CPU y base de datos que podrían ralentizar el portal."*
+  - La tarjeta integra un control dropdown para seleccionar la fecha de corte, el botón del Paso 1 (*"1. Descargar Corte Limpio (.zip)"*) y el botón del Paso 2 (*"2. Purgar Registros de la BD"*).
+
+- **RF-PURGE-02 (Paso 1: Descarga y Emisión de Token de Purga)**:
+  - Al pulsar *"Descargar Corte Limpio (.zip)"*, el backend procesa los registros de usuarios inactivos $> 1$ año y oportunidades concluidas que cumplan el principio de corte indivisible.
+  - Genera el archivo ZIP descargable en la máquina local del administrador con los JSONs y `manifest.json` con hash SHA-256.
+  - El backend emite en la cabecera HTTP un token criptográfico de un solo uso: `X-Purge-Token` (con TTL de 15 minutos).
+
+- **RF-PURGE-03 (Paso 2: Borrado Bloqueante Condicionado)**:
+  - El botón *"Purgar registros de la BD"* se encuentra deshabilitado por defecto y se habilita únicamente cuando el cliente posee un `purgeToken` válido emitido tras la descarga exitosa.
+  - Al presionar el botón y confirmar con credenciales de administrador en modal de seguridad, el backend valida el token y ejecuta la purga atómica de los documentos respaldados en MongoDB.
+
+### `[SRS 13.7 Requerimientos Funcionales - Rehidratación Idempotente y Auditoría]`
+
+- **RF-REHYD-01 (Rehidratación por Subida de Paquete ZIP)**:
+  - El administrador puede subir un archivo ZIP de deshidratación previamente descargado en `/backup`.
+  - El backend procesa los JSONs y efectúa un `bulkWrite` con `replaceOne` y `upsert: true`, restaurando los documentos con sus identificadores `_id` y relaciones originales exactas.
+
+- **RF-AUDIT-01 (Bitácora Granular de Deshidratación y Rehidratación - DehydrationAuditLog)**:
+  - Toda operación de corte/purga (`dehydrate_purge`) y de rehidratación (`rehydrate_restore`) se registra de forma obligatoria e inmutable en la colección `DehydrationAuditLog`.
+  - **Identidad del Ejecutor:** Registra `adminId` (`ObjectId` ref `User`) y `email` (`req.user.email` del administrador en sesión), garantizando trazabilidad ante la ausencia de campo de nombre en el modelo de administración.
+  - **Trazabilidad y Folio Operativo:** Asigna un folio único determinista `operationFolio` (p. ej. `DEHYD-YYYYMMDD-HEX`), `cutoffDate`, `executedAt`, `durationMs` y estado (`completed`, `failed`, `rolled_back`).
+  - **Integridad Criptográfica del Paquete:** Registra `fileName`, `sha256` (hash hexadecimal de 64 caracteres del archivo ZIP generado), `fileSizeBytes` y versión de manifiesto.
+  - **Métricas Globales:** Registra `totalCollectionsAffected`, `totalDocumentsPurged`, `totalBytesFreed`, `preExecutionStorageBytes` y `postExecutionStorageBytes`.
+  - **Desglose Granular por Colección:** Almacena un arreglo tipado `collections` que desglosa detalladamente para cada modelo retirado: `collectionName`, `modelKey`, `modelName`, `documentCount`, `estimatedBytesFreed`, `purgedDocumentIds` (arreglo de ObjectIds purgados), `sampleFoliosOrEmails` y `filterCriteria` aplicado.
+  - **Alcance Estricto de Purgas y Preservación:**
+    - *Modelos Purgables (12):* `students`, `volunteers`, `users` (únicamente con rol `student` o `volunteer`), `accreditations`, `activities` (concluidas sin alumnos activos), `notifications` (asociadas a usuarios archivados, ~41.4% del volumen histórico), `surveys`, `contacts`, `identifications`, `talks`, `campaigns` y `adoptions`.
+    - *Modelos Preservados Permanentemente (4):* `quickactivities` (plantillas maestras reutilizables), `users` con rol `'admin'`, `pets` (censo comunitario de bienestar animal) y `DehydrationAuditLog`.
+
+### `[SRS 13.8 Requerimientos Funcionales - Notificaciones Exclusivas a Voluntarios]`
+
+- **RF-NOTIF-01 (Despacho Exclusivo al Correo de los Voluntarios vía Resend)**:
+  - Todas las notificaciones transaccionales del ciclo de vida son **exclusivamente para los voluntarios** (a su correo personal registrado).
+  - No existen notificaciones a los administradores ni se implementa interfaz web in-app ni campana de notificaciones.
+  - Los 4 disparadores de correo transaccional son:
+    1. Aceptación de expediente (`sendAcceptanceEmail`).
+    2. Alerta preventiva a los 45 días de inactividad (`sendInactivityWarningEmail` etapa 45).
+    3. Baja por 60 días de inactividad (`sendInactivityWarningEmail` etapa 60).
+    4. Conclusión de vinculación (`sendCompletionEmail`, diferenciando horas y certificado oficial para estudiantes, vs agradecimiento sin horas para voluntarios generales).
+
+### `[SRS 13.9 Requerimientos Funcionales - Homologación Visual de Encabezados]`
+
+- **RF-UI-01 (Encabezados Homologados con Gradiente Institucional)**:
+  - Todas las vistas principales de ambos roles adoptan el patrón de diseño `.admin-hero` / `.page-hero` con el contenedor en gradiente institucional (`linear-gradient(135deg, #1f2f63 0%, #24366f 35%, #2d6a2e 78%, #5ca83a 100%)`).
+  - Aplica a: `/admin/home`, `/student`, `/activity`, `/backup`, `/volunteers/history`, `/activity-list`, `/activity-detail`, `/volunteer-profile` y `/survey`.
+
+### `[SRS 13.10 Requerimientos Funcionales - Folios Deterministas de Interacción y Desacoplamiento]`
+
+- **RF-FOL-01 (Nomenclatura Determinista de Solicitud de Interacción AC y OP)**:
+  - El sistema asigna un folio determinista obligatorio para cada interacción de voluntariado:
+    - `AC-YYMMDD-HEX`: Para postulaciones e inscripciones en actividades colectivas (`assignedActivities`).
+    - `OP-CAT-YYMMDD-HEX`: Para solicitudes de validación de horas y participaciones en el catálogo de 12 oportunidades especializadas (`accreditations`).
+  - **Catálogo Mnemónico Estandarizado de 3 Letras (`CAT`):** Resuelve la colisión triple de la raíz `AD`: `EVE` (Event), `IND` (Induction), `IDE` (Identification), `STE` (Sterilization), `ADO` (Adoption), `MOD` (Adoption Module), `TLK` (Talk), `CAM` (Campaign), `MED` (Media), `SOC` (Social Media), `DON` (Donation), `ADM` (Administrative).
+  - **Diferenciación Operativa por Rol:**
+    - Para `student`: Respalda y valida horas acreditadas hacia la meta de 480 horas curriculares.
+    - Para `volunteer`: Certifica asistencia y participación cívica con garantía estricta de cero horas curriculares (`valueInHours: 0`, `validatedHours: 0`).
+
+- **RF-FOL-02 (Arquitectura de Desacoplamiento por Doble Arreglo Embebido y Cero-Null)**:
+  - Tanto `Student` como `Volunteer` alojan sus propios arreglos autosuficientes `assignedActivities` y `accreditations`.
+  - **Garantía Anti-Null en Deshidratación:** Al ejecutar el corte (Opción A), el colaborador inactivo $> 1$ año se exporta al paquete ZIP (`students.json` o `volunteers.json`) con su historial completo embebido, eliminándose de Atlas sin dejar registros huérfanos ni campos nulos (`studentRef: null` erradicado al 100%).
+  - Las actividades colectivas compartidas permanecen vivas en Atlas si cuentan con al menos un participante activo.
+  - **Restauración Transparente:** La rehidratación con `bulkWrite` (`replaceOne` con `upsert: true`) restaura al colaborador con sus dos listados completos y folios deterministas intactos, restableciendo su historial sin dependencias foráneas.
+
+
 
 

@@ -463,6 +463,62 @@ flowchart TD
 
 - **Aislamiento en Control de Versiones**: Todo el código de producción y documentación del proyecto está unificado y versionado en la rama `main` en los repositorios de frontend y backend.
 
+### 2.8 Subsistema de Ciclo de Vida, Inactivación Automática y Deshidratación de Base de Datos
+Este subsistema desacopla la operación diaria activa de la custodia histórica de expedientes en ABAQ, garantizando que los usuarios pasen por un ciclo de vida ordenado, con desaturación de vistas operativas y una capacidad integral de purga y rehidratación de la base de datos sin pérdida de datos ni dependencias rotas.
+
+```mermaid
+flowchart TD
+    subgraph Frontend["Frontend Angular (SPA)"]
+        UI_Login["Login Component\n(Verifica accountStatus y primerIngresoRealizado)"]
+        UI_Expediente["Expediente Recibido\n(/onboarding/expediente)"]
+        UI_MainVolunteers["Tabla de Voluntarios (/volunteers)\n(Filtro < 12 meses, inactivos en gris al fondo)"]
+        UI_PastVolunteers["Vista Voluntarios Pasados (/volunteers/history)\n(Pestañas Estudiantes / Generales / Bitácora)"]
+        UI_Backup["Respaldos y Deshidratación (/backup)\n(Flujo en 2 pasos con purgeToken)"]
+    end
+
+    subgraph Backend["Backend Express.js (Node.js)"]
+        Guard_Auth["AuthGuard & Session Flag\n(Redirige primer ingreso no reconocido)"]
+        Ctrl_Student["Student & Volunteer Controllers\n(findByIdAndUpdate, reset a pending en re-registro)"]
+        Cron_Inactive["Task Scheduler / Cron Diario\n(Evalúa inactividad: alerta 45d, baja 60d)"]
+        Service_Dehydrate["Dehydration & Backup Service\n(Corte limpio indivisible, stream ZIP, purgeToken)"]
+        Service_Email["Resend Email Service (utils/email.js)\n(Notificaciones exclusivas a voluntarios)"]
+    end
+
+    subgraph Database["MongoDB Atlas"]
+        Col_Students["Colección students & volunteers\n(statusHistory, fechaDesactivacion, primerIngresoRealizado)"]
+        Col_Ops["Colecciones de Oportunidades\n(accreditations, activities, talks, campaigns, etc.)"]
+        Col_Audit["Colección DehydrationAuditLog\n(Auditoría interna de deshidratación/rehidratación)"]
+    end
+
+    UI_Login --> Guard_Auth
+    Guard_Auth --> UI_Expediente
+    UI_Expediente -->|Botón Ingresar a Plataforma| Ctrl_Student
+    Ctrl_Student --> Col_Students
+    Cron_Inactive --> Col_Students
+    Cron_Inactive --> Service_Email
+    UI_MainVolunteers --> Ctrl_Student
+    UI_PastVolunteers --> Ctrl_Student
+    UI_Backup --> Service_Dehydrate
+    Service_Dehydrate --> Col_Students
+    Service_Dehydrate --> Col_Ops
+    Service_Dehydrate --> Col_Audit
+```
+
+#### Principios Clave del Subsistema:
+1. **Flujo de Primer Ingreso Asimétrico:** Tras ser aceptado por el admin, el usuario va obligatoriamente a `/onboarding/expediente` la primera vez, descarga su carta y pulsa *"Ingresar a la Plataforma ABAQ"*, persistiendo `primerIngresoRealizado: true`. En inicios posteriores, entra directo a su rol (`/activity-list`).
+2. **Re-registro Idempotente:** Si un usuario rechazado (`accountStatus: "rejected"`) se registra de nuevo con su mismo correo, se reutiliza su `_id` original, se resetea a `"pending"`, se actualizan sus credenciales y se registra el evento en `statusHistory`.
+3. **Inactivación Automática Dual:** 
+   - Estudiantes de servicio social: Al alcanzar 480 horas, se inactiva de inmediato en la misma transacción donde el admin aprueba la acreditación, emitiendo el certificado oficial.
+   - Ambos roles: Inactividad integral evaluada por cron diario. A los 45 días sin interacción se envía correo de alerta preventiva; a los 60 días se pasa a `"inactive"` (sin constancia).
+4. **Visibilidad Escalonada (12 Meses):**
+   - $< 12$ meses: Visible en la tabla de voluntarios con fila gris (`#f1f5f9`) al final.
+   - $\ge 12$ meses: Excluido de la tabla operativa; consultable en `/volunteers/history` mediante aggregation pipelines optimizados.
+5. **Corte Limpio e Indivisible ("O se quita todo o no se quita nada"):**
+   - Una actividad u oportunidad pasada se deshidrata y purga únicamente si **todos** sus participantes son inactivos de más de un año. Si hay al menos un alumno activo, no se toca nada.
+   - Barre todas las 11 modalidades del catálogo de oportunidades (`accreditations`, `identifications`, `talks`, `campaigns`, `adoptions`, etc.).
+6. **Seguridad en Dos Pasos y Rehidratación:** La descarga del archivo ZIP emite un `purgeToken` con TTL de 15 minutos que desbloquea el borrado en base de datos. La rehidratación se realiza vía subida de ZIP con `replaceOne` / upsert manteniendo IDs originales.
+7. **Notificaciones Exclusivas para Voluntarios:** Cuatro correos transaccionales vía Resend dirigidos únicamente a la casilla de correo del voluntario. Sin notificaciones a administradores ni bandejas in-app.
+
 ---
 
 ## 3. Registros de Decisiones Arquitectónicas (Architectural Decision Records - ADRs)
@@ -591,6 +647,42 @@ flowchart TD
 - **Consecuencias**:
   - *Positivas*: Blindaje contra bots sin fricción para el usuario legítimo (sin CAPTCHAs de imágenes distorsionadas); reducción de carga en el backend Express.
   - *Negativas*: Dependencia externa del servicio de Cloudflare para la verificación en registro y login.
+
+### ADR-13: Corte Indivisible, Desacoplamiento por Doble Arreglo Embebido y Token Criptográfico de Purga (Opción A)
+- **Estado**: Aceptado y Autorizado.
+- **Contexto**: Purgar datos de usuarios inactivos dejaba registros huérfanos o actividades rotas cuando una actividad colectiva tenía participantes mixtos (alumnos inactivos y alumnos aún activos). Asimismo, un borrado accidental sin descarga previa representaba un riesgo crítico e irreversible.
+- **Decisión**:
+  1. **Adopción Oficial de Opción A y Desacoplamiento por Doble Arreglo Embebido:** `Student` y `Volunteer` almacenan dos arreglos independientes de subdocumentos autosuficientes: `assignedActivities` (folios `AC-...`) y `accreditations` (folios `OP-...`). Si un estudiante inactivo cumple $> 1$ año, **se purga al ZIP con todo su historial embebido**, mientras que la actividad colectiva compartida **se conserva viva en MongoDB** si cuenta con al menos un participante activo. Cero campos `null` y cero llaves rotas. La actividad se purgará de Atlas únicamente cuando el 100% de sus inscritos cumplan el año de inactividad.
+  2. El catálogo de oportunidades barre de forma unificada las 11 modalidades del sistema (`accreditations`, `identifications`, `talks`, `campaigns`, `adoptions`, etc.).
+  3. El flujo en `/backup` es bloqueante en 2 pasos: la descarga genera un `X-Purge-Token` criptográfico temporal con TTL de 15 minutos; el botón de purga en BD solo se habilita con este token válido.
+  4. La rehidratación se ejecuta mediante subida del ZIP y `bulkWrite` con `replaceOne` / upsert preservando los `_id`s originales y registrando la operación en `DehydrationAuditLog`. Al restaurar el documento del usuario, sus dos arreglos vuelven íntegros, re-vinculando su historial sin parches.
+- **Consecuencias**:
+  - *Positivas*: Cero registros huérfanos, eliminación absoluta de campos nulos (`null-free`), protección contra pérdidas de datos accidentales y 100% de reversibilidad en caso de contingencia.
+  - *Negativas*: Las actividades pasadas que aún cuenten con algún voluntario activo permanecen en MongoDB hasta que todos sus participantes cumplan el año de inactividad.
+
+### ADR-14: Flujo Asimétrico de Activación (Primer Ingreso Obligatorio por Expediente)
+- **Estado**: Aceptado y Autorizado.
+- **Contexto**: Un colaborador con cuenta recién aprobada por el administrador debe enterarse formalmente de su aceptación, recibir sus credenciales iniciales, descargar su Carta Oficial de Aceptación y confirmar su ingreso, sin que en los logins posteriores se vuelva una molestia repetitiva.
+- **Decisión**:
+  1. Se introduce el atributo booleano `primerIngresoRealizado` en los esquemas `Student` y `Volunteer` (default: `false`).
+  2. Tras la aceptación, el primer login del usuario lo redirige obligatoriamente a `/onboarding/expediente` con la tarjeta de bienvenida y el botón *"Ingresar a la Plataforma ABAQ"*.
+  3. Al presionar el botón, el backend persiste `primerIngresoRealizado: true` y lo redirige a la vista de su rol (`/activity-list`).
+  4. En los inicios de sesión subsecuentes, el sistema evalúa `primerIngresoRealizado === true` y lo dirige directamente a su rol sin pasar por el expediente.
+  5. `AuthGuard` bloquea el acceso directo por URL a `/activity-list` mientras `primerIngresoRealizado === false`.
+- **Consecuencias**:
+  - *Positivas*: Garantía de que el alumno lee su estatus y descarga su constancia oficial la primera vez, con navegación fluida y sin fricción en los accesos futuros.
+  - *Negativas*: Requiere una actualización atómica en base de datos al momento de pulsar el botón de entrada inicial.
+
+### ADR-15: Arquitectura de Retención Escalonada (Ventana Operativa de 12 Meses y Consulta Agregada)
+- **Estado**: Aceptado y Autorizado.
+- **Contexto**: La acumulación de voluntarios inactivos a lo largo de los semestres saturaba visualmente las tablas operativas de administración y aumentaba los tiempos de carga en el frontend.
+- **Decisión**:
+  1. Se implementa una ventana de retención operativa de 12 meses: los inactivos con menos de 1 año siguen en la tabla principal pero distinguidos con fondo gris claro (`#f1f5f9`) y reordenados al final.
+  2. Al cumplir 12 meses desde `fechaDesactivacion`, los registros se retiran de la tabla operativa y pasan a una vista dedicada: `/volunteers/history`.
+  3. La vista `/volunteers/history` expone dos tablas resumidas (Estudiantes y Voluntarios Generales) con campos consolidados optimizados mediante MongoDB Aggregation Pipelines (sin traer modelos pesados).
+- **Consecuencias**:
+  - *Positivas*: Tablas operativas ágiles y limpias para el personal administrativo; preservación de acceso histórico instantáneo en una vista especializada.
+  - *Negativas*: Requiere un endpoint dedicado con proyecciones y pipeline de agregación en el backend.
 
 ---
 

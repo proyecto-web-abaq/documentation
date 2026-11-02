@@ -51,12 +51,13 @@ Esta sección consolida las iniciativas técnicas, propuestas arquitectónicas y
     
     ---
 
-    Propuesta de archivado y desactivacion de usarios en el ssitema de usarios volunteers student y general
--   :lucide-database-backup: **[Desactivacion de usarios](../archiveUsers.md)**
+    Esquema de copias de seguridad automatizadas a Azure Blob Storage, restauración granular con dry-run y archivado por semestres lectivos.
+
+-   :lucide-user-check: **[Ciclo de Vida, Inactivación, Deshidratación y Folios](../ciclo-vida-voluntarios-deshidratacion-design.md)**
 
     ---
 
-    Esquema de copias de seguridad automatizadas a Azure Blob Storage, restauración granular con dry-run y archivado por semestres lectivos.
+    Diseño arquitectónico integral para la gestión de voluntarios (estudiantes y generales): máquina de estados (`accountStatus`), flujo de primer ingreso, re-registro idempotente, inactivación automática (480 hrs / 60 días), vista `/volunteers/history`, deshidratación y corte indivisible en 3 fases con análisis bajo demanda en `/backup`, bitácoras de auditoría (`statusHistory` y `DehydrationAuditLog`), folios deterministas de interacción (`AC` y `OP` con sub-códigos de 3 letras) y mapeo visual de vistas.
 
 </div>
 
@@ -73,3 +74,4 @@ Esta sección consolida las iniciativas técnicas, propuestas arquitectónicas y
 | **Sistema de Notificaciones** | Comunicación y Regla de Inactividad | Propuesta en evolución | [Ver documento](../notificaciones-design.md) |
 | **Perfil con Aprobación de Cambios** | UX y Gestión de Expediente | Propuesta de diseño | [Ver documento](../perfil-usuario-design.md) |
 | **Respaldos y Recuperación de Datos** | Continuidad y Contingencia | Propuesta de diseño | [Ver documento](../datos-respaldo-recuperacion-design.md) |
+| **Ciclo de Vida, Deshidratación y Folios** | Gestión de Voluntarios, BD, Auditoría y UI | Propuesta Técnica en Refinamiento Activo | [Ver documento](../ciclo-vida-voluntarios-deshidratacion-design.md) |
