@@ -31,11 +31,36 @@ quedaron intactos.
 - `middlewares/inactive.middleware.js`: responde `403` a escrituras
   (POST/PUT/PATCH/DELETE) de cuentas `inactive`.
 
-### Notificaciones (`utils/notifications.js`)
-`sendAcceptanceEmail`, `sendInactivityWarningEmail(user, stage)` y
-`sendCompletionEmail`, construidas sobre `utils/email.js` (nodemailer).
-Plantillas diferenciadas estudiante/voluntario; destino solo el colaborador.
-La baja por inactividad/sanción no emite `completion`.
+### Notificaciones (`utils/email.js` + `utils/notifications.js`) — Resend
+
+> **Actualización 2026-11-03:** el envío migró de **nodemailer/Gmail** a la
+> **API de Resend** (se portó el `utils/email.js` de la rama `dev-rivers`).
+
+- `utils/email.js`: envía por HTTPS a `https://api.resend.com/emails` leyendo la
+  API key de `process.env.resend` (o `RESEND_API_KEY`). Remitente por defecto
+  `ABAQ Querétaro <notificaciones@hypercoreqro.lat>`, derivado de `EMAIL_FROM`.
+  Incluye fallbacks: si el dominio no está verificado reintenta desde
+  `onboarding@resend.dev`, y si la cuenta está en modo pruebas redirige al
+  correo propietario de la cuenta Resend. Trae 5 plantillas **HTML**:
+  `sendAcceptanceEmail`, `sendInactivityWarningEmail` (day30/day45/day60),
+  `sendCompletionEmail` y `sendNewUserRegistrationAdminEmail`.
+- `utils/notifications.js`: capa adaptadora. Los llamadores
+  (`accreditation.controller`, `inactivity.service`, `app.js`) siguen invocando
+  `(user)` / `(user, stage)`; el adaptador mapea a la firma de objeto de
+  `email.js`, resuelve tipo (SS/VG) por folio/rol, arma los **links firmados**
+  de certificado (`createCertificateHashToken`) para acceptance/completion, y
+  expone `sendNewUserRegistrationAdminEmail` (destino `ADMIN_EMAIL`/`EMAIL_FROM`).
+- Reglas: destino = solo el colaborador, salvo el aviso a administración de
+  nuevo registro. La baja por inactividad/sanción no emite `completion`.
+- **Variables de entorno**: `resend` (API key `re_...`), `EMAIL_FROM`
+  (remitente del dominio), opcional `ADMIN_EMAIL`, `BASE_URL` (para los links de
+  certificado) y `FRONTEND_URL`.
+- **Verificado en vivo (2026-11-03)**: 4 correos enviados por Resend con id de
+  confirmación (acceptance, inactividad day60, completion al colaborador; aviso
+  de nuevo registro a administración).
+- **Pendiente**: `sendNewUserRegistrationAdminEmail` existe pero aún no está
+  enganchado al flujo de registro en `auth.controller` (no se dispara solo al
+  registrarse un usuario).
 
 ### Deshidratación por fases (`services/dehydration.service.js`, módulo 4)
 `signPurgeToken`/`verifyPurgeToken` (HMAC-SHA256, TTL 15 min, fallback a
