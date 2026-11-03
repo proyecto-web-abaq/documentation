@@ -48,16 +48,16 @@ Esta sección consolida las iniciativas técnicas, propuestas arquitectónicas y
     Propuesta de gestión de cuenta, autenticación de dos factores (2FA) y flujo de edición de datos con aprobación administrativa sin suspensión del acceso.
 
 -   :lucide-database-backup: **[Datos: Respaldo, Recuperación y Ciclo de Vida](../datos-respaldo-recuperacion-design.md)**
-    
+
     ---
 
-    Esquema de copias de seguridad automatizadas a Azure Blob Storage, restauración granular con dry-run y archivado por semestres lectivos.
+    Esquema de copias de seguridad hacia Azure Blob Storage y consola local `/backup` con descubrimiento dinámico de modelos Mongoose (`getModelRegistry()`, métricas `activeCollections / totalCollections`, omisión automática de campos `select: false` en `.xlsx` e inclusión íntegra en `.zip` JSON para rollback), restauración con *dry-run* y retención activa sin purgas automáticas de 12 meses ni procesos cron en segundo plano.
 
 -   :lucide-user-check: **[Ciclo de Vida, Inactivación, Deshidratación y Folios](../ciclo-vida-voluntarios-deshidratacion-design.md)**
 
     ---
 
-    Diseño arquitectónico integral para la gestión de voluntarios (estudiantes y generales): máquina de estados (`accountStatus`), flujo de primer ingreso, re-registro idempotente, inactivación automática (480 hrs / 60 días), vista `/volunteers/history`, deshidratación y corte indivisible en 3 fases con análisis bajo demanda en `/backup`, bitácoras de auditoría (`statusHistory` y `DehydrationAuditLog`), folios deterministas de interacción (`AC` y `OP` con sub-códigos de 3 letras) y mapeo visual de vistas.
+    Diseño arquitectónico integral para colaboradores (`student` y `volunteer`): máquina de estados (`accountStatus`), primer ingreso y re-registro idempotente; paso a `inactive` por acreditación de 480 h (`student`) o gestión administrativa manual (sin barrido `node-cron` de 45/60 días ni ventana/purga automática de 12 meses / `365` días); persistencia en listados (con `inactive` al fondo) y `/volunteers/history` hasta corte manual en `/backup`; elegibilidad inmediata de todo `inactive` con fecha efectiva (`fechaDesactivacion || updatedAt || createdAt <= cutoffDate`, tope al día actual UTC), corte indivisible Opción A y resolución `users` vía `authId || userId`; flujo guiado bajo demanda en 4 pasos (1. Analizar sistema en una pasada sin N+1 con aviso temporal de `3.5 s` en el botón si no hay fechas disponibles, 2. Elegir fecha en memoria, 3. Descargar `.zip` con `X-Purge-Token` de 15 min, 4. Borrar registros); bitácoras (`statusHistory`, `DehydrationAuditLog`) y folios `AC`/`OP` de 3 letras.
 
 </div>
 

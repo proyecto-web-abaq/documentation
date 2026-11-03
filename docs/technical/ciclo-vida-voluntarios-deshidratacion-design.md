@@ -1,13 +1,13 @@
 # Propuesta Técnica: Sistema Integral de Gestión de Voluntarios — Ciclo de Vida, Inactivación, Deshidratación de BD, Folios de Interacción (AC/OP) y Mapeo de Vistas
 
 **Proyecto:** Plataforma Web ABAQ (Servicio Social y Voluntariado General)  
-**Versión:** 1.2.0 (Propuesta Técnica en Refinamiento Activo)  
-**Fecha:** 2026-11-02  
-**Estado:** Propuesta Técnica / Idea en Construcción (Espacio Activo de Trabajo y Refinamiento)  
+**Versión:** 1.3.0 (Propuesta Técnica Alineada — Cero Cron y Elegibilidad Inmediata de Inactivos)  
+**Fecha:** 2026-11-03  
+**Estado:** Propuesta Técnica Consolidada (Alineada con Implementación de Respaldos Dinámicos y Corte en 4 Pasos)  
 **Relacionado:** [Ideas y Propuestas](ideas/index.md) · [Arquitectura General](architecture.md) · [Diseño de Respaldos y Datos](datos-respaldo-recuperacion-design.md) · [Diseño de Autenticación](auth-design.md) · [Sistema de Notificaciones](notificaciones-design.md)
 
 > [!NOTE] Contexto y Alcance del Documento (Evolución de la Propuesta)
-> Este documento consolida la arquitectura y especificación de la **Gestión Integral de Voluntarios** de ABAQ. Aunque la iniciativa inició conceptualmente orientada al archivado de usuarios, la ingeniería del sistema demandó abordar de manera sistémica e indivisible **todo el ciclo de vida del colaborador**, desde su admisión, folios de seguimiento de horas y asistencias, reglas de inactividad automática, hasta la depuración de base de datos en 3 fases y la auditoría forense de datos.
+> Este documento consolida la arquitectura y especificación de la **Gestión Integral de Voluntarios** de ABAQ. Aunque la iniciativa inició conceptualmente orientada al archivado de usuarios, la ingeniería del sistema demandó abordar de manera sistémica e indivisible **todo el ciclo de vida del colaborador**, desde su admisión, folios de seguimiento de horas y asistencias, transiciones controladas al estado `inactive` (por acreditación de 480 h o gestión administrativa manual, sin procesos `node-cron` ni purgas automáticas en segundo plano), hasta el descubrimiento dinámico de modelos en `/backup`, la depuración manual en 4 pasos y la auditoría forense de datos.
 
 ---
 
@@ -21,33 +21,34 @@ Para garantizar la sustentabilidad técnica de la plataforma, evitar la saturaci
 
 ```mermaid
 flowchart LR
-    M1["1. Máquina de Estados\n(pending, active, inactive, rejected)"] --> M2["2. Inactivación Dual\n(480 hrs SS / 60 días inactividad)"]
-    M2 --> M3["3. Retención y Vistas\n(12 meses / /volunteers/history)"]
-    M3 --> M4["4. Deshidratación en 3 Fases\n(Análisis previo + ZIP + Purga)"]
-    M4 --> M5["5. Bitácoras y Telemetría\n(statusHistory + DehydrationAuditLog)"]
+    M1["1. Máquina de Estados\n(pending, active, inactive, rejected)"] --> M2["2. Transición a Inactivo\n(480 hrs SS / Gestión Admin)"]
+    M2 --> M3["3. Persistencia y Vistas\n(Sin filtro 12m / /volunteers/history)"]
+    M3 --> M4["4. Corte Guiado en 4 Pasos\n(Análisis + Fecha + ZIP + Purga)"]
+    M4 --> M5["5. Registro Dinámico y Bitácoras\n(getModelRegistry + DehydrationAuditLog)"]
     M5 --> M6["6. Folios AC y OP\n(Nomenclatura 3L sin colisiones)"]
     M6 --> M7["7. Mapeo de Vistas\n(Dónde SÍ, NO y Condicional)"]
     M7 --> M8["8. Notificaciones Resend\n(Exclusivo para Voluntarios)"]
 ```
 
 1. **Máquina de Estados Unificada del Voluntario:** Control estricto de accesos según el estado de la cuenta (`pending`, `active`, `inactive`, `rejected`), flujo de primer ingreso obligatorio a `/onboarding/expediente` para descarga de carta de aceptación, y mecanismo de **re-registro idempotente** con el mismo correo electrónico para solicitudes previamente rechazadas.
-2. **Automatización de Inactivación Dual:** Reglas de cese desatendido sin intervención humana:
-   * *Inmediata al cumplir 480 horas* para estudiantes de servicio social al aprobarse su acreditación definitiva.
-   * *A los 60 días continuos de inactividad integral* (medida sobre login, asistencia o acreditación), con alerta preventiva urgente a los 45 días.
-   * *Baja administrativa discrecional* con justificación obligatoria.
-3. **Visibilidad Escalonada y Registro Histórico:** Ventana operativa de 12 meses para usuarios inactivos en las tablas principales (ordenados al final con diseño atenuado), retiro automático a los 365 días y habilitación de la vista dedicada `/volunteers/history` con pestañas ligeras para auditorías universitarias.
-4. **Deshidratación y Rehidratación Segura de la Base de Datos:**
-   * *Principio del Corte Indivisible:* No se permiten purgas parciales; una actividad u oportunidad solo se purga si el 100% de sus participantes son inactivos $> 1$ año.
-   * *Flujo en Tres Fases con Análisis Previo Bajo Demanda en `/backup`:* Cero ejecución pasiva; el backend solo procesa el análisis cuando el admin pulsa explícitamente el botón, previsualizando el impacto antes de descargar el ZIP y purgar con contraseña y token criptográfico `X-Purge-Token`.
+2. **Transición Controlada a `inactive` (Cero Cron en Background):** Eliminación total del barrido nocturno en segundo plano (`node-cron` de 45/60 días) y del endpoint `POST /student/check-inactivity`:
+   * *Inmediata al cumplir 480 horas* para estudiantes de servicio social (`student`) al aprobarse su acreditación definitiva.
+   * *Gestión administrativa manual* (`PATCH`) con justificación obligatoria registrada en `statusHistory`.
+   * *Compatibilidad de esquema:* Atributos como `fechaDesactivacion`, `statusHistory` e `inactivityStage` se mantienen intactos en los modelos Mongoose para preservar compatibilidad con documentos existentes, seeds y respaldos `.zip` previos.
+3. **Persistencia Integral en Vistas e Historial (Sin Ventana de 12 Meses):** Se elimina toda ventana o purga automática de 12 meses (`365` días). Todos los colaboradores permanecen visibles en las tablas operativas principales (con las filas `inactive` estilizadas en gris y ordenadas al fondo) y los colaboradores inactivos se consultan íntegramente en `/volunteers/history` hasta que un administrador ejecute un corte manual en `/backup`.
+4. **Respaldos Dinámicos, Deshidratación en 4 Pasos y Rehidratación Segura (`/backup`):**
+   * *Descubrimiento Dinámico de Modelos Mongoose:* `backup.service.js` construye el inventario mediante `getModelRegistry()` (escaneando `backend/models/*.model.js` y `mongoose.models`), reporta `activeCollections / totalCollections`, omite automáticamente campos con `select: false` o credenciales (`password`, `passwordHash`) en `.xlsx` e incluye íntegramente los campos ocultos (`+passwordHash`) en los JSON del `.zip` oficial para *rollback*.
+   * *Elegibilidad Inmediata y Corte Indivisible (Opción A):* Cualquier `student` o `volunteer` con `accountStatus: "inactive"` cuya fecha efectiva (`fechaDesactivacion || updatedAt || createdAt`) sea `<= cutoffDate` (con tope máximo al fin del día actual UTC, `23:59:59.999Z`) es candidato inmediato, resolviendo sus cuentas `users` vía `authId || userId`. Una actividad colectiva compartida solo se purga cuando el 100 % de sus participantes inscritos pertenecen al conjunto elegible de inactivos hasta la fecha de corte.
+   * *Flujo Guiado Bajo Demanda en 4 Pasos en `/backup`:* Cero ejecución pasiva; **1) Analizar sistema** (`POST /backup/dehydrate/analyze` con `{}` en una sola pasada sin N+1; si no hay fechas con impacto $> 0$, el propio botón muestra temporalmente `"No se encontraron fechas de corte disponibles"` durante `3.5 s` y vuelve a `"Analizar sistema"`) $\rightarrow$ **2) Elegir fecha** en selector desplegable evaluado en memoria $\rightarrow$ **3) Descargar corte `.zip`** (emite cabecera `X-Purge-Token` con vigencia de 15 min) $\rightarrow$ **4) Borrar registros** (`POST /backup/dehydrate/purge`).
 5. **Esquema de Datos, Telemetría y Bitácoras de Auditoría:**
-   * *Trazabilidad de cambios de estado (`statusHistory` y `UserStatusAuditLog`):* Registro exacto de a qué usuario se le aplicó (`targetUserId`, `targetUserFolio`), qué administrador lo realizó (`changedByEmail`), la causal (`reason`) y el comentario explicativo (`comments`) visible en perfiles e interfaces.
-   * *Telemetría real de MongoDB Atlas:* Diagnóstico empírico de las 14 colecciones que clasifica los 12 modelos que se van (liberando el 41.4% de la BD al purgar `notifications`) frente a los 4 modelos conservados permanentemente (`quickactivities`, `users` admin, `pets` y `DehydrationAuditLog`).
+   * *Trazabilidad de cambios de estado (`statusHistory` y bitácora histórica):* Registro exacto de a qué usuario se le aplicó (`targetUserId`, `targetUserFolio`), qué administrador lo realizó (`changedByEmail`), la causal (`reason`) y el comentario explicativo (`comments`) visible en perfiles e interfaces.
+   * *Telemetría real de MongoDB Atlas:* Diagnóstico empírico de colecciones documentales que clasifica los modelos que salen en el corte limpio (liberando el 41.4 % de la BD al purgar `notifications`) frente a los 4 modelos conservados permanentemente (`quickactivities`, `users` admin, `pets` y `DehydrationAuditLog`), mientras el respaldo general descubre dinámicamente cualquier modelo registrado vía `getModelRegistry()`.
 6. **Nomenclatura Determinista de Folios de Interacción (`AC` y `OP`):**
    * Generación de folios no para la actividad a nivel macro, sino para la **solicitud de interacción específica del colaborador**.
    * Respaldo para que el alumno pueda validar y "pelear" sus horas acreditadas y el voluntario amparar su asistencia cívica.
    * Prefijo `AC-YYMMDD-HEX` para actividades convocadas y `OP-CAT-YYMMDD-HEX` con sub-código mnemónico de 3 letras (`EVE`, `IND`, `IDE`, `STE`, `ADO`, `MOD`, `TLK`, `CAM`, `MED`, `SOC`, `DON`, `ADM`) que resuelve formalmente la colisión triple de `AD`.
 7. **Mapeo y Definición Visual de Vistas:** Reglas claras de presentación que definen las 9 vistas críticas donde el folio es indispensable, las 3 vistas de visibilidad condicional dinámica y las 10 vistas excluidas para preservar una interfaz limpia y sin sobrecarga cognitiva.
-8. **Sistema de Notificaciones Transaccionales y Certificación Criptográfica:** Envío de correos automáticos mediante Resend con destino exclusivo a los voluntarios (cero notificaciones de admin ni in-app) y generación de URLs seguras con firma HMAC-SHA256 para constancias y cartas oficiales de terminación.
+8. **Sistema de Notificaciones Transaccionales y Certificación Criptográfica:** Envío de correos transaccionales mediante Resend con destino exclusivo a los voluntarios (sin procesos cron en background, sin notificaciones a administradores ni bandeja in-app) y generación de URLs seguras con firma HMAC-SHA256 para constancias y cartas oficiales.
 
 ---
 
@@ -59,20 +60,19 @@ Los modelos de Mongoose `Student` y `Volunteer` comparten el enum unificado de e
 stateDiagram-v2
     [*] --> pending: Registro por Fases (Signup)
     
-    pending --> active: Aprobación por Administrador\n(Genera Carta Aceptación + Email Resend)
-    pending --> rejected: Rechazo por Administrador\n(Permanece en BD con motivo)
+    pending --> active: Aprobación por Administrador (Carta Aceptación + Email Resend)
+    pending --> rejected: Rechazo por Administrador (Permanece en BD con motivo)
     
-    rejected --> pending: Re-registro con mismo email\n(Reset idempotente + nuevo hash)
+    rejected --> pending: Re-registro con mismo email (Reset idempotente + nuevo hash)
     
-    active --> inactive: 1. Cumplimiento de 480 hrs (Student)\n2. 60 días sin actividad integral\n3. Decisión Administrativa
+    active --> inactive: 1. Cumplimiento de 480 hrs (Student) / 2. Gestión Administrativa Manual
     
     state inactive {
-        [*] --> OperativoReciente: Inactivo < 12 meses\n(Fila gris al final de tablas)
-        OperativoReciente --> RetiradoVistas: Inactivo >= 12 meses\n(Solo en /volunteers/history)
-        RetiradoVistas --> Deshidratado: Purga con corte de fecha\n(Descarga ZIP + DehydrationLog)
+        [*] --> PersistenteEnBD: En listados (gris al fondo) y en /volunteers/history (Elegible inmediato en /backup)
+        PersistenteEnBD --> Deshidratado: Corte manual en 4 pasos en /backup (ZIP + X-Purge-Token + DehydrationAuditLog)
     }
 
-    Deshidratado --> RetiradoVistas: Rehidratación por ZIP (Upsert)
+    Deshidratado --> PersistenteEnBD: Rehidratación por ZIP (Upsert)
 ```
 
 ### 2.1 Estado `pending` (Default de Registro)
@@ -105,38 +105,33 @@ stateDiagram-v2
     5. Registra una nueva entrada en `statusHistory` con motivo `"re_registration"`.
 
 ### 2.4 Estado `inactive` (Inactivo / Desvinculado)
-La transición a `inactive` ocurre de forma automática o manual bajo tres causales estrictas:
+La transición a `inactive` ocurre **sin procesos automáticos en segundo plano** (`node-cron` diario de 45/60 días, `inactivity.service.js` y `POST /student/check-inactivity` quedan completamente eliminados), bajo dos causales explícitas:
 
 | Causal de Inactivación | Aplica a | Detonante Técnico | Emisión de Constancia | Notificación Resend |
 | :--- | :--- | :--- | :--- | :--- |
-| **Cumplimiento de 480 horas** | `student` | Inmediato al aprobar la acreditación que alcance $\ge 480$ hrs | Sí (`constanciaFinalizacion` con token) | Correo de finalización con enlace a certificado |
-| **2 meses de inactividad (60 días)** | `student` y `volunteer` | Cron Job diario en backend al evaluar `Date.now() - ultimaActividad >= 60` días | No (baja por abandono) | Correo de baja definitiva por inactividad |
-| **Decisión Administrativa** | Ambos roles | PATCH manual ejecutado por administrador desde el portal | Condicional (solo si concluyó formalmente) | Correo informativo según causal |
+| **Cumplimiento de 480 horas** | `student` | Inmediato en la misma operación donde se aprueba la acreditación que alcanza $\ge 480$ hrs | Sí (`constanciaFinalizacion` con token) | Correo de finalización con enlace a certificado |
+| **Gestión Administrativa Manual** | `student` y `volunteer` | `PATCH` manual ejecutado por administrador desde el portal | Condicional (solo si concluyó formalmente) | Correo informativo según causal |
 
-#### Criterio de "Última Actividad Integral"
-El temporizador de inactividad se calcula evaluando la fecha más reciente entre:
-$$\text{fechaUltimaActividad} = \max(\text{lastLogin}, \text{fechaUltimaAcreditacion}, \text{fechaInscripcionActividad}, \text{fechaAceptacionExpediente})$$
-- A los **45 días** sin actividad (15 días antes del corte), el cron job envía un **correo de alerta urgente**.
-- A los **60 días**, el cron job actualiza `accountStatus = "inactive"`, fija `fechaDesactivacion = Date.now()` y envía el correo de baja.
+#### Ausencia de Barridos en Background y Compatibilidad de Esquema
+- **Cero ejecución desatendida:** Ningún demonio ni tarea `node-cron` revisa ni muta estados de `Student` o `Volunteer` en segundo plano.
+- **Preservación de atributos en Mongoose:** Los campos existentes en los modelos (`fechaDesactivacion`, `statusHistory`, `inactivityStage`) se conservan intactos en el esquema exclusivamente para preservar compatibilidad con documentos preexistentes, scripts de *seed* y paquetes `.zip` históricos.
 
 #### Matriz de Permisos del Usuario Inactivo
 - **Lectura Histórica Restringida:** Puede iniciar sesión para consultar su historial pasado.
-- **Filtro de Actividades:** El endpoint `GET /activities` detecta si el usuario está inactivo y aplica la restricción:
-  $$\text{filtroActividades} = \{ \text{createdAt}: \{ \$lte: \text{fechaDesactivacion} \} \}$$
-  Impidiendo que observe actividades convocadas con posterioridad a su baja.
+- **Filtro de Actividades:** El endpoint `GET /activities` detecta si el usuario está inactivo y aplica la restricción sobre su fecha de baja (`fechaDesactivacion || updatedAt || createdAt`), impidiendo que observe actividades convocadas con posterioridad a su desvinculación.
 - **Acciones Bloqueadas:** Se prohíbe inscribirse a nuevas actividades (`403 Forbidden`), editar su perfil o solicitar acreditaciones u oportunidades.
 
 ---
 
-## 3. Reglas de Visibilidad en Frontend y Retención (12 Meses)
+## 3. Reglas de Visibilidad en Frontend y Persistencia sin Ventana de 12 Meses
 
-Para balancear la supervisión administrativa inmediata y la limpieza visual a largo plazo, el sistema divide a los usuarios inactivos según el tiempo transcurrido desde su fecha de desactivación:
+El sistema **elimina cualquier ventana o filtro de 12 meses (`365` días)** tanto en los listados operativos como en el historial (`TWELVE_MONTHS_MS` y `twelveMonthVisibilityFilter` retirados). Todos los registros persisten en MongoDB hasta que un administrador ejecute intencionalmente un corte manual en `/backup`:
 
 ```mermaid
 flowchart TD
-    V["Voluntario en Estado Inactivo"] --> D{"Tiempo desde fechaDesactivacion"}
-    D -->|Menor a 12 meses| T1["Tabla Principal de Voluntarios (/volunteers)"]
-    D -->|Mayor o igual a 12 meses| T2["Vista de Voluntarios Pasados (/volunteers/history)"]
+    V["Colaborador en Estado Inactivo\n(accountStatus: 'inactive')"] --> T1["Tabla Principal (/student, /volunteer)\nPersiste siempre hasta corte manual"]
+    V --> T2["Vista de Voluntarios Pasados (/volunteers/history)\nConsulta íntegra sin filtro de antigüedad"]
+    V --> T3["Elegible Inmediato en /backup\n(fechaDesactivacion || updatedAt || createdAt <= cutoffDate)"]
     
     subgraph T1_Style ["Renderizado en Tabla Principal"]
         T1A["Fila completa con estilo gris claro (#f1f5f9)"]
@@ -151,19 +146,19 @@ flowchart TD
     end
 ```
 
-### 3.1 Ventana Operativa Reciente ($< 12$ Meses)
-- Los voluntarios que lleven menos de 1 año inactivos siguen apareciendo en la tabla principal de administración.
-- **Estilo Visual:** Se marcan con la clase CSS `.row-inactive` (fondo gris claro `#f1f5f9`, texto atenuado `#64748b`).
-- **Ordenamiento:** La consulta operativa los ordena al final de la lista para no interferir con la supervisión de voluntarios activos y expedientes pendientes.
+### 3.1 Persistencia en Tablas Operativas (`getAllStudents` y `getAllVolunteers`)
+- Todos los estudiantes y voluntarios registrados permanecen visibles en las tablas principales de administración sin importar cuánto tiempo lleven inactivos.
+- **Estilo Visual:** Las cuentas con `accountStatus: "inactive"` se marcan con la clase CSS `.row-inactive` (fondo gris claro `#f1f5f9`, texto atenuado `#64748b`).
+- **Ordenamiento:** La consulta operativa ordena todos los registros `inactive` al final de la lista para no interferir con la supervisión de colaboradores activos y expedientes pendientes.
 
-### 3.2 Retiro de Vistas Operativas ($\ge 12$ Meses)
-- Al cumplirse 1 año (365 días) de su fecha de desactivación, los registros se excluyen de la consulta principal mediante el filtro `{ $or: [ { accountStatus: { $ne: 'inactive' } }, { fechaDesactivacion: { $gte: cutoff12Months } } ] }`.
-- Ya no son visibles en la tabla principal y pasan a residir exclusivamente en la nueva pantalla de historial.
+### 3.2 Persistencia Íntegra hasta Corte Manual en `/backup`
+- Ningún registro `inactive` se oculta ni se purga automáticamente por antigüedad.
+- Un registro solo abandona las tablas operativas y `/volunteers/history` cuando el administrador ejecuta el flujo guiado de 4 pasos de Corte y Deshidratación en `/backup`.
 
 ### 3.3 Vista Dedicada: Voluntarios Pasados (`/volunteers/history`)
-Accesible desde un botón primario ubicado en el encabezado de la sección de Voluntarios: **"Ver Voluntarios Pasados"**.
+Accesible desde el botón primario ubicado en el encabezado de la sección de Voluntarios: **"Ver Voluntarios Pasados"**.
 
-La pantalla cuenta con navegación por pestañas y dos tablas optimizadas mediante **MongoDB Aggregation Pipelines** que proyectan únicamente los datos esenciales sin cargar modelos pesados:
+La pantalla consulta **todos los colaboradores con `accountStatus: "inactive"` y todas las transiciones de estado vigentes en MongoDB** (sin recorte temporal), mediante navegación por pestañas y proyecciones optimizadas con **MongoDB Aggregation Pipelines**:
 
 #### Tabla 1: Estudiantes de Servicio Social Pasados
 1. **Nombre Completo:** `fullName`
@@ -188,35 +183,29 @@ La pantalla cuenta con navegación por pestañas y dos tablas optimizadas median
 
 ---
 
-### 3.4 Matriz Integral de Visibilidad Escalonada: Fórmulas Matemáticas y Filtros de MongoDB
+### 3.4 Matriz Integral de Visibilidad y Elegibilidad: Criterios y Consultas Mongoose
 
-Para asegurar predictibilidad matemática y rendimiento óptimo en las consultas de base de datos, el ciclo de visibilidad de los voluntarios se segmenta en **cuatro escalones operacionales**:
+El ciclo de persistencia y elegibilidad de los colaboradores se estructura en **tres niveles operacionales** sin particiones artificiales por antigüedad:
 
-| Escalón | Estado y Denominación | Condición Lógica y Fórmula Temporal | Filtro MongoDB / Query Mongoose | Comportamiento en Frontend (UX) | Endpoints Backend |
+| Nivel | Estado y Denominación | Condición Lógica | Consulta Mongoose / Regla de Motor | Comportamiento en Frontend (UX) | Endpoints Backend |
 | :---: | :--- | :--- | :--- | :--- | :--- |
-| **Nivel 1** | **Activo / Pendiente**<br>*(Operación Vigente)* | $\text{accountStatus} \in \{\text{'active'}, \text{'pending'}\}$ | `{ accountStatus: { $in: ['active', 'pending'] } }` | • Visible en tabla `/student`<br>• Acceso total a actividades<br>• Estilo normal blanco/hover | `GET /student`<br>`GET /volunteer`<br>`GET /activities` |
-| **Nivel 2** | **Inactivo Reciente**<br>*(Transición $< 12$ Meses)* | $\text{accountStatus} = \text{'inactive'} \quad \land$<br>$0 \le \Delta t_{\text{baja}} < 365\text{ días}$<br><br>Donde:<br>$\Delta t_{\text{baja}} = t_{\text{actual}} - t_{\text{desactivacion}}$ | `{ accountStatus: 'inactive', fechaDesactivacion: { $gt: new Date(Date.now() - 365*24*60*60*1000) } }` | • Fila gris clara (`.row-inactive`, `#f1f5f9`)<br>• Texto atenuado (`#64748b`)<br>• Ordenado al final de la paginación<br>• Banner informativo en su perfil | `GET /student`<br>`GET /volunteer`<br>`GET /volunteer-profile` |
-| **Nivel 3** | **Retirado Operativo**<br>*(Historial Pasado $\ge 12$ Meses)* | $\text{accountStatus} = \text{'inactive'} \quad \land$<br>$\Delta t_{\text{baja}} \ge 365\text{ días}$ | **Exclusión en tabla principal:**<br>`{ $or: [ { accountStatus: { $ne: 'inactive' } }, { fechaDesactivacion: { $gt: cutoff12Months } } ] }`<br><br>**Inclusión en `/volunteers/history`:**<br>`{ accountStatus: 'inactive', fechaDesactivacion: { $lte: cutoff12Months } }` | • **Oculto al 100%** de `/student` y `/volunteer`<br>• Accesible solo en `/volunteers/history`<br>• Pestañas ligeras proyectadas por Aggregation Pipeline<br>• Modal de historial de horas pasadas | `GET /volunteers/history/students`<br>`GET /volunteers/history/volunteers`<br>`GET /volunteers/history/audit` |
-| **Nivel 4** | **Deshidratado de BD**<br>*(Corte y Purga Atómica)* | $(t_{\text{desactivacion}} \le t_{\text{corte}}) \quad \land$<br>$(\forall p \in \text{Participantes}(A), p \in \mathcal{U}_{\text{inactivos}})$ | Documento purgado físicamente de MongoDB Atlas. Referenciado en `DehydrationAuditLog` con hash criptográfico SHA-256 del paquete ZIP. | • **Inexistente en MongoDB**<br>• No aparece en búsquedas ni logins<br>• Rehidratable en cualquier momento mediante subida de ZIP en `/backup` | `POST /backup/dehydrate/analyze`<br>`POST /backup/dehydrate/download`<br>`POST /backup/dehydrate/purge`<br>`POST /backup/dehydrate/restore` |
+| **Nivel 1** | **Activo / Pendiente**<br>*(Operación Vigente)* | $\text{accountStatus} \in \{\text{'active'}, \text{'pending'}\}$ | `{ accountStatus: { $in: ['active', 'pending'] } }` | • Visible al inicio de `/student` y `/volunteer`<br>• Acceso operativo completo (si `active`)<br>• Protegido contra cualquier corte en `/backup` | `GET /student`<br>`GET /volunteer`<br>`GET /activities` |
+| **Nivel 2** | **Inactivo Persistente**<br>*(Elegible Inmediato)* | $\text{accountStatus} = \text{'inactive'}$ | **Listados:** todos los documentos con ordenamiento `inactive` al fondo.<br>**Historial:** `{ accountStatus: 'inactive' }` sin filtro de fecha.<br>**Corte:** elegible cuando $t_{\text{efectiva}} \le t_{\text{corte}}$. | • Fila gris clara (`.row-inactive`, `#f1f5f9`) al final de tablas principales<br>• Visible íntegramente en `/volunteers/history`<br>• Banner informativo en su perfil | `GET /student`<br>`GET /volunteer`<br>`GET /volunteers/history/*` |
+| **Nivel 3** | **Deshidratado de BD**<br>*(Corte Manual en `/backup`)* | $(t_{\text{efectiva}} \le t_{\text{corte}}) \quad \land$<br>$(\forall p \in \text{Participantes}(A), p \in \mathcal{U}_{\text{elegibles}})$ | Documento exportado al `.zip` y borrado de MongoDB tras validar `X-Purge-Token` (15 min). Registrado en `DehydrationAuditLog` con SHA-256. | • **Inexistente en MongoDB activa**<br>• Rehidratable en cualquier momento subiendo el `.zip` en `/backup` | `POST /backup/dehydrate/analyze`<br>`POST /backup/dehydrate/download`<br>`POST /backup/dehydrate/purge`<br>`POST /backup/dehydrate/restore` |
 
-#### Fórmulas de Cálculo Temporal en Servidor
-1. **Diferencial de Inactividad de la Cuenta:**
-   $$\Delta t_{\text{inactivo}} = \text{Date.now()} - \max(\text{lastLogin}, \text{fechaUltimaAcreditacion}, \text{fechaInscripcionActividad}, \text{fechaAceptacionExpediente})$$
-   * Si $\Delta t_{\text{inactivo}} \ge 45\text{ días}$: Disparo de alerta preventiva por email (`stage='day45'`).
-   * Si $\Delta t_{\text{inactivo}} \ge 60\text{ días}$: Inactivación automática de cuenta (`stage='day60'`).
-
-2. **Diferencial de Antigüedad de Baja (Ventana de 12 Meses):**
-   $$\Delta t_{\text{baja}} = \text{Date.now()} - \text{fechaDesactivacion}$$
-   * Si $\Delta t_{\text{baja}} < 365\text{ días}$: Clasificación en **Nivel 2** (Tabla principal atenuada).
-   * Si $\Delta t_{\text{baja}} \ge 365\text{ días}$: Clasificación en **Nivel 3** (Exclusivo en `/volunteers/history`).
+#### Regla de Fecha Efectiva para Elegibilidad en Corte Manual
+Para garantizar que ninguna baja administrativa quede excluida aunque `fechaDesactivacion` sea `null`, el motor `dehydration.service.js` calcula la fecha efectiva de cada documento `inactive` como:
+$$t_{\text{efectiva}}(u) = \text{fechaDesactivacion} \;\|\; \text{updatedAt} \;\|\; \text{createdAt}$$
+* El tope máximo permitido para `cutoffDate` (`getMaxEligibleCutoffDate`) es el cierre del día actual UTC (`23:59:59.999Z`), rechazando con HTTP `400` únicamente fechas futuras.
+* Todo colaborador con `accountStatus === "inactive"` y $t_{\text{efectiva}}(u) \le \text{cutoffDate}$ entra inmediatamente al conjunto candidato $\mathcal{U}_{\text{elegibles}}$.
 
 ---
 
 ---
 
-## 4. Mecanismo de Deshidratación y Rehidratación de la Base de Datos
+## 4. Mecanismo de Deshidratación, Rehidratación y Registro Dinámico en `/backup`
 
-La deshidratación es el procedimiento administrativo para purgar físicamente de MongoDB la información de usuarios inactivos por más de un año, extrayendo un paquete estructurado en formato `.zip` descargable en local, garantizando que el sistema pueda revertir o rehidratar la información en cualquier momento.
+La deshidratación es el procedimiento administrativo manual bajo demanda en `/backup` para exportar en un paquete `.zip` verificado y purgar físicamente de MongoDB la información de colaboradores con `accountStatus: "inactive"` cuya fecha efectiva (`fechaDesactivacion || updatedAt || createdAt`) sea `<= cutoffDate` (con tope en el día actual UTC), garantizando corte indivisible en actividades compartidas y capacidad de rehidratación íntegra en cualquier momento.
 
 ```mermaid
 sequenceDiagram
@@ -226,40 +215,47 @@ sequenceDiagram
     participant API as Backup / Dehydration Controller
     participant DB as MongoDB Atlas
 
-    Note over Admin,UI: PASO 1: Descarga del Paquete (Corte)
-    Admin->>UI: Selecciona fecha de corte en dropdown
-    Admin->>UI: Clic en "Descargar Información de Corte (.zip)"
-    UI->>API: GET /backup/dehydrate/download?cutoffDate=YYYY-MM-DD
-    API->>DB: Consulta candidatos (inactivos > 1 año + actividades concluidas)
-    API-->>UI: Stream ZIP (JSONs de colecciones + manifest + SHA-256) + purgeToken
-    UI-->>Admin: Archivo descargado en máquina local
+    Note over Admin,UI: PASO 1: Analizar Sistema (1 sola pasada sin N+1)
+    Admin->>UI: Clic en "Analizar sistema"
+    UI->>API: POST /backup/dehydrate/analyze {}
+    API->>DB: Carga dataset elegible (accountStatus: "inactive" hasta hoy UTC)
+    API-->>UI: { maxEligibleCutoffDate, availableCutoffs } (evaluados en memoria)
+    Note over UI: Si availableCutoffs está vacío, el botón muestra por 3.5 s "No se encontraron fechas de corte disponibles" y vuelve a "Analizar sistema"
 
-    Note over Admin,UI: PASO 2: Purga Segura de BD
-    Note over UI: Botón "Borrar registros de la BD" SE HABILITA con el purgeToken
-    Admin->>UI: Clic en "Borrar registros descargados de la BD"
-    UI->>API: POST /backup/dehydrate/purge { purgeToken, cutoffDate }
-    API->>API: Valida token criptográfico (TTL 15 min) y coincidencia de corte
-    API->>DB: Borrado atómico transaccional de documentos respaldados
-    API->>DB: Inserta bitácora en DehydrationAuditLog
-    API-->>UI: Confirmación de purga exitosa
-    UI-->>Admin: Notificación de base de datos deshidratada
+    Note over Admin,UI: PASO 2: Elegir Fecha en Selector Desplegable
+    Admin->>UI: Selecciona fecha de corte en dropdown (impacto precalculado en memoria)
+
+    Note over Admin,UI: PASO 3: Descargar Corte (.zip) y Emitir Token
+    Admin->>UI: Clic en "Descargar corte (.zip)"
+    UI->>API: POST /backup/dehydrate/download { cutoffDate }
+    API->>DB: Construye plan Opción A (resolución users vía authId || userId)
+    API-->>UI: Stream ZIP (JSONs + manifest.json + SHA-256) + Header X-Purge-Token (15 min)
+    UI-->>Admin: Archivo .zip descargado en máquina local
+
+    Note over Admin,UI: PASO 4: Borrar Registros de la BD
+    Note over UI: Botón "Borrar registros" se habilita con X-Purge-Token vigente
+    Admin->>UI: Clic en "Borrar registros" + confirma contraseña admin
+    UI->>API: POST /backup/dehydrate/purge { cutoffDate, adminPassword } + X-Purge-Token
+    API->>API: Valida firma HMAC, vigencia (15 min) y contraseña admin
+    API->>DB: Borrado atómico de documentos respaldados + inserta DehydrationAuditLog
+    API-->>UI: Confirmación de purga exitosa (operationFolio)
 ```
 
 ### 4.1 Principio del Corte Indivisible y Decisión Oficial de Arquitectura (Opción A)
 
 #### Resolución del Dilema de Actividades Compartidas (Opción A Oficial)
-En la operación de ABAQ, casi todas las convocatorias son de carácter grupal (jornadas de limpieza de albergue, brigadas de esterilización, pláticas masivas). Si una actividad cuenta con participantes pertenecientes a diferentes generaciones (por ejemplo, el Estudiante A que concluyó su servicio hace más de un año y el Estudiante B que ingresó meses después y continúa activo en la plataforma):
+En la operación de ABAQ, casi todas las convocatorias son de carácter grupal (jornadas de limpieza de albergue, brigadas de esterilización, pláticas masivas). Si una actividad cuenta con participantes mixtos (por ejemplo, el Estudiante A que ya tiene `accountStatus: "inactive"` con fecha efectiva `<= cutoffDate` y el Estudiante B que continúa `active` o fue desactivado después de `cutoffDate`):
 
 > **Decisión Oficial de Arquitectura (Opción A):**
-> 1. **El Estudiante Inactivo ($> 1$ año) SÍ se purga:** Se deshidrata y retira de MongoDB Atlas al 100% (liberando su expediente, sus cuentas auth, sus notificaciones y sus registros personales). Todo su historial queda respaldado íntegramente en su archivo ZIP.
-> 2. **La Actividad Colectiva Compartida SE CONSERVA en MongoDB:** Permanece viva en la base de datos operativa porque el estudiante activo la sigue necesitando para consultar su convocatoria y amparar sus horas curriculares.
-> 3. **Purga Diferida de la Actividad:** La actividad colectiva se purgará de la base de datos únicamente en un corte futuro cuando el **100% de sus participantes inscritos** hayan concluido su vinculación y cumplido su año de inactividad.
+> 1. **El Colaborador Inactivo Elegible (`accountStatus: "inactive"` con fecha efectiva `<= cutoffDate`) SÍ se purga:** Se deshidrata de inmediato sin exigir espera adicional y se retira de MongoDB Atlas al 100 % (liberando su expediente, su cuenta `users` resuelta vía `authId || userId`, sus notificaciones y sus registros personales). Todo su historial queda respaldado íntegramente en el paquete `.zip`.
+> 2. **La Actividad Colectiva Compartida SE CONSERVA en MongoDB:** Permanece viva en la base de datos operativa porque al menos un participante inscrito sigue activo (o fuera del corte) y la necesita para consultar su convocatoria y amparar sus horas curriculares.
+> 3. **Purga Diferida de la Actividad:** La actividad colectiva se purgará de la base de datos únicamente en un corte futuro cuando el **100 % de sus participantes inscritos** pertenezcan al conjunto elegible de inactivos hasta la fecha de corte seleccionada.
 
 ```mermaid
 flowchart TD
-    subgraph Corte ["Ejecución de Corte de BD (cutoffDate: Octubre 2025)"]
-        Act["Actividad Colectiva X\n(Limpieza de Albergue Nov 2024)"]
-        StA["Estudiante A\n(Inactivo > 1 año: Desactivado Oct 2024)"]
+    subgraph Corte ["Ejecución de Corte Manual en /backup (cutoffDate <= hoy UTC)"]
+        Act["Actividad Colectiva X\n(Limpieza de Albergue)"]
+        StA["Estudiante A\n(accountStatus: 'inactive', fecha efectiva <= cutoffDate)"]
         StB["Estudiante B\n(ACTIVO en plataforma hoy)"]
         
         Act -.->|Inscrito| StA
@@ -267,13 +263,13 @@ flowchart TD
     end
 
     subgraph Decision ["Decisión de Corte: Opción A"]
-        StA -->|1. SE PURGA| ZipA["Paquete ZIP + DehydrationAuditLog\n(Expediente, horas y usuario retirados de BD)"]
-        Act -->|2. SE CONSERVA EN BD| DbLive["MongoDB Atlas (Base Activa)\n(Actividad permanece intacta sin valores nulos)"]
-        StB -->|3. INTOCABLE| DbLive
+        StA -->|"1. SE PURGA DE INMEDIATO"| ZipA["Paquete ZIP + DehydrationAuditLog\n(Expediente, horas y cuenta authId||userId retirados de BD)"]
+        Act -->|"2. SE CONSERVA EN BD"| DbLive["MongoDB Atlas (Base Activa)\n(Actividad permanece intacta sin valores nulos)"]
+        StB -->|"3. INTOCABLE"| DbLive
     end
 
-    subgraph Futuro ["Corte Futuro (Cuando Estudiante B concluya y cumpla > 1 año inactivo)"]
-        DbLive -->|100% Participantes Inactivos| PurgeAct["La Actividad X se purga de BD al ZIP"]
+    subgraph Futuro ["Corte Futuro (Cuando Estudiante B pase a inactive <= nuevo cutoffDate)"]
+        DbLive -->|"100% Participantes Elegibles"| PurgeAct["La Actividad X se purga de BD al ZIP"]
     end
 ```
 
@@ -303,7 +299,7 @@ flowchart TD
 
     subgraph Desacoplado ["✅ Enfoque Desacoplado ABAQ (Doble Arreglo Embebido Autosuficiente)"]
         direction TB
-        StNew["Student / Volunteer Model (_id: St_01)\n────────────────────────────────────────\nfolio: 'SS-261030-01'\nstatus: 'inactive'\nfechaDesactivacion: '2024-10-15'\n\n[ Arreglo 1: assignedActivities ]\n• interactionFolio: 'AC-261102-0A14'\n• activityId: Act_01, validatedHours: 15\n\n[ Arreglo 2: accreditations ]\n• interactionFolio: 'OP-STE-261102-03C8'\n• type: 'STERILIZATION', hours: 10, status: 'approved'"]
+        StNew["Student / Volunteer Model (_id: St_01)\n────────────────────────────────────────\nfolio: 'SS-261030-01'\naccountStatus: 'inactive'\nfechaDesactivacion: '2026-10-15'\n\n[ Arreglo 1: assignedActivities ]\n• interactionFolio: 'AC-261102-0A14'\n• activityId: Act_01, validatedHours: 15\n\n[ Arreglo 2: accreditations ]\n• interactionFolio: 'OP-STE-261102-03C8'\n• type: 'STERILIZATION', hours: 10, status: 'approved'"]
         
         ActNew["Activity Colectiva (_id: Act_01)\n(Sin lista de ObjectIds de estudiantes)"]
         
@@ -324,100 +320,91 @@ flowchart TD
 ##### Ventajas Críticas del Desacoplamiento:
 * **Cero Campos Nulos (`null-free`):** Si el Estudiante A es purgado, la Actividad compartida no sufre ninguna modificación, y no existe ninguna colección en MongoDB que requiera parchear llaves foráneas a `null`.
 * **Historial Completo Autocontenido:** Toda la evidencia, horas acreditadas y participaciones de un voluntario viven dentro de su propio documento. Si la organización entrega un respaldo al usuario o a su universidad, el JSON de su expediente contiene el 100% de su historia cívica.
-* **Resiliencia Total ante Rehidratación:** Al subir el paquete ZIP del Estudiante A años después para una auditoría escolar, su documento en MongoDB se restaura con sus dos listados completos embebidos mediante `replaceOne` con `upsert: true`. El estudiante vuelve a estar vinculado de forma inmediata a sus actividades y oportunidades históricas sin necesidad de reconstruir tablas intermedias ni resolver dependencias de integridad foránea.
+* **Resiliencia Total ante Rehidratación:** Al subir el paquete ZIP del Estudiante A posteriormente para una auditoría escolar, su documento en MongoDB se restaura con sus dos listados completos embebidos mediante `replaceOne` con `upsert: true`. El estudiante vuelve a estar vinculado de forma inmediata a sus actividades y oportunidades históricas sin necesidad de reconstruir tablas intermedias ni resolver dependencias de integridad foránea.
 
 ---
 
-### 4.2 Flujo Operativo en Tres Fases con Análisis Previo Bajo Demanda (Garantía Anti-Sobrecarga y Anti-Pérdida)
+### 4.2 Registro Dinámico de Modelos y Flujo Guiado de 4 Pasos en `/backup`
 
-La interfaz de **Respaldos y Recuperación** (`/backup`) amplía su sección de *"Generar y Descargar Copias Locales"* configurando una **cuadrícula de tres columnas (3 tarjetas de acción)**:
+La interfaz de **Respaldos y Recuperación** (`/backup`) sustenta sus métricas en el **descubrimiento dinámico de modelos Mongoose** (`getModelRegistry()` en `backup.service.js`, que inspecciona `backend/models/*.model.js` y `mongoose.models`, exponiendo `activeCollections / totalCollections`) y organiza *"Generar y Descargar Copias Locales"* en una **cuadrícula de tres columnas (3 tarjetas de acción)**:
 
-1. **Columna 1 — Respaldo Completo del Sistema (`.ZIP / JSON`):** Copia completa de las 14 colecciones para restauración general (*rollback*).
-2. **Columna 2 — Libro Consolidado en Excel (`.XLSX`):** Cuaderno estructurado con 14 hojas de cálculo para patronato y auditoría humana.
-3. **Columna 3 — Corte y Deshidratación de Base de Datos (`.ZIP / PURGA`):** Tarjeta dedicada a la depuración de usuarios inactivos $> 1$ año y oportunidades pasadas.
+1. **Columna 1 — Respaldo Completo del Sistema (`.ZIP / JSON`):** Descubre dinámicamente todos los modelos registrados vía `getModelRegistry()`, incluye íntegramente los campos ocultos (`select: false`, ej. `+passwordHash`) en cada `collections/<key>.json` y firma `manifest.json` con SHA-256 para *rollback* exacto.
+2. **Columna 2 — Libro Consolidado en Excel (`.XLSX`):** Genera una hoja de `"Resumen General"` más una pestaña por cada modelo descubierto en `getModelRegistry()`, omitiendo automáticamente cualquier campo con `select: false` en el esquema o credenciales (`password`, `passwordHash`) para auditoría humana segura.
+3. **Columna 3 — Corte y Deshidratación de Base de Datos (`.ZIP / PURGA`):** Tarjeta guiada en **4 pasos bajo demanda** para depurar colaboradores con `accountStatus: "inactive"` (fecha efectiva `<= cutoffDate`) y oportunidades concluidas bajo Opción A.
 
 #### Alerta Operativa para el Administrador
 Dado el alto impacto computacional de esta operación, la tarjeta de la tercera columna incluye de forma prominente un aviso de advertencia institucional:
 
 !!! warning "Aviso de Alto Consumo de Procesamiento (Operación Fuera de Horario)"
     **Se recomienda enfáticamente ejecutar el corte de base de datos fuera de horarios operativos de oficina** (preferentemente en horario nocturno o fines de semana).  
-    La verificación relacional indivisible entre los 14 modelos de Mongoose, el filtrado de participantes activos, la compresión en tiempo real y el borrado transaccional generan una alta demanda de CPU y memoria en el clúster de MongoDB Atlas, lo que podría ralentizar la experiencia de los colaboradores que interactúen con el portal durante el día.
+    La verificación relacional indivisible entre los modelos de Mongoose, el filtrado de participantes activos, la compresión en tiempo real y el borrado transaccional generan una alta demanda de CPU y memoria en el clúster de MongoDB Atlas, lo que podría ralentizar la experiencia de los colaboradores que interactúen con el portal durante el día.
 
-#### Principio de No Ejecución Pasiva: Análisis Previo Exclusivamente Bajo Demanda
+#### Principio de No Ejecución Pasiva: Escaneo en Una Sola Pasada y Evaluación en Memoria
 Para salvaguardar el rendimiento del servidor y de MongoDB Atlas, **el sistema tiene estrictamente prohibido ejecutar la verificación o cálculo de corte de forma automática, continua o al cargar la página**:
-* Al ingresar a la vista `/backup` o al cambiar la fecha en el selector, **no se dispara ninguna consulta pesada de agregación**.
-* La verificación relacional de las 14 colecciones representa una carga de cómputo significativa; por ello, **se ejecuta única y exclusivamente cuando el administrador lo requiere de forma intencional**, pulsando el botón explícito de análisis previo.
+* Al ingresar a la vista `/backup`, **no se dispara ninguna consulta de análisis**.
+* El escaneo se ejecuta única y exclusivamente cuando el administrador pulsa **"Analizar sistema"** (Paso 1), realizando una sola pasada de consultas sin N+1 (`discoverAvailableCutoffs`). Cambiar de fecha en el selector desplegable (Paso 2) conmuta instantáneamente entre los planes ya precalculados en memoria sin volver a consultar MongoDB.
 
 ```
 ┌────────────────────────────────────────────────────────────────────────────────────────────────────────┐
 │                              GENERAR Y DESCARGAR COPIAS LOCALES                                        │
 ├──────────────────────────────┬──────────────────────────────┬──────────────────────────────────────────┤
 │ COLUMNA 1                    │ COLUMNA 2                    │ COLUMNA 3                                │
-│ Respaldo Completo (.zip)     │ Libro Consolidado (.xlsx)    │ Deshidratación & Corte (Cut-off)         │
+│ Respaldo Completo (.zip)     │ Libro Consolidado (.xlsx)    │ Deshidratación & Corte Guiado (4 Pasos)  │
 │                              │                              │                                          │
-│ 14 colecciones nativas       │ 14 hojas tabulares formatead.│ [Dropdown: Seleccionar Fecha de Corte ▼] │
+│ getModelRegistry() dinámico  │ Pestañas dinámicas + Resumen │ ⚠️ AVISO: Ejecutar fuera de horario      │
+│ Incluye select:false (+hash) │ Omite select:false y claves  │ operativo por alta carga en BD.          │
 │ Oficial para rollback        │ Auditoría y patronato        │                                          │
-│                              │                              │ ⚠️ AVISO: Ejecutar fuera de horario      │
-│                              │                              │ operativo por alta carga en BD.          │
+│                              │                              │ [ 1. Analizar sistema ]                  │
+│                              │                              │ (Si vacío -> 3.5s: "No se encontraron    │
+│                              │                              │  fechas de corte disponibles")           │
 │                              │                              │                                          │
-│                              │                              │ [ 🔍 Analizar Fecha de Corte ]           │
-│                              │                              │                                          │
+│                              │                              │ [ 2. Elegir fecha: Dropdown en memoria ▼]│
 │                              │                              │ ┌─ Resumen de Impacto (Previsualización) ┐│
 │                              │                              │ │ • Estudiantes inactivos: 14            ││
 │                              │                              │ │ • Voluntarios inactivos: 8             ││
-│                              │                              │ │ • Actividades purgadas: 10 (0 activos) ││
-│                              │                              │ │ • Actividades retenidas: 2 (1+ activos)││
-│                              │                              │ │ • Almacenamiento a liberar: ~145 KB    ││
+│                              │                              │ │ • Actividades purgadas / retenidas     ││
 │                              │                              │ └────────────────────────────────────────┘│
 │                              │                              │                                          │
-│ [ Descargar Respaldo JSON ]  │ [ Descargar Base en Excel ]  │ [ 1. Descargar Corte Limpio (.zip) ]     │
-│                              │                              │ [ 2. Purgar Registros de la BD ] (lock)  │
+│ [ Descargar Respaldo JSON ]  │ [ Descargar Base en Excel ]  │ [ 3. Descargar corte (.zip) ]            │
+│                              │                              │ [ 4. Borrar registros ] (X-Purge-Token)  │
 └──────────────────────────────┴──────────────────────────────┴──────────────────────────────────────────┘
 ```
 
-#### Flujo Operativo en Tres Fases (Garantía Anti-Pérdida)
+#### Flujo Operativo Guiado en Cuatro Pasos (Garantía Anti-Pérdida)
 
-El flujo de deshidratación sigue una progresión estricta de tres fases secuenciales:
+El flujo de deshidratación sigue una progresión estricta de cuatro pasos secuenciales:
 
 ```mermaid
 flowchart TD
-    A["Admin selecciona Fecha de Corte"] --> B["Fase 0: Clic en 'Analizar Fecha de Corte' (Bajo Demanda)"]
-    B --> C["Backend ejecuta Dry-Run de sólo lectura sobre las 14 colecciones"]
-    C --> D{"¿Existen registros elegibles y corte válido?"}
-    D -- No --> E["Muestra alerta: 'No hay usuarios ni oportunidades con > 1 año de inactividad'"]
-    D -- Sí --> F["Despliega Resumen de Impacto y HABILITA botón de Descarga"]
-    F --> G["Fase 1: Clic en '1. Descargar Corte Limpio (.zip)'"]
-    G --> H["Genera ZIP con JSONs y SHA-256 + Emite cabecera HTTP: X-Purge-Token (TTL 15 min)"]
-    H --> I["Descarga guardada en equipo del Admin y HABILITA botón de Purga"]
-    I --> J["Fase 2: Clic en '2. Purgar Registros de la BD'"]
-    J --> K["Modal de Confirmación con Contraseña de Admin"]
-    K --> L["Backend valida X-Purge-Token + Ejecuta purga atómica + Registra DehydrationAuditLog"]
+    A["Paso 1: Clic en 'Analizar sistema' (POST /backup/dehydrate/analyze con {})"] --> B["Backend ejecuta discoverAvailableCutoffs en 1 sola pasada sin N+1 (tope: hoy UTC)"]
+    B --> C{"¿Existen fechas de corte con impacto > 0?"}
+    C -- No --> D["El botón muestra por 3.5 s: 'No se encontraron fechas de corte disponibles' y vuelve a 'Analizar sistema'"]
+    C -- Sí --> E["Paso 2: Admin elige fecha en selector desplegable (resumen evaluado en memoria)"]
+    E --> F["Paso 3: Clic en 'Descargar corte (.zip)'"]
+    F --> G["Stream ZIP con JSONs (+passwordHash en users) y manifest SHA-256 + Header X-Purge-Token (15 min)"]
+    G --> H["Descarga guardada en equipo del Admin y habilita botón de borrado"]
+    H --> I["Paso 4: Clic en 'Borrar registros' (POST /backup/dehydrate/purge)"]
+    I --> J["Modal de confirmación con contraseña de Admin"]
+    J --> K["Backend valida X-Purge-Token (15 min) + ejecuta purga + registra DehydrationAuditLog"]
 ```
 
-1. **Fase 0 — Análisis Previo y Simulación de Impacto (`POST /backup/dehydrate/analyze`):**
-   * **Bajo Demanda:** Se invoca únicamente tras la pulsación manual del botón *"Analizar Fecha de Corte"*.
-   * **Simulación en Modo Lectura (*Dry-Run*):** El backend ejecuta las consultas de agregación sin alterar ningún dato en la base de datos:
-     1. Filtra estudiantes y voluntarios con `accountStatus: 'inactive'` y `fechaDesactivacion <= cutoffDate`.
-     2. Evalúa las actividades pasadas, verificando si el 100% de los inscritos son inactivos; clasifica las que cumplen para purga y las que se retienen por tener participantes activos vinculados.
-     3. Cuantifica los documentos asociados en las oportunidades (`talks`, `campaigns`, `adoptions`, `identifications`, `surveys`, `contacts`, `notifications`, `accreditations`).
-     4. Calcula el volumen estimado en bytes a liberar y certifica que los modelos maestros (`quickactivities`, `users` admin, `pets`) no se toquen.
-   * **Despliegue del Resumen de Impacto:** La tarjeta de la UI renderiza el panel con los totales proyectados y el estado del corte. Si el análisis confirma registros purgados sin violar la integridad, **se desbloquea el botón del Paso 1**.
+1. **Paso 1 — Analizar sistema (`POST /backup/dehydrate/analyze` con `{}`):**
+   * **Bajo Demanda y en Una Sola Pasada (Sin N+1):** Se invoca únicamente tras pulsar el botón *"Analizar sistema"*. El backend carga una sola vez el conjunto elegible hasta el cierre del día actual UTC (`23:59:59.999Z`) mediante `loadEligibleDataset` y evalúa en memoria cada fecha candidata con `computePurgePlanFromDataset`, descartando fechas con impacto `0` y deduplicando fechas redundantes.
+   * **Aviso Temporal Integrado en el Botón (`3.5 s`):** Si el escaneo no encuentra ninguna fecha con impacto `> 0` (`availableCutoffs.length === 0`), el propio botón muestra temporalmente el texto `"No se encontraron fechas de corte disponibles"` durante `3.5 s` y posteriormente se restaura a `"Analizar sistema"`, manteniendo ocultos/bloqueados los pasos posteriores.
 
-2. **Fase 1 — Descarga del Paquete Seguro y Emisión de Token (`POST /backup/dehydrate/download`):**
-   * El administrador pulsa *"1. Descargar Corte Limpio (.zip)"*.
-   * El backend compila en memoria o temporal seguro los JSONs estructurados de las 12 colecciones afectadas y genera el `manifest.json` con el hash SHA-256 del contenido.
-   * La respuesta HTTP envía el archivo binario descargable (`abaq-dehydrate-YYYYMMDD-HHmmss.zip`) e inyecta en los encabezados de respuesta el token temporal firmado criptográficamente: `X-Purge-Token` (con expiración estricta de 15 minutos).
-   * Al recibirse la descarga exitosa en el navegador, el frontend guarda temporalmente el token y **desbloquea el botón del Paso 2**.
+2. **Paso 2 — Elegir fecha en selector desplegable (Evaluación en Memoria):**
+   * Cuando existen fechas elegibles, se despliega el selector ordenado de la fecha más reciente (corte más completo) a la más antigua.
+   * Seleccionar cualquier opción renderiza de inmediato en memoria el resumen de impacto (documentos por colección, actividades purgadas vs. retenidas por Opción A, bytes liberados y conteo de catálogos preservados `quickactivities`, `users` admin y `pets`) y habilita el Paso 3.
 
-3. **Fase 2 — Purga Atómica Condicionada en Base de Datos (`POST /backup/dehydrate/purge`):**
-   * El botón *"2. Purgar registros de la BD"* deja de estar bloqueado.
-   * Al pulsarlo, el sistema despliega un **modal crítico de confirmación** solicitando que el administrador ingrese su contraseña de acceso institucional para autorizar la depuración definitiva.
-   * La petición al backend incluye en sus cabeceras el `X-Purge-Token` y en su cuerpo `{ adminPassword }`.
-   * El backend valida la contraseña y la vigencia del token criptográfico. Si es válido:
-     1. Ejecuta la purga atómica de los documentos respaldados en MongoDB.
-     2. Genera y persiste de forma inmediata el registro inmutable en `DehydrationAuditLog` (con el detalle de los modelos y usuarios que salieron).
-     3. Invalida de forma irrevocable el `X-Purge-Token` para evitar reutilizaciones accidentales.
-   * Si el token expiró (superó los 15 minutos) o es inválido, el backend aborta la transacción y rechaza la petición con HTTP `412 Precondition Failed` o `403 Forbidden`, manteniendo la base de datos totalmente intacta.
+3. **Paso 3 — Descargar corte `.zip` (`POST /backup/dehydrate/download`):**
+   * El administrador pulsa *"Descargar corte (.zip)"*.
+   * El backend construye el plan para la `cutoffDate` elegida (resolviendo cuentas `users` de estudiantes y voluntarios mediante `authId || userId` e incluyendo `+passwordHash`), empaqueta `collections/<key>.json` más `manifest.json` con hashes SHA-256 e inyecta en la cabecera HTTP el token firmado `X-Purge-Token` con vigencia estricta de **15 minutos** (`Access-Control-Expose-Headers: X-Purge-Token, Content-Disposition`).
+   * Al completarse la descarga en el cliente, el frontend retiene el `X-Purge-Token` y habilita el botón del Paso 4.
+
+4. **Paso 4 — Borrar registros (`POST /backup/dehydrate/purge`):**
+   * Al pulsar *"Borrar registros"*, un modal crítico solicita la contraseña del administrador en sesión (`adminPassword`).
+   * El backend verifica la firma HMAC-SHA256 del `X-Purge-Token`, su no expiración (`<= 15 min`), la correspondencia con el administrador autenticado y la contraseña con `bcryptjs`.
+   * Ejecuta el borrado de los documentos respaldados, registra de forma inmutable el evento en `DehydrationAuditLog` e invalida irrevocablemente el `X-Purge-Token`. Si el token expiró o es inválido, responde con HTTP `412 Precondition Failed` o `403 Forbidden` sin tocar la base de datos.
 
 ### 4.3 Rehidratación Idempotente (Restauración)
 En caso de auditoría externa o requerimiento de consulta histórica en plataforma:
@@ -436,61 +423,64 @@ El algoritmo de deshidratación resuelve el desafío de depurar grandes volúmen
 
 ```mermaid
 flowchart TD
-    Start(["Inicio: Selección de cutoffDate"]) --> Step1["Paso 1: Query Voluntarios Inactivos Candidatos\n(accountStatus == 'inactive' && fechaDesactivacion <= cutoffDate)"]
-    Step1 --> Step2["Paso 2: Query Cuentas Auth Vinculadas\n(User con rol student/volunteer de los candidatos)"]
-    Step2 --> Step3["Paso 3: Query Acreditaciones Candidatas\n(studentRef o volunteerRef en candidatos)"]
+    Start(["Paso 1: POST /backup/dehydrate/analyze {}"]) --> Scan["discoverAvailableCutoffs (1 sola pasada sin N+1, tope hoy 23:59:59.999Z)"]
+    Scan --> HasDates{"¿availableCutoffs con impacto > 0?"}
+    HasDates -- No --> BtnEmpty["Botón muestra 3.5 s: 'No se encontraron fechas de corte disponibles' -> 'Analizar sistema'"]
+    HasDates -- Sí --> Step1["Paso 2: Selección de cutoffDate en dropdown (evaluado en memoria)"]
+    Step1 --> Cand["Colaboradores Inactivos Candidatos\n(accountStatus == 'inactive' && (fechaDesactivacion || updatedAt || createdAt) <= cutoffDate)"]
+    Cand --> Step2["Cuentas Auth Vinculadas\n(User rol student/volunteer resueltas vía authId || userId, +passwordHash)"]
+    Step2 --> Step3["Acreditaciones y Actividades Candidatas hasta cutoffDate"]
     
-    Step3 --> Step4["Paso 4: Evaluación Relacional Indivisible de Actividades (Activity)"]
-    Step4 --> LoopAct{"Para cada actividad pasada:\n¿Todos sus inscritos son inactivos > 1 año?"}
+    Step3 --> LoopAct{"Corte Indivisible Opción A:\n¿100% de inscritos pertenecen a candidatos elegibles?"}
     
-    LoopAct -- "NO (Tiene >= 1 participante activo o reciente)" --> RetainAct["ACTIVIDAD SE RETIENE\n(No se purga; sus inscripciones se conservan)"]
-    LoopAct -- "SÍ (100% inscritos son candidatos inactivos)" --> PurgeAct["ACTIVIDAD SE MARCA PARA PURGA\n(Se incluirá en el ZIP y en la purga)"]
+    LoopAct -- "NO (Tiene >= 1 participante activo o fuera del corte)" --> RetainAct["ACTIVIDAD SE RETIENE\n(El colaborador inactivo SÍ se purga; la actividad se conserva)"]
+    LoopAct -- "SÍ (100% inscritos son candidatos elegibles)" --> PurgeAct["ACTIVIDAD SE MARCA PARA PURGA\n(Se incluirá en el ZIP y en la purga)"]
     
-    RetainAct & PurgeAct --> Step5["Paso 5: Evaluación de las 11 Oportunidades Especializadas\n(Talks, Campaigns, Adoptions, Identifications, Surveys, Contacts, Notifications)"]
-    Step5 --> Step6["Paso 6: Verificación de Exclusión de Modelos Permanentes\n(QuickActivities, Users admin, Pets, DehydrationAuditLog)"]
+    RetainAct & PurgeAct --> Step5["Evaluación de Oportunidades Especializadas y Exclusión de Modelos Permanentes\n(Preserva QuickActivities, Users admin, Pets, DehydrationAuditLog)"]
     
-    Step6 --> Step7["Paso 7: Generación de Reporte de Impacto (Previsualización Dry-Run)\nTotal colecciones, documentos y bytes proyectados"]
+    Step5 --> Phase1{"Paso 3: ¿Admin pulsa 'Descargar corte (.zip)'?"}
+    Phase1 -- No --> EndDryRun(["Previsualización en memoria (Sin cambios en BD)"])
+    Phase1 -- Sí --> Step8["Stream ZIP (archiver): JSONs + manifest.json SHA-256 + Header X-Purge-Token (TTL 15 min)"]
     
-    Step7 --> Phase1{"¿Admin confirma 'Descargar Corte (.zip)'?"}
-    Phase1 -- No --> EndDryRun(["Fin de Simulación (Sin cambios en BD)"])
-    Phase1 -- Sí --> Step8["Paso 8: Generación de Paquete ZIP en Memoria (archiver)\n12 JSONs + manifest.json con SHA-256 + Token X-Purge-Token (TTL 15 min)"]
-    
-    Step8 --> Phase2{"¿Admin ejecuta 'Purgar Registros BD' con contraseña y token?"}
-    Phase2 -- "Token inválido / expirado" --> AbortPurge["Transacción Abortada (HTTP 412/403)\nBase de datos intacta"]
-    Phase2 -- "Token válido + Contraseña correcta" --> Step9["Paso 9: Transacción Atómica en MongoDB (session.withTransaction)\nBorrado en bloque de IDs respaldados en las 12 colecciones"]
-    
-    Step9 --> Step10["Paso 10: Inserción Inmutable de DehydrationAuditLog\nInvalidación definitiva de token + Notificación de éxito"]
-    Step10 --> Done(["Fin de Deshidratación Exitosa"])
+    Step8 --> Phase2{"Paso 4: ¿Admin ejecuta 'Borrar registros' con contraseña y X-Purge-Token?"}
+    Phase2 -- "Token inválido / expirado" --> AbortPurge["Operación Abortada (HTTP 412/403)\nBase de datos intacta"]
+    Phase2 -- "Token válido + Contraseña correcta" --> Step9["Borrado Atómico en MongoDB + Inserción Inmutable de DehydrationAuditLog"]
+    Step9 --> Done(["Fin de Deshidratación Exitosa (Invalidación de X-Purge-Token)"])
 ```
 
 #### Los 10 Pasos del Algoritmo de Deshidratación (Lógica y Criterios Mongoose)
 
-1. **Paso 1 — Búsqueda del Conjunto de Voluntarios Candidatos ($\mathcal{U}_{\text{inactivos}}$):**
-   El backend ejecuta consultas paralelas sobre las colecciones `students` y `volunteers`:
+1. **Paso 1 — Carga Única y Filtrado por Fecha Efectiva ($\mathcal{U}_{\text{elegibles}}$):**
+   El backend valida que `cutoffDate` no exceda el cierre del día actual UTC (`getMaxEligibleCutoffDate` $\to$ `23:59:59.999Z`), consulta todos los documentos con `accountStatus: 'inactive'` en una sola pasada y evalúa su fecha efectiva (`fechaDesactivacion || updatedAt || createdAt <= cutoffDate`), resolviendo sus cuentas `users` mediante `authId || userId`:
    ```javascript
-   const candidateStudents = await Student.find({
-     accountStatus: 'inactive',
-     fechaDesactivacion: { $lte: cutoffDate }
-   }).lean();
+   const getEffectiveInactiveDate = (doc) =>
+     doc?.fechaDesactivacion || doc?.updatedAt || doc?.createdAt || null;
 
-   const candidateVolunteers = await Volunteer.find({
-     accountStatus: 'inactive',
-     fechaDesactivacion: { $lte: cutoffDate }
-   }).lean();
+   const [rawStudents, rawVolunteers] = await Promise.all([
+     Student.find({ accountStatus: 'inactive' }).lean(),
+     Volunteer.find({ accountStatus: 'inactive' }).lean()
+   ]);
+
+   const candidateStudents = rawStudents.filter(
+     s => new Date(getEffectiveInactiveDate(s)).getTime() <= cutoffDate.getTime()
+   );
+   const candidateVolunteers = rawVolunteers.filter(
+     v => new Date(getEffectiveInactiveDate(v)).getTime() <= cutoffDate.getTime()
+   );
 
    const candidateUserIds = [
-     ...candidateStudents.map(s => s.userId),
-     ...candidateVolunteers.map(v => v.userId)
-   ].filter(Boolean);
+     ...candidateStudents.map(s => (s.authId || s.userId || '').toString().trim()),
+     ...candidateVolunteers.map(v => (v.authId || v.userId || '').toString().trim())
+   ].filter(id => mongoose.Types.ObjectId.isValid(id));
    ```
 
 2. **Paso 2 — Búsqueda de Cuentas de Acceso Vinculadas ($\mathcal{A}_{\text{auth}}$):**
-   Filtra en `users` exclusivamente aquellas cuentas con rol operativo de voluntariado:
+   Filtra en `users` exclusivamente aquellas cuentas con rol operativo de voluntariado e incluye `+passwordHash` para preservar la capacidad de rehidratación íntegra:
    ```javascript
    const candidateUsers = await User.find({
      _id: { $in: candidateUserIds },
      role: { $in: ['student', 'volunteer'] } // NUNCA rol 'admin'
-   }).lean();
+   }).select('+passwordHash').lean();
    ```
 
 3. **Paso 3 — Búsqueda de Acreditaciones Candidatas ($\mathcal{AC}_{\text{candidatas}}$):**
@@ -509,11 +499,11 @@ flowchart TD
    * Se extrae el conjunto de colaboradores inscritos:
      $$P(A_j) = \{ u \in \text{Participantes}(A_j) \}$$
    * **Comprobación de Corte Indivisible para Actividades Colectivas:**
-     $$\text{EsPurgable}(A_j) \iff P(A_j) \subseteq \mathcal{U}_{\text{inactivos}}$$
+     $$\text{EsPurgable}(A_j) \iff P(A_j) \subseteq \mathcal{U}_{\text{elegibles}}$$
    * **Criterio de Decisión Oficial (Opción A):**
-     * Si existe al menos un alumno activo o con inactividad menor a 12 meses ($P(A_j) \not\subseteq \mathcal{U}_{\text{inactivos}}$):  
-       **La actividad se RETIENE en MongoDB** (`retainedActivities.push(A_j)`). Sin embargo, **el alumno inactivo SÍ SE PURGA de la base de datos** al ZIP con todo su expediente. Gracias al desacoplamiento por doble arreglo en `Student` y `Volunteer`, la actividad no sufre alteraciones ni deja valores nulos (`null`), manteniéndose íntegra para el alumno activo.
-     * Si el 100% de los participantes inscritos son inactivos elegibles ($P(A_j) \subseteq \mathcal{U}_{\text{inactivos}}$):  
+     * Si existe al menos un participante activo, pendiente o inactivado después de `cutoffDate` ($P(A_j) \not\subseteq \mathcal{U}_{\text{elegibles}}$):  
+       **La actividad se RETIENE en MongoDB** (`retainedActivities.push(A_j)`). Sin embargo, **el colaborador inactivo elegible SÍ SE PURGA de la base de datos** al ZIP con todo su expediente. Gracias al desacoplamiento por doble arreglo en `Student` y `Volunteer`, la actividad no sufre alteraciones ni deja valores nulos (`null`), manteniéndose íntegra para el participante activo.
+     * Si el 100 % de los participantes inscritos son inactivos elegibles ($P(A_j) \subseteq \mathcal{U}_{\text{elegibles}}$):  
        **La actividad se PURGA** (`purgedActivities.push(A_j)`), exportándose al paquete ZIP junto con sus inscripciones históricas.
 
 5. **Paso 5 — Evaluación Relacional de las 11 Oportunidades Especializadas:**
@@ -529,13 +519,13 @@ flowchart TD
    * `pets`: Cero animales tocados (el padrón es patrimonio comunitario).
    * `dehydrationauditlogs`: Bitácora inmutable permanente.
 
-7. **Paso 7 — Retorno del Reporte de Impacto (Fase 0 — Dry-Run):**
-   El endpoint responde un JSON ligero con la telemetría calculada sin tocar la BD:
+7. **Paso 7 — Retorno del Escaneo y Previsualización de Impacto (Dry-Run):**
+   Cuando se invoca `POST /backup/dehydrate/analyze` con cuerpo vacío (`{}`), el endpoint ejecuta `discoverAvailableCutoffs` en una sola pasada y retorna `{ maxEligibleCutoffDate, availableCutoffs }` con el resumen precalculado por cada fecha candidata con impacto `> 0` (para evaluación inmediata en memoria en el selector del Paso 2; si `availableCutoffs` está vacío, el botón muestra por `3.5 s` `"No se encontraron fechas de corte disponibles"`). Si se envía un `cutoffDate` puntual, retorna su reporte de impacto sin mutar la base de datos:
    ```json
    {
      "status": "success",
      "dryRun": true,
-     "cutoffDate": "2025-10-15T00:00:00.000Z",
+     "cutoffDate": "2026-11-03T23:59:59.999Z",
      "metrics": {
        "totalCollectionsAffected": 12,
        "totalDocumentsPurged": 185,
@@ -627,11 +617,25 @@ const TOKEN_TTL_MS = 15 * 60 * 1000; // 15 minutos
 const activePurgeTokens = new Map();
 
 /**
+ * Calcula el tope máximo permitido de corte: cierre del día actual UTC (23:59:59.999Z),
+ * bloqueando únicamente fechas futuras sin imponer espera de antigüedad.
+ */
+function getMaxEligibleCutoffDate(nowRef = Date.now()) {
+  const boundary = new Date(nowRef instanceof Date ? nowRef.getTime() : Number(nowRef));
+  boundary.setUTCHours(23, 59, 59, 999);
+  return boundary;
+}
+
+function getEffectiveInactiveDate(doc) {
+  return doc?.fechaDesactivacion || doc?.updatedAt || doc?.createdAt || null;
+}
+
+/**
  * ALGORITMO TÉCNICO 1: Construcción del Plan de Purga Relacional Indivisible
  * Complejidad temporal: O(U + A*P) donde U es usuarios, A actividades y P participantes.
  * Con Sets en memoria, la verificación de cada participante se realiza en O(1).
  * 
- * @param {Date|string} cutoffDateRaw - Fecha límite de corte
+ * @param {Date|string} cutoffDateRaw - Fecha límite de corte (<= fin del día actual UTC)
  * @returns {Promise<Object>} purgePlan estructurado con IDs y documentos a purgar/retener
  */
 async function buildPurgePlan(cutoffDateRaw) {
@@ -639,32 +643,40 @@ async function buildPurgePlan(cutoffDateRaw) {
   if (isNaN(cutoffDate.getTime())) {
     throw new AppError("La fecha de corte especificada no es válida.", 400);
   }
+  if (cutoffDate.getTime() > getMaxEligibleCutoffDate().getTime()) {
+    throw new AppError("La fecha de corte no puede ser futura.", 400);
+  }
 
-  // 1. Identificación de Voluntarios Candidatos (> 1 año de inactividad)
-  const [candidateStudents, candidateVolunteers] = await Promise.all([
-    Student.find({
-      accountStatus: "inactive",
-      fechaDesactivacion: { $lte: cutoffDate },
-    }).lean(),
-    Volunteer.find({
-      accountStatus: "inactive",
-      fechaDesactivacion: { $lte: cutoffDate },
-    }).lean(),
+  // 1. Identificación de Colaboradores Inactivos Elegibles (accountStatus: "inactive" y fecha efectiva <= cutoffDate)
+  const [rawStudents, rawVolunteers] = await Promise.all([
+    Student.find({ accountStatus: "inactive" }).lean(),
+    Volunteer.find({ accountStatus: "inactive" }).lean(),
   ]);
 
-  // Estructuras de búsqueda rápida en memoria (O(1) lookups)
+  const candidateStudents = rawStudents.filter(
+    (s) => new Date(getEffectiveInactiveDate(s)).getTime() <= cutoffDate.getTime()
+  );
+  const candidateVolunteers = rawVolunteers.filter(
+    (v) => new Date(getEffectiveInactiveDate(v)).getTime() <= cutoffDate.getTime()
+  );
+
+  // Estructuras de búsqueda rápida en memoria (O(1) lookups) y resolución authId || userId
   const candidateStudentIdSet = new Set(candidateStudents.map((s) => s._id.toString()));
   const candidateVolunteerIdSet = new Set(candidateVolunteers.map((v) => v._id.toString()));
-  const candidateUserIdSet = new Set([
-    ...candidateStudents.map((s) => s.userId?.toString()),
-    ...candidateVolunteers.map((v) => v.userId?.toString()),
-  ].filter(Boolean));
+  const candidateUserIdSet = new Set(
+    [
+      ...candidateStudents.map((s) => (s.authId || s.userId || "").toString().trim()),
+      ...candidateVolunteers.map((v) => (v.authId || v.userId || "").toString().trim()),
+    ].filter((id) => id && mongoose.Types.ObjectId.isValid(id))
+  );
 
-  // 2. Identificación de Cuentas Auth vinculadas (NUNCA rol admin)
+  // 2. Identificación de Cuentas Auth vinculadas (NUNCA rol admin; incluye +passwordHash para rehidratación)
   const candidateUsers = await User.find({
     _id: { $in: Array.from(candidateUserIdSet) },
     role: { $in: ["student", "volunteer"] },
-  }).lean();
+  })
+    .select("+passwordHash")
+    .lean();
 
   // 3. Mapa de Inscripciones en Actividades extraídas de los perfiles de los candidatos
   // En ABAQ, las inscripciones residen desnormalizadas en assignedActivities de Student/Volunteer
@@ -757,7 +769,7 @@ async function buildPurgePlan(cutoffDateRaw) {
       });
       retainedActivityIdSet.add(actIdStr);
     } else {
-      // 100% de los inscritos son inactivos > 1 año: LA ACTIVIDAD SE PURGA
+      // 100% de los inscritos pertenecen al conjunto elegible de inactivos: LA ACTIVIDAD SE PURGA
       purgedActivities.push(act);
     }
   }
@@ -1085,7 +1097,23 @@ async function executeDehydrationPurge(purgeToken, adminPassword, adminUser) {
   };
 }
 
+/**
+ * ALGORITMO TÉCNICO 0: Escaneo en una sola pasada sin N+1 (Paso 1 — Analizar sistema)
+ * Carga el dataset elegible hasta el cierre de hoy UTC (getMaxEligibleCutoffDate),
+ * evalúa en memoria el impacto de cada fecha efectiva candidata, descarta fechas de
+ * impacto 0 y deduplica fechas redundantes.
+ */
+async function discoverAvailableCutoffs(options = {}) {
+  const maxEligible = getMaxEligibleCutoffDate(options.nowMs ?? Date.now());
+  const dataset = await loadEligibleDataset(maxEligible);
+  // Evalúa computePurgePlanFromDataset(effectiveCutoff, dataset) en memoria y ordena descendente
+  return { maxEligibleCutoffDate: maxEligible.toISOString(), availableCutoffs };
+}
+
 module.exports = {
+  getMaxEligibleCutoffDate,
+  getEffectiveInactiveDate,
+  discoverAvailableCutoffs,
   buildPurgePlan,
   generateDehydrationZipStream,
   executeDehydrationPurge,
@@ -1441,8 +1469,8 @@ interface StatusHistoryEntry {
 
   // 3. Responsable de la Acción (Quién lo hizo)
   // Alineado a la realidad de MongoDB: el modelo User solo posee email, role y passwordHash; no posee campo name.
-  changedBy: mongoose.Types.ObjectId | 'system_cron'; // _id del User admin autenticado o string 'system_cron'
-  changedByEmail: string;                             // req.user.email del administrador ejecutor o 'system_cron'
+  changedBy: mongoose.Types.ObjectId | 'system';      // _id del User admin autenticado o string 'system' (ej. acreditación 480 h)
+  changedByEmail: string;                             // req.user.email del administrador ejecutor o 'system'
   changedByRole: 'admin' | 'system';                  // Rol operativo del actor ejecutor
 
   // 4. Causal Formal de la Transición
@@ -1451,7 +1479,6 @@ interface StatusHistoryEntry {
     | 'admin_approval'                     // Aprobación y alta manual por administrador
     | 'admin_rejection'                    // Rechazo manual de expediente con observaciones
     | 'hours_completed'                    // Sistema: cumplimiento íntegro de 480 hrs reglamentarias
-    | 'inactivity_60_days'                 // Sistema: baja automática por acumular 60 días de inactividad
     | 'administrative_decision'            // Inactivación manual por administrador a su discreción
     | 're_registration';                   // Re-registro tras haber sido previamente rechazado
 
@@ -1467,14 +1494,12 @@ interface StatusHistoryEntry {
 1. **Embebida en `Student` y `Volunteer` (`statusHistory: [StatusHistoryEntry]`):**
    Permite lecturas inmediatas y atómicas ($O(1)$) al renderizar la vista de expediente recibido (`/onboarding/expediente`), la ficha de perfil de voluntario (`/volunteer-profile`) o el detalle del estudiante (`StudentDetailComponent`), sin necesidad de hacer joins relacionales.
 2. **Colección Centralizada `UserStatusAuditLog` (o Aggregation Pipeline Indexado):**
-   Permite alimentar de forma altamente eficiente la pestaña **"Bitácora de Estados"** de la vista `/volunteers/history`, posibilitando al administrador filtrar transiciones por rango de fechas, por tipo de causal (`reason`), por correo del administrador ejecutor (`changedByEmail`) o por estudiante afectado (`targetUserFolio`).
+   Permite alimentar de forma altamente eficiente la pestaña **"Bitácora de Estados"** de la vista `/volunteers/history`, posibilitando al administrador filtrar todas las transiciones vigentes en base de datos por rango de fechas, por tipo de causal (`reason`), por correo del administrador ejecutor (`changedByEmail`) o por colaborador afectado (`targetUserFolio`), sin ningún recorte de antigüedad.
 
 #### Reglas de Llenado del Campo `comments`
-1. **Acciones Autónomas del Sistema (Comentarios Automáticos Preconfigurados):**
+1. **Acciones Autónomas del Sistema (Comentarios Automáticos Preconfigurados, sin procesos cron en segundo plano):**
    * *Cumplimiento de 480 horas (`hours_completed`):*  
      `"Cumplimiento íntegro de las 480 horas reglamentarias de Servicio Social. Acreditación final aprobada y emisión de constancia oficial de acreditación."`
-   * *Inactividad de 60 días (`inactivity_60_days`):*  
-     `"Baja automática del programa por acumular 60 días continuos sin inicio de sesión ni participación registrada en la plataforma institucional."`
    * *Re-registro tras rechazo (`re_registration`):*  
      `"Reactivación a estatus pendiente tras el reenvío de un nuevo expediente y formulario corregido por parte del colaborador."`
    * *Registro inicial (`initial_signup`):*  
@@ -1482,7 +1507,7 @@ interface StatusHistoryEntry {
 
 2. **Acciones Manuales del Administrador (Modal con Campo de Observaciones):**
    * Al **Rechazar un Expediente (`admin_rejection`)**: La UI despliega un modal con un campo de texto obligatorio para que el administrador redacte las observaciones específicas (ej. *"Falta adjuntar constancia oficial sellada por la universidad en la Fase 3"*, *"El enlace a Google Drive carece de permisos públicos de lectura"*).
-   * Al **Inactivar a Discreción (`administrative_decision`)**: Modal para capturar la causa de la baja (ej. *"Baja voluntaria solicitada formalmente por el estudiante por motivos de carga académica universitaria"*).
+   * Al **Inactivar Manualmente (`administrative_decision`)**: Modal para capturar la causa de la baja (ej. *"Baja administrativa solicitada formalmente por carga académica o ausencia prolongada"*).
    * Al **Aceptar un Expediente (`admin_approval`)**: Mensaje institucional por defecto (*"Expediente validado satisfactoriamente por la Coordinación de ABAQ"*), con posibilidad de ingresar notas de bienvenida personalizadas.
    * *Fallback por Omisión:* Si el admin deja el campo en blanco, el backend inyecta automáticamente una plantilla formal predeterminada.
 
@@ -1501,13 +1526,13 @@ El campo `comments` no se queda oculto en la base de datos; se expone estratégi
      > *Fecha de Desactivación: {{fechaDesactivacion}} · Causal: {{reason}}*
 
 3. **En la Vista Administrativa del Perfil (`student-detail` y `volunteer-detail`):**
-   * Mientras el usuario inactivo sea visible en las interfaces normales operativas ($< 12$ meses), el administrador visualiza en la parte superior de la ficha del perfil (debajo del hero) una tarjeta informativa permanente:
+   * Mientras el colaborador inactivo permanezca en la base de datos activa (antes de un corte manual en `/backup`), el administrador visualiza en la parte superior de la ficha del perfil (debajo del hero) una tarjeta informativa permanente:
      > ℹ️ **Registro Inactivo:** {{comments}}  
      > *Inactivado el: {{fechaDesactivacion}} por {{changedByEmail}} (Causal: {{reason}})*
-   * Esto permite que cualquier administrador que consulte el perfil de un voluntario inactivo identifique de inmediato **por qué, cuándo y quién** realizó la baja (evitando confusiones entre bajas por cumplimiento de 480 hrs, bajas automáticas por 60 días de ausencia, o bajas manuales a discreción).
+   * Esto permite que cualquier administrador que consulte el perfil de un voluntario inactivo identifique de inmediato **por qué, cuándo y quién** realizó la baja (distinguiendo bajas automáticas por cumplimiento de 480 hrs frente a bajas administrativas manuales).
 
 4. **En los Correos Transaccionales (Resend):**
-   * En cada notificación de cambio de estado (aceptación, rechazo, baja por 60 días o finalización), el texto de `comments` se inyecta en una caja destacada (*callout box*):
+   * En cada notificación de cambio de estado (aceptación, rechazo, desactivación administrativa o finalización), el texto de `comments` se inyecta en una caja destacada (*callout box*):
      > *"Mensaje de la Coordinación: {{comments}}"*
 
 ---
@@ -1548,20 +1573,20 @@ El principio del **Corte Limpio e Indivisible** (*"o se quita todo o no se quita
 
 ```mermaid
 flowchart TD
-    subgraph Purgados ["12 MODELOS QUE SE VAN (PURGADOS EN EL CORTE LIMPIO)"]
+    subgraph Purgados ["MODELOS ELEGIBLES QUE SALEN EN EL CORTE LIMPIO"]
         direction TB
-        M1["1. students (Expedientes, onboardingData y actividades asignadas)"]
-        M2["2. volunteers (Perfiles generales inactivos > 1 año)"]
-        M3["3. users (Cuentas auth de estudiantes y voluntarios purgados)"]
-        M4["4. accreditations (Acreditaciones pasadas y horas cubiertas)"]
-        M5["5. activities (Actividades pasadas sin ningún participante activo)"]
+        M1["1. students (Expedientes inactivos con fecha efectiva <= cutoffDate)"]
+        M2["2. volunteers (Perfiles generales inactivos con fecha efectiva <= cutoffDate)"]
+        M3["3. users (Cuentas auth student/volunteer resueltas vía authId || userId)"]
+        M4["4. accreditations (Acreditaciones vinculadas a candidatos purgados)"]
+        M5["5. activities (Actividades concluidas cuyo 100% de inscritos es elegible)"]
         M6["6. notifications (Notificaciones de usuarios archivados - 41.4% BD)"]
         M7["7. surveys (Cuestionarios levantados por voluntarios purgados)"]
         M8["8. contacts (Bitácoras de prospección levantadas en campo)"]
-        M9["9. identifications (Trámites de placas concluidos de ciclos pasados)"]
+        M9["9. identifications (Trámites de placas concluidos hasta cutoffDate)"]
         M10["10. talks (Pláticas de tenencia responsable concluidas)"]
         M11["11. campaigns (Jornadas masivas de esterilización concluidas)"]
-        M12["12. adoptions (Expedientes de adopción con resolución definitiva)"]
+        M12["12. adoptions (Expedientes de adopción concluidos hasta cutoffDate)"]
     end
 
     subgraph Conservados ["4 MODELOS QUE SE CONSERVAN PERMANENTEMENTE"]
@@ -1573,12 +1598,12 @@ flowchart TD
     end
 ```
 
-##### Detalle de los 12 Modelos que se Puran (Salen del Sistema a JSON/ZIP)
-1. **`students` (`Student`):** Expedientes completos de estudiantes de Servicio Social con inactividad mayor a 1 año (`fechaDesactivacion <= cutoffDate`). Incluye su `onboardingData`, reflexiones de inducción, consentimientos y el arreglo `assignedActivities`.
-2. **`volunteers` (`Volunteer`):** Perfiles completos de Voluntarios Generales inactivos por más de 1 año. Incluye formación académica (`degrees`) y participaciones cívicas.
-3. **`users` (`User`, roles `'student'` y `'volunteer'`):** Credenciales y cuentas de acceso de autenticación vinculadas directamente a los colaboradores archivados.
+##### Detalle de los Modelos que se Purgan (Salen del Sistema a JSON/ZIP)
+1. **`students` (`Student`):** Expedientes completos de estudiantes de Servicio Social con `accountStatus: "inactive"` y fecha efectiva (`fechaDesactivacion || updatedAt || createdAt`) `<= cutoffDate`. Incluye su `onboardingData`, reflexiones de inducción, consentimientos y los arreglos `assignedActivities` y `accreditations`.
+2. **`volunteers` (`Volunteer`):** Perfiles completos de Voluntarios Generales con `accountStatus: "inactive"` y fecha efectiva `<= cutoffDate`. Incluye formación académica (`degrees`) y participaciones cívicas.
+3. **`users` (`User`, roles `'student'` y `'volunteer'`):** Credenciales (`+passwordHash`) y cuentas de acceso de autenticación vinculadas a los colaboradores archivados mediante `authId || userId`.
 4. **`accreditations` (`Accreditation`):** Todos los registros históricos de acreditación de horas y oportunidades de los colaboradores purgados.
-5. **`activities` (`Activity`):** Convocatorias de actividades pasadas concluidas donde **el 100% de los inscritos sean inactivos mayor a 1 año**. Si existe un solo alumno activo, la actividad se conserva en su totalidad.
+5. **`activities` (`Activity`):** Convocatorias de actividades pasadas concluidas donde **el 100 % de los inscritos pertenezca al conjunto de inactivos elegibles** hasta `cutoffDate` (Opción A). Si existe un solo participante activo o fuera del corte, la actividad se conserva en su totalidad.
 6. **`notifications` (`Notification`):** Notificaciones dirigidas a los usuarios purgados. Su eliminación erradica el 41.40% de la carga de base de datos.
 7. **`surveys` (`Survey`):** Respuestas a cuestionarios y encuestas de bienestar animal levantadas por los estudiantes que se deshidratan.
 8. **`contacts` (`Contact`):** Prospecciones y censos levantados en campo por los estudiantes deshidratados.
@@ -2160,8 +2185,8 @@ sequenceDiagram
     Ctrl->>DB_Acc: Actualiza status: 'approved'
     Ctrl->>DB_Usr: Actualiza user.accreditations.$[elem].status = 'approved'
 
-    Note over DB_Usr: PASO 3: Deshidratación a los 12 meses
-    Note over DB_Usr: El usuario inactivo se exporta al ZIP CON SUS DOS ARREGLOS.\nMongoDB viva queda 100% limpia sin registros huérfanos ni campos null.
+    Note over DB_Usr: PASO 3: Deshidratación Manual Bajo Demanda (/backup)
+    Note over DB_Usr: El colaborador con accountStatus: "inactive" (fecha efectiva <= cutoffDate) se exporta al ZIP CON SUS DOS ARREGLOS.\nMongoDB viva queda 100% limpia sin registros huérfanos ni campos null.
 
     Note over Admin,DB_Usr: PASO 4: Rehidratación por Auditoría Universitaria
     Admin->>Ctrl: POST /backup/dehydrate/restore (Carga paquete ZIP)
@@ -2171,11 +2196,11 @@ sequenceDiagram
 
 ##### Resumen de la Garantía de Integridad:
 1. **Durante la Operación Activa:** El usuario consulta su perfil y ve inmediatamente sus horas y folios desde sus propios arreglos embebidos `assignedActivities` y `accreditations`, sin sobrecargar la base de datos con joins de agregación pesados.
-2. **Durante la Deshidratación:** Al cumplirse el año de inactividad, el documento completo del usuario (con sus dos arreglos y todos sus folios) se empaqueta en `students.json` o `volunteers.json` y se retira de Atlas. No queda ningún campo en la base de datos viva apuntando a `studentRef: null`.
-3. **Durante la Rehidratación:** Si la universidad requiere el expediente dos años después, la carga del ZIP restaura el documento del estudiante con sus horas y folios originales. El usuario vuelve a existir en Atlas con todo su historial íntegro.
+2. **Durante la Deshidratación:** Al ejecutarse un corte manual en `/backup` sobre cualquier colaborador con `accountStatus: "inactive"` y fecha efectiva `<= cutoffDate`, el documento completo del usuario (con sus dos arreglos y todos sus folios) se empaqueta en `students.json` o `volunteers.json` y se retira de Atlas. No queda ningún campo en la base de datos viva apuntando a `studentRef: null`.
+3. **Durante la Rehidratación:** Si la universidad requiere el expediente tiempo después, la carga del ZIP restaura el documento del estudiante con sus horas y folios originales. El usuario vuelve a existir en Atlas con todo su historial íntegro.
 
 #### Preservación en Deshidratación y Vista de Historial
-* **En la Vista `/volunteers/history`:** Cuando un voluntario inactivo $> 12$ meses es consultado en la vista de historial de voluntarios pasados, sus registros pasados de acreditaciones retienen y muestran el `interactionFolio` (`AC-...` u `OP-...`), permitiendo a la organización atender auditorías escolares retrospectivas.
+* **En la Vista `/volunteers/history`:** Todos los colaboradores con `accountStatus: "inactive"` vigentes en MongoDB se consultan sin filtro de antigüedad y sus registros de acreditaciones retienen y muestran el `interactionFolio` (`AC-...` u `OP-...`), permitiendo a la organización atender auditorías escolares retrospectivas en cualquier momento.
 * **En el Manifiesto de Deshidratación:** Los identificadores `interactionFolio` son exportados en los archivos JSON de `accreditations.json` y respaldados en el sub-esquema `sampleItems` de la bitácora `DehydrationAuditLog`.
 
 ---
@@ -2232,7 +2257,7 @@ flowchart TD
 | **6** | **`/student`**<br>([`StudentComponent`](file:///Users/riosisraelg/Desktop/1/abaq/frontend/src/app/components/student/student.component.ts)) | `admin` | Tabla general de voluntarios (pestaña Estudiantes y pestaña Voluntarios Generales), buscador y paginador. | **Folio de Expediente (`SS` / `VG`)** | **Columna visible e indexada (`th.folio-th`, `td.folio-cell`):** Permite buscar directamente por folio en el input de filtrado rápido. |
 | **7** | **`/student/:id`**<br>([`StudentDetail`](file:///Users/riosisraelg/Desktop/1/abaq/frontend/src/app/components/student-detail/student-detail.ts)) | `admin` | Ficha exhaustiva del estudiante: expediente digital, URLs de Drive, actividades asignadas y bitácora de estatus. | **Ambos:**<br>• `SS-YYMMDD-HEX`<br>• `AC` / `OP` | • **Encabezado principal:** Badge de folio escolar.<br>• **Tabla de Actividades y Acreditaciones:** Columna dedicada exhibiendo `AC-...` u `OP-...` en cada registro. |
 | **8** | **`/volunteer-detail/:id`**<br>([`VolunteerDetail`](file:///Users/riosisraelg/Desktop/1/abaq/frontend/src/app/components/volunteer-detail/volunteer-detail.ts)) | `admin` | Ficha del voluntario general: grados académicos, participaciones cívicas y bitácora de estatus. | **Ambos:**<br>• `VG-YYMMDD-HEX`<br>• `AC` / `OP` | • **Encabezado:** Badge `VG-...`<br>• **Tabla de Participaciones:** Columna de folio de asistencia de cada jornada. |
-| **9** | **`/volunteers/history`**<br>*(Propuesta Técnica)* | `admin` | Historial de voluntarios pasados inactivos $> 12$ meses y bitácora de transiciones. | **Ambos:**<br>• `SS` / `VG`<br>• `AC` / `OP` | • **Tablas de Historial:** Folio de expediente en cada fila.<br>• **Modal de Desglose:** Folios `AC/OP` de las participaciones pasadas para atender requerimientos universitarios. |
+| **9** | **`/volunteers/history`**<br>*(Vista Histórica)* | `admin` | Historial íntegro de todos los colaboradores `inactive` en BD y bitácora de transiciones. | **Ambos:**<br>• `SS` / `VG`<br>• `AC` / `OP` | • **Tablas de Historial:** Folio de expediente en cada fila.<br>• **Modal de Desglose:** Folios `AC/OP` de las participaciones pasadas para atender requerimientos universitarios. |
 
 ---
 
@@ -2336,23 +2361,21 @@ Para mantener una presentación consistente, limpia y accesible, los folios se r
 
 ## 6. Sistema Transaccional de Notificaciones (Resend)
 
-Reintegrado de la rama `dev-rivers`, el servicio `backend/utils/email.js` utiliza la API oficial de Resend. 
+El servicio de correo transaccional utiliza la API oficial de Resend exclusivamente bajo eventos explícitos del ciclo de vida (sin procesos `node-cron` en segundo plano).
 
 !!! important "Destinatarios Exclusivos: Los Voluntarios"
-    Todas las notificaciones del ciclo de vida son **exclusivamente para los voluntarios** (estudiantes de servicio social y voluntarios generales). Se despachan directamente a su dirección de correo electrónico personal registrada. **No existen notificaciones hacia los administradores ni se implementa ninguna interfaz web, campana o bandeja in-app**; la comunicación es 100% por correo electrónico transaccional.
+    Todas las notificaciones del ciclo de vida son **exclusivamente para los voluntarios** (estudiantes de servicio social y voluntarios generales). Se despachan directamente a su dirección de correo electrónico personal registrada. **No existen notificaciones hacia los administradores, ni barridos automáticos en background, ni se implementa interfaz web, campana o bandeja in-app**; la comunicación es 100 % por correo electrónico transaccional.
 
 ```mermaid
 flowchart TD
     E1["Aprobación de Expediente"] -->|Inmediato| M1["sendAcceptanceEmail()\nEnviado al correo del Voluntario\n(Enlace a Carta de Aceptación Oficial)"]
-    E2["Inactividad: Día 45"] -->|Cron Diario| M2["sendInactivityWarningEmail(stage='day45')\nEnviado al correo del Voluntario\n(Alerta de 15 días restantes antes de baja)"]
-    E3["Inactividad: Día 60"] -->|Cron Diario| M3["sendInactivityWarningEmail(stage='day60')\nEnviado al correo del Voluntario\n(Aviso de baja definitiva por abandono)"]
-    E4["Finalización Exitosa"] -->|Inmediato al completar| M4["sendCompletionEmail()\nEnviado al correo del Voluntario\n(Student: con 480 hrs + Certificado\nGeneral: sin horas + Agradecimiento)"]
+    E2["Cambio Administrativo de Estatus\n(Rechazo / Baja Manual)"] -->|Acción explícita Admin| M2["Notificación transaccional con motivo\nEnviado al correo del Voluntario\n(Incluye observaciones comments)"]
+    E4["Finalización Exitosa"] -->|Inmediato al acreditar 480 h o cierre formal| M4["sendCompletionEmail()\nEnviado al correo del Voluntario\n(Student: con 480 hrs + Certificado\nGeneral: sin horas + Agradecimiento)"]
 ```
 
 1. **Aceptación de Expediente (`sendAcceptanceEmail`):** Notifica al voluntario a su buzón que su cuenta fue validada, con enlace directo para descargar su Carta de Aceptación Oficial.
-2. **Alerta Preventiva de Inactividad a los 45 días (`sendInactivityWarningEmail`, stage 45):** Advierte al voluntario a su correo que acumula 45 días continuos sin participación y que le restan 15 días antes de la baja definitiva.
-3. **Baja por Inactividad a los 60 días (`sendInactivityWarningEmail`, stage 60):** Notifica al voluntario su desvinculación formal por inactividad prolongada (sin certificado de finalización).
-4. **Finalización de Vinculación (`sendCompletionEmail`):**
+2. **Notificación de Dictamen o Baja Administrativa Manual:** Informa al colaborador el motivo formal registrado por la Coordinación (`comments`) cuando su expediente es rechazado o su cuenta pasa manualmente a `inactive`, sin depender de ningún cron diario de inactividad.
+3. **Finalización de Vinculación (`sendCompletionEmail`):**
    - **Para Estudiante de Servicio Social:** Reconocimiento con cómputo de sus **480 horas** acreditadas y enlace de descarga a su **Certificado de Finalización Oficial**.
    - **Para Voluntario General:** Reconocimiento y carta de agradecimiento institucional por su labor comunitaria, sin mención de cómputo de horas.
 
@@ -2368,7 +2391,7 @@ La generación de documentos oficiales se desacopla en dos eventos precisos del 
 | **Certificado de Finalización Oficial** | Transición a `inactive` | **Únicamente por término exitoso** (480 horas completadas o desvinculación formal regular) | Token SHA-256 (`completion`) con firma digital institucional y código QR |
 
 !!! warning "Exclusión Estricta de Constancia"
-    Si un usuario pasa a `inactive` por **inactividad (60 días de abandono)** o por **sanción administrativa**, el sistema **NO** emite certificado de finalización. La constancia es un mérito oficial reservado a voluntarios que concluyeron formalmente.
+    Si un usuario pasa a `inactive` por **baja administrativa sin conclusión formal** (abandono o sanción administrativa), el sistema **NO** emite certificado de finalización. La constancia es un mérito oficial reservado a voluntarios que concluyeron formalmente.
 
 ---
 

@@ -1,10 +1,10 @@
 # Diseño de Datos: Ciclo de Vida, Respaldos y Recuperación
 
 **Proyecto:** Plataforma Web ABAQ (Servicio Social)
-**Versión:** 0.3.0
-**Fecha:** 2026-10-14
-**Estado:** Propuesta de diseño (con decisiones pendientes marcadas)
-**Relacionado:** [Arquitectura](architecture.md) · [Despliegue en la nube (Azure)](cloud-deployment.md) · [Mapa de interfaces](ui-prompts-figma.md)
+**Versión:** 0.4.0
+**Fecha:** 2026-11-03
+**Estado:** Propuesta de diseño alineada con consola local `/backup` (con decisiones pendientes marcadas)
+**Relacionado:** [Arquitectura](architecture.md) · [Ciclo de Vida y Deshidratación](ciclo-vida-voluntarios-deshidratacion-design.md) · [Despliegue en la nube (Azure)](cloud-deployment.md) · [Mapa de interfaces](ui-prompts-figma.md)
 
 ---
 
@@ -24,44 +24,48 @@ La infraestructura **no contempla replicación** de la base de datos y el presup
 
 ```mermaid
 flowchart LR
-    subgraph T["Dominio 1 — Ciclo de vida (visible en la Consola)"]
-        A["ACTIVA<br/>Base de datos<br/>periodo en curso + 1 año atrás"] -->|"automático al salir de la ventana<br/>(ZIP)"| F["FRÍO<br/>Blob tier Archive"]
-        F -->|"rehidratar (acción admin)"| R["REHIDRATACIÓN<br/>Blob tier Hot<br/>consumo y descarga de ZIP"]
+    subgraph T["Dominio 1 — Ciclo de vida y deshidratación (/backup)"]
+        A["ACTIVA\nBase de datos operativa e histórica\n(sin purga automática ni cron)"] -->|"corte manual en 4 pasos (/backup)\n(inactivos <= cutoffDate, ZIP + X-Purge-Token)"| F["FRÍO / PAQUETE DE CORTE\nZIP local o Blob tier Archive"]
+        F -->|"rehidratar (acción admin)"| R["REHIDRATACIÓN\nBlob tier Hot o upsert idempotente en /backup"]
         R -->|"regresar a frío (acción admin)"| F
     end
-    subgraph B["Dominio 2 — Respaldos (bucket propio, fuera del tiering)"]
-        P["Programados 2x/semana"] --> BK["Bucket de respaldos<br/>Blob tier Cold<br/>permanencia 6 meses"]
-        M["Generados manualmente"] --> BK
+    subgraph B["Dominio 2 — Respaldos completos (registro dinámico getModelRegistry)"]
+        P["Programados 2x/semana"] --> BK["Bucket de respaldos / Descarga local\nBlob tier Cold (permanencia 6 meses)"]
+        M["Generados manualmente (.zip JSON / .xlsx)"] --> BK
     end
-    A -.volcado completo.-> P
-    A -.volcado completo.-> M
+    A -.volcado dinámico completo.-> P
+    A -.volcado dinámico completo.-> M
 ```
 
 ---
 
-## 2. Ciclo de vida de los datos (tiering)
+## 2. Ciclo de vida de los datos y corte manual bajo demanda
 
-### 2.1 Ventana activa (fija por diseño)
+### 2.1 Retención sin purga automática y elegibilidad inmediata de inactivos
 
-- La base de datos trabaja con el **periodo en curso y un año hacia atrás**. Con periodos semestrales, equivale al semestre vigente y los dos anteriores.
-- La ventana **no es configurable** desde el portal; cambiarla es un cambio de diseño (backend + infraestructura).
-- Cuando un periodo sale de la ventana, el sistema lo **exporta como ZIP** y lo envía a **Frío**. Luego lo **borra de la base de datos**.
+- **Cero barridos ni purgas automáticas en segundo plano:** El sistema **no ejecuta ningún `node-cron` diario de inactividad (45/60 días)** ni aplica ninguna ventana o purga automática de 12 meses (`365` días). Las transiciones a `accountStatus: "inactive"` ocurren exclusivamente cuando un `student` acredita sus **480 horas** de servicio social o mediante gestión administrativa manual, y **todos los registros persisten en los listados operativos (con los `inactive` ordenados al fondo) y en `/volunteers/history`** hasta que un administrador ejecute intencionalmente un corte manual en `/backup`.
+- **Elegibilidad inmediata en Corte y Deshidratación (`/backup`):** Cualquier colaborador (`student` o `volunteer`) con `accountStatus: "inactive"` cuya fecha efectiva (`fechaDesactivacion || updatedAt || createdAt`) sea `<= cutoffDate` —con tope máximo al cierre del día actual UTC (`23:59:59.999Z`), rechazando únicamente fechas futuras— es candidato inmediato al corte sin esperar antigüedad adicional. Las cuentas de autenticación en `users` (roles `student` y `volunteer`, nunca `admin`) se resuelven mediante `authId || userId`, y se preserva estrictamente el **corte indivisible Opción A** para actividades compartidas (una actividad colectiva solo se purga cuando el 100 % de sus participantes inscritos pertenecen al conjunto elegible de inactivos para esa fecha de corte).
+- **Flujo guiado bajo demanda en 4 pasos en `/backup`:**
+    1. **Analizar sistema:** Invoca `POST /backup/dehydrate/analyze` con cuerpo `{}` ejecutando una sola pasada de consultas sin N+1 (`discoverAvailableCutoffs`). Si no existen fechas candidatas con impacto `> 0`, el propio botón cambia temporalmente su texto a `"No se encontraron fechas de corte disponibles"` durante `3.5 s` y vuelve automáticamente a `"Analizar sistema"`.
+    2. **Elegir fecha:** Selección en desplegable de fechas de corte disponibles cuyo resumen de impacto se evalúa en memoria sin disparar nuevas consultas pesadas.
+    3. **Descargar corte `.zip`:** Compila el paquete con `manifest.json` y hashes SHA-256 e inyecta en cabecera HTTP un `X-Purge-Token` firmado con vigencia estricta de **15 minutos**.
+    4. **Borrar registros:** Ejecuta `POST /backup/dehydrate/purge` exigiendo el `X-Purge-Token` vigente y confirmación con contraseña administrativa, registrando la operación en `DehydrationAuditLog`.
 
 !!! danger "Salvaguarda antes de borrar de la base de datos"
-    El borrado de un periodo en la base de datos solo procede si:
+    El borrado de registros en la base de datos solo procede si:
 
-    1. el ZIP se subió a Frío y su **checksum coincide** con el archivo generado, y
-    2. existe al menos un **respaldo vigente** que contiene ese periodo.
+    1. el paquete `.zip` de corte fue descargado previamente (emitiendo un `X-Purge-Token` vigente de 15 min con firma HMAC-SHA256 y **checksum SHA-256** verificado; o subido a Frío cuando el bucket cloud esté aprovisionado), y
+    2. se respeta el corte indivisible Opción A (cero participantes activos o fuera del corte afectados en actividades compartidas) y la confirmación explícita del administrador.
 
-    Si alguna condición falla, el periodo permanece en la base de datos y se notifica a las administradoras.
+    Si alguna condición falla o el token expira, los documentos permanecen intactos en la base de datos.
 
 ### 2.2 Las tres fases
 
 | Fase | Qué guarda | Servicio Azure | Acceso | Mínimo de permanencia |
 |---|---|---|---|---|
-| **Activa** | Datos del periodo en curso + 1 año atrás | Azure DocumentDB (Cosmos DB for MongoDB vCore) | En vivo, por la aplicación | — |
-| **Frío** | ZIP de cada periodo que salió de la ventana | Blob Storage, tier **Archive** | **Offline:** no se puede leer ni descargar sin rehidratar [1] | 180 días [1] |
-| **Rehidratación** | Copias de ZIP traídas de Frío para consumo | Blob Storage, tier **Hot** | Inmediato (descarga del ZIP) | Ninguno [1] |
+| **Activa** | Todos los registros vigentes e inactivos (sin ventana automática) hasta corte manual en `/backup` | Azure DocumentDB (Cosmos DB for MongoDB vCore) / MongoDB Atlas | En vivo, por la aplicación | — |
+| **Frío** | ZIP de cada corte manual ejecutado por administración | Blob Storage, tier **Archive** (y descarga local `.zip`) | **Offline en Archive:** no se puede leer ni descargar sin rehidratar [1] | 180 días [1] |
+| **Rehidratación** | Copias de ZIP traídas de Frío para consumo (o restauradas por upsert en `/backup`) | Blob Storage, tier **Hot** | Inmediato (descarga del ZIP) | Ninguno [1] |
 
 !!! warning "Regla técnica de Azure: no hay descarga directa desde Archive"
     Un blob en Archive no se puede leer ni descargar. Para consumirlo hay que **rehidratarlo** a un tier en línea, lo que tarda **hasta 15 horas** con prioridad estándar o **menos de 1 hora** con prioridad alta para objetos menores a 10 GB. El límite es de **10 GiB por hora por cuenta** con prioridad alta [2]. La política de lifecycle **no puede rehidratar**; la rehidratación siempre es una acción explícita [1].
@@ -163,17 +167,18 @@ Con el volumen de ABAQ, rehidratar un ZIP de 100 MB cuesta menos de $0.01 (está
 
 - **Bucket propio:** una cuenta de almacenamiento separada de la de tiering. **No aparece en la Consola de ciclo de vida.** Separar cuentas permite atribuir el costo por recurso y evita mezclar reglas de lifecycle.
 - **Programados:** 2 veces por semana (volcado completo, comprimido).
-- **Generables manualmente** desde el portal: base de datos completa o por modelo. Permite descarga directa de archivo comprimido `.zip` (JSONs + `manifest.json`) y libro consolidado de Excel `.xlsx` para auditoría administrativa.
-- **Permanencia: 6 meses.** Una regla de lifecycle **elimina cada respaldo a los 180 días** de su creación [6]. Aplica a respaldos programados y manuales.
+- **Generables manualmente** desde el portal: base de datos completa mediante descubrimiento dinámico de todos los modelos Mongoose registrados (`getModelRegistry()` sobre `backend/models/*.model.js` y `mongoose.models`, exponiendo métricas `activeCollections / totalCollections`). Permite descarga directa de archivo comprimido `.zip` (JSONs con inclusión íntegra de campos ocultos `select: false` como `+passwordHash` + `manifest.json` para rollback fiel) y libro consolidado de Excel `.xlsx` (con exclusión automática de campos `select: false` y credenciales `password` / `passwordHash`) para auditoría administrativa.
+- **Permanencia: 6 meses.** Una regla de lifecycle **elimina cada respaldo a los 180 días** de su creación [6]. Aplica a respaldos programados y manuales en el bucket de nube.
 - **Tier Cold:** en línea, restauración inmediata [1]. Su mínimo de 90 días es menor a los 180 de permanencia, así que no hay cargo por borrado anticipado. Archive no conviene para respaldos: restaurar tomaría horas.
 - **Qué pueden hacer las administradoras:** generar, listar (fecha, tamaño, fecha de expiración), descargar y usar como fuente de bulk load / rollback.
 - **Qué no pueden hacer:** cambiar la frecuencia ni la permanencia; son parte del diseño.
 
-!!! tip "Implementación en el Portal Web Admin (v2.2.0)"
-    El portal de administración incorpora la sección **Respaldos** (`/admin/backups`) que ejecuta la descarga directa local de:
-    1. Paquete `.zip` con los volcados JSON de las 14 colecciones más manifiesto de integridad SHA-256 (fuente oficial de rollback).
-    2. Libro Excel `.xlsx` multi-hoja formateado para consulta operativa y auditoría de datos.
-    3. Restauración en dos fases (*dry-run* y confirmación) para re-inyección de datos (*rollback*).
+!!! tip "Implementación Vigente en el Portal Web Admin (`/backup`)"
+    El portal de administración incorpora la consola de **Respaldos y Deshidratación** (`/backup` / `/admin/backups`) respaldada por el registro dinámico `getModelRegistry()` (`activeCollections / totalCollections`), que ofrece:
+    1. Paquete `.zip` con los volcados JSON de todas las colecciones descubiertas dinámicamente (forzando la inclusión de campos `select: false` para no perder hashes de acceso) más `manifest.json` con firmas SHA-256 como fuente oficial de *rollback*.
+    2. Libro Excel `.xlsx` multi-hoja (hoja de resumen + una pestaña por modelo descubierto) que omite automáticamente cualquier atributo con `select: false` o credenciales (`password`, `passwordHash`).
+    3. Corte y Deshidratación manual bajo demanda en **4 pasos** (**Analizar sistema** con aviso temporal de `3.5 s` en el botón cuando no hay fechas disponibles $\rightarrow$ **Elegir fecha** en memoria $\rightarrow$ **Descargar corte `.zip`** con `X-Purge-Token` de 15 min $\rightarrow$ **Borrar registros**), donde todo `student` o `volunteer` con `accountStatus: "inactive"` y fecha efectiva `<= cutoffDate` es elegible de inmediato bajo corte indivisible Opción A (`authId || userId`).
+    4. Restauración de respaldo completo (*dry-run* y confirmación) y rehidratación selectiva idempotente (`POST /backup/dehydrate/restore` con `replaceOne` + `upsert: true`).
 
 !!! warning "Alcance de desarrollo (dependiente de infraestructura)"
     La integración real con Azure Blob queda **pendiente de aprovisionar la infraestructura**. En el backend se desarrolla hasta antes de la subida efectiva: volcado, compresión y preparación del artefacto, dejando la subida como integración documentada (stub).
@@ -209,7 +214,7 @@ Sistema para **re-inyectar** información en la base de datos ante pérdidas, er
 
 ```mermaid
 flowchart TD
-    F["Fuente: respaldo del sistema<br/>o Excel/CSV con formato"] --> V["Dry-run: validación + reporte previo"]
+    F["Fuente: respaldo del sistema\no Excel/CSV con formato"] --> V["Dry-run: validación + reporte previo"]
     V --> R{"¿Reporte conforme?"}
     R -->|No| X["Cancelar / corregir archivo"]
     R -->|Sí, confirmar| I["Inyección real a la BD"]
@@ -224,23 +229,23 @@ flowchart TD
 |---|---|---|
 | Azure Blob (subir, listar, cambiar tier, copiar con rehidratación) | `@azure/storage-blob` | SDK oficial para Node |
 | Autenticación a Azure | `@azure/identity` | Identidad administrada, sin credenciales embebidas |
-| Empaquetado ZIP | `archiver` / `zlib` (nativo) | ZIP por periodo (Frío); gzip/archivo para respaldos |
-| Volcado y restauración | `mongodump` / `mongorestore` | MongoDB Database Tools |
-| Parseo de Excel / CSV | `xlsx` / `csv-parse` | Bulk load |
+| Empaquetado ZIP | `archiver` / `zlib` (nativo) | ZIP de corte manual y respaldos JSON |
+| Volcado y restauración | `getModelRegistry()` / `mongodump` | Descubrimiento dinámico Mongoose en `/backup` y herramientas nativas |
+| Parseo y exportación Excel / CSV | `exceljs` / `xlsx` / `csv-parse` | Exportación multi-hoja y bulk load |
 | Precios para la consola | Azure Retail Prices API | Pública, sin credenciales [5] |
-| Jobs programados | Según la arquitectura | Ver [Despliegue](cloud-deployment.md) |
+| Jobs programados | Según la arquitectura cloud | Solo respaldos de infraestructura; cero `node-cron` de inactividad en app |
 | Lifecycle de los buckets | Reglas de Azure Blob lifecycle | Configuración de infraestructura (OpenTofu), no dependencia npm [6] |
 
 ---
 
 ## 7. Requisitos derivados
 
-- **RF-DAT-01**: La base de datos mantiene el periodo en curso y un año hacia atrás; la ventana no es configurable desde el portal.
-- **RF-DAT-02**: Al salir de la ventana, cada periodo se exporta como ZIP a Frío (Archive) y se borra de la base de datos, solo tras verificar el checksum y la existencia de un respaldo vigente.
+- **RF-DAT-01**: La base de datos conserva todos los registros vigentes e inactivos sin purgas automáticas de 12 meses ni barridos `node-cron` en segundo plano; los registros `inactive` permanecen al final de los listados operativos y en `/volunteers/history` hasta que un administrador ejecute un corte manual en `/backup`.
+- **RF-DAT-02**: Todo colaborador (`student` o `volunteer`) con `accountStatus: "inactive"` y fecha efectiva (`fechaDesactivacion || updatedAt || createdAt`) `<= cutoffDate` (tope al día actual UTC) es elegible de inmediato en el flujo guiado de 4 pasos de `/backup`, preservando el corte indivisible Opción A, resolviendo `users` vía `authId || userId` y permitiendo borrar únicamente tras descargar el `.zip` verificado con `X-Purge-Token` vigente (15 min).
 - **RF-DAT-03**: La Consola muestra, por fase y en total, ocupación, porcentaje y costo mensual estimado.
-- **RF-DAT-04**: Las administradoras pueden rehidratar ZIP (Frío → Rehidratación) eligiendo prioridad, regresarlos a Frío y descargarlos desde Rehidratación.
-- **RF-DAT-05**: La rehidratación no carga datos en la base de datos; el consumo es desde el bucket.
-- **RF-DAT-06**: Respaldos programados 2 veces por semana y generables manualmente (BD completa o por modelo), en un bucket propio fuera del tiering.
+- **RF-DAT-04**: Las administradoras pueden rehidratar ZIP (Frío → Rehidratación) eligiendo prioridad, regresarlos a Frío, descargarlos desde Rehidratación o restaurarlos idempotentemente en `/backup`.
+- **RF-DAT-05**: La rehidratación en el bucket de Azure no carga datos automáticamente en la base de datos; la re-inyección selectiva en MongoDB requiere invocar explícitamente `POST /backup/dehydrate/restore`.
+- **RF-DAT-06**: Respaldos programados 2 veces por semana en nube y generables manualmente en `/backup` descubriendo dinámicamente el registro de modelos Mongoose (`getModelRegistry()`, `activeCollections / totalCollections`), omitiendo campos `select: false` / credenciales en `.xlsx` e incluyéndolos íntegramente en `.zip` JSON para rollback.
 - **RF-DAT-07**: Todo respaldo se elimina automáticamente a los 6 meses (180 días).
 - **RF-DAT-08**: El bulk load admite respaldos del sistema y Excel/CSV, con dry-run obligatorio.
 - **RNF-DAT-01**: El sistema no persiste archivos en la base de datos; los artefactos van al bucket.

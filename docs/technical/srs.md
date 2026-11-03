@@ -2,8 +2,8 @@
 **Estándar:** ISO/IEC/IEEE 29148:2018  
 **Proyecto:** Plataforma Web ABAQ (Servicio Social, Censo Comunitario y Documentación Pedagógica)  
 **Módulos:** Autenticación, Onboarding en 4 Fases, Certificados Criptográficos, Respaldos y Rollback, Seguridad y Reglas de Negocio, Paridad SS/VG y Auditoría de Expediente  
-**Versión:** 2026.10.31 (CalVer)  
-**Fecha:** 2026-10-31 (Histórico CalVer: 2026.10.30 · 2026.10.22 · 2026.09.03)  
+**Versión:** 2026.11.03 (CalVer)  
+**Fecha:** 2026-11-03 (Histórico CalVer: 2026.10.31 · 2026.10.30 · 2026.10.22 · 2026.09.03)  
 **Estado:** Aprobado en Producción Real (Angular 22 + MongoDB / Sin datos simulados)  
 **Autores:** Equipo de Ingeniería de Requerimientos y Arquitectura ABAQ  
 
@@ -21,7 +21,7 @@ El propósito de este documento es especificar formalmente los requerimientos de
 
 ### 1.2 Alcance del Sistema
 - **Frontend (Angular 22 Standalone Components)**: Vistas reactivas sin `NgModule`, inyección funcional `inject()`, reactividad RxJS, persistencia debounced en cliente, outline responsivo centrado en viewport (>1024px) y completamente oculto en tablets/móviles (<=1024px), controles personalizados accesibles (`CustomSelectComponent` y `CustomDatepickerComponent`), generación de PDFs en cliente con `html2pdf.js` y `@media print`.
-- **Backend (Node.js v24 / Express v4.19 / Mongoose v8.4)**: API RESTful conectada a MongoDB real (sin mock data), autenticación JWT stateless, cifrado bcrypt factor 12, motor criptográfico de constancias (`backend/utils/certificates.js`), servicio de exportación y rollback (`services/backup.service.js`), y cálculo de ciclo de vida con regla de 2 meses de inactividad.
+- **Backend (Node.js v24 / Express v4.19 / Mongoose v8.4)**: API RESTful conectada a MongoDB real (sin mock data), autenticación JWT stateless, cifrado bcrypt factor 12, motor criptográfico de constancias (`backend/utils/certificates.js`), servicio de exportación y rollback con descubrimiento dinámico de modelos (`services/backup.service.js`), y motor de deshidratación manual bajo demanda (`services/dehydration.service.js`) sin procesos cron en segundo plano.
 - **Suite de Documentación y Comentarios Pedagógicos**: Anotación técnica bajo estándares JSDoc y TSDoc, garantizando cero regresión en tiempo de ejecución (*Zero AST Regression*).
 
 ### 1.3 Definiciones, Acrónimos y Abreviaturas
@@ -348,12 +348,12 @@ El módulo de Respaldos (*Backups & Disaster Recovery*) responde a la necesidad 
 3. Ejecutar un procedimiento de **restauración y reversión (rollback)** mediante la carga de un archivo `.zip` generado previamente, con validación en seco (*dry-run*) obligatoria.
 
 ### 8.2 Arquitectura del Artefacto de Respaldo (.zip)
-El archivo comprimido `.zip` generado por el backend sigue la siguiente estructura estandarizada:
+El archivo comprimido `.zip` generado por `services/backup.service.js` descubre dinámicamente el registro de modelos Mongoose (`getModelRegistry()`, escaneando `backend/models/*.model.js` y `mongoose.models`) y sigue la siguiente estructura estandarizada:
 ```
 abaq-backup-YYYY-MM-DD-HHmmss.zip
-├── manifest.json                  # Metadatos del respaldo, versión del esquema, hash SHA-256
+├── manifest.json                  # Metadatos, totalCollections dinámico, hashes SHA-256
 ├── collections/
-│   ├── users.json                 # Cuentas, credenciales cifradas y roles
+│   ├── users.json                 # Cuentas, credenciales cifradas (+passwordHash) y roles
 │   ├── students.json              # Expedientes de estudiantes de Servicio Social
 │   ├── volunteers.json            # Voluntarios generales y perfiles
 │   ├── activities.json            # Convocatorias de actividades
@@ -363,33 +363,34 @@ abaq-backup-YYYY-MM-DD-HHmmss.zip
 │   ├── campaigns.json             # Campañas de esterilización
 │   ├── adoptions.json             # Adopciones y seguimiento
 │   ├── identifications.json       # Placas de identificación registradas
-│   ├── joinrequests.json          # Solicitudes de ingreso a la plataforma
-│   ├── surveys.json               # Encuestas y censos de bienestar animal
 │   ├── contacts.json              # Contactos y seguimientos comunitarios
-│   └── pets.json                  # Censo animal y mascotas vinculadas
+│   ├── pets.json                  # Censo animal y mascotas vinculadas
+│   ├── notifications.json         # Notificaciones históricas asociadas
+│   ├── dehydrationauditlogs.json  # Bitácora forense de cortes y rehidrataciones
+│   └── <nuevo_modelo>.json        # Cualquier modelo Mongoose futuro descubierto automáticamente
 ```
 
 ### `[SRS 8.3 Requerimientos Funcionales - Respaldo y Rollback]`
 
-- **RF-BKP-01 (Generación de Respaldo Completo en Formato JSON Comprimido)**:
-  - El sistema debe permitir al usuario administrador generar un respaldo íntegro de las 14 colecciones activas de MongoDB.
-  - Cada colección se exporta como un archivo `.json` formateado como un arreglo de documentos BSON/JSON puros, preservando tipos primitivos (fechas ISO, ObjectIDs en `$oid`).
+- **RF-BKP-01 (Generación de Respaldo Completo con Descubrimiento Dinámico en Formato JSON Comprimido)**:
+  - El sistema debe permitir al usuario administrador generar un respaldo íntegro descubriendo dinámicamente todos los modelos Mongoose registrados mediante `getModelRegistry()` (`backend/models/*.model.js` y `mongoose.models`), sin depender de una lista estática fija de colecciones.
+  - Para cada modelo descubierto, el exportador fuerza la selección explícita de los campos marcados con `select: false` en el esquema (p. ej. `+passwordHash`) de modo que el archivo `.json` conserve el documento íntegro para *rollback* sin pérdida de credenciales, preservando tipos primitivos (fechas ISO, ObjectIDs).
   - El paquete completo se comprime en formato `.zip` mediante streaming HTTP directo hacia el cliente.
 
 - **RF-BKP-02 (Manifiesto de Integridad y Versionado)**:
   - Todo respaldo `.zip` debe incluir obligatoriamente en la raíz un archivo `manifest.json` con:
     - `version`: Versión del esquema del respaldo (e.g. `2.2.0`).
-    - `timestamp`: Marca de tiempo en formato ISO 8601 de la generación.
-    - `generator`: Correo electrónico del usuario administrador que solicitó el respaldo.
-    - `collections`: Mapa de colecciones respaldadas indicando número de documentos y tamaño en bytes.
-    - `checksums`: Mapa de hashes SHA-256 calculados para cada archivo JSON contenido en el paquete.
+    - `generatedAt`: Marca de tiempo en formato ISO 8601 de la generación.
+    - `generatedBy`: Correo electrónico del usuario administrador que solicitó el respaldo.
+    - `totalCollections`: Total dinámico de colecciones descubiertas por `getModelRegistry()`.
+    - `collections`: Mapa de colecciones respaldadas indicando nombre legible, colección física, número de documentos, tamaño en bytes y hash `sha256` individual calculado para cada archivo JSON.
 
-- **RF-BKP-03 (Generación de Respaldo en Libro de Excel Multi-Hoja .xlsx)**:
+- **RF-BKP-03 (Generación de Respaldo en Libro de Excel Multi-Hoja .xlsx con Sanitización Automática)**:
   - El sistema debe ofrecer la descarga consolidada de la base de datos en formato Microsoft Excel (`.xlsx`).
-  - El libro generado debe contener una hoja de cálculo (*worksheet*) independiente por cada modelo del sistema (`Estudiantes`, `Voluntarios`, `Actividades`, `Acreditaciones`, `Adopciones`, `Campañas`, `Identificaciones`, `Pláticas`, `Encuestas`, `Mascotas`, `Contactos`, `Solicitudes`, `Usuarios`, `Actividades Rápidas`).
+  - El libro generado debe incluir una hoja inicial `"Resumen General"` seguida de una hoja de cálculo (*worksheet*) independiente generada dinámicamente por cada modelo retornado por `getModelRegistry()`.
   - Los encabezados de columna deben formatearse con estilos institucionales (fila fija, fondo azul marino corporativo `#24366f`, tipografía en blanco y texto en negrita).
   - Las columnas deben auto-ajustar su ancho según la longitud de los datos.
-  - Los campos de contraseñas (`passwordHash`) deben ser omitidos expresamente de la exportación a Excel para prevenir fugas de credenciales en auditorías operativas.
+  - `getModelRegistry()` debe inspeccionar automáticamente `model.schema.paths` para detectar y omitir en Excel todo campo configurado con `select: false` así como atributos de credenciales (`password`, `passwordHash`), previniendo fugas de información sensible en auditorías operativas sin listas manuales rígidas.
   - Los objetos anidados y arreglos simples deben ser aplanados o concatenados de forma legible (e.g. etiquetas separadas por comas).
 
 - **RF-BKP-04 (Descarga Directa Local sin Persistencia de Basura)**:
@@ -413,13 +414,14 @@ abaq-backup-YYYY-MM-DD-HHmmss.zip
   - Todos los endpoints del módulo (`/backup/*`) deben estar protegidos con validación de token JWT y requerir estrictamente `role: "admin"`.
   - Cualquier intento de acceso por parte de usuarios con rol `student`, `volunteer` o no autenticados debe ser rechazado con código `403 Forbidden` o `401 Unauthorized`.
 
-- **RF-BKP-08 (Interfaz de Administración Simplificada)**:
-  - La sección en el frontend debe ubicarse en la ruta `/admin/backups` y ser accesible desde el menú de navegación del administrador.
+- **RF-BKP-08 (Interfaz de Administración Simplificada y Métricas Dinámicas)**:
+  - La sección en el frontend debe ubicarse en la ruta `/backup` (`/admin/backups`) y ser accesible desde el menú de navegación del administrador.
   - La vista debe presentar:
-    - Tarjeta de métricas vitales: Estado de conexión a la base de datos, total de colecciones activas y conteo global de documentos.
-    - Tarjeta de acción de Respaldo JSON: Botón destacado para descargar el archivo `.zip` comprimido con descripción de su uso para rollback.
-    - Tarjeta de acción de Exportación Excel: Botón destacado para descargar el archivo `.xlsx` multi-hoja para consulta gerencial.
-    - Panel de Rollback / Restauración: Zona de arrastre de archivo (*drag-and-drop*) o selector para cargar el `.zip`, modal de advertencia crítica (*danger style*) y confirmación en dos pasos antes de proceder.
+    - Tarjeta de métricas vitales: Estado de conexión a la base de datos, relación dinámica `activeCollections / totalCollections` calculada por `getModelRegistry()` y conteo global de documentos (`totalDocuments`).
+    - Tarjeta de acción de Respaldo JSON: Botón destacado para descargar el archivo `.zip` comprimido con todas las colecciones descubiertas (incluyendo campos `select: false` para *rollback*).
+    - Tarjeta de acción de Exportación Excel: Botón destacado para descargar el archivo `.xlsx` multi-hoja (omitiendo automáticamente campos `select: false` y credenciales).
+    - Tarjeta de Corte y Deshidratación Guiada en 4 Pasos: Escaneo bajo demanda, selección de fecha en memoria, descarga de corte `.zip` (`X-Purge-Token`) y borrado controlado (ver §13.6).
+    - Paneles de Rollback y Rehidratación: Carga de archivo `.zip` con *dry-run* previo y confirmación explícita en dos pasos.
 
 ### `[SRS 8.4 Requerimientos No Funcionales - Respaldos y Rollback]`
 
@@ -437,8 +439,8 @@ abaq-backup-YYYY-MM-DD-HHmmss.zip
 
 ### 8.5 Criterios de Aceptación (Acceptance Criteria)
 
-- [ ] **AC-BKP-01 (Descarga de Respaldo JSON)**: Un administrador hace clic en "Descargar Respaldo JSON" y recibe un archivo `.zip` que contiene las 14 colecciones en `.json` más el `manifest.json`.
-- [ ] **AC-BKP-02 (Descarga de Libro Excel)**: Un administrador hace clic en "Descargar Excel" y recibe un archivo `.xlsx` válido que abre correctamente en Excel, LibreOffice o Numbers, conteniendo 14 pestañas con formato y sin el campo `passwordHash`.
+- [ ] **AC-BKP-01 (Descarga de Respaldo JSON Dinámico)**: Un administrador hace clic en "Descargar Respaldo JSON" y recibe un archivo `.zip` que contiene un archivo `.json` por cada modelo descubierto dinámicamente en `getModelRegistry()` (`totalCollections`, incluyendo campos `select: false` como `passwordHash`) más el `manifest.json` con firmas SHA-256.
+- [ ] **AC-BKP-02 (Descarga de Libro Excel con Exclusión Sensible)**: Un administrador hace clic en "Descargar Excel" y recibe un archivo `.xlsx` válido que abre correctamente en Excel, LibreOffice o Numbers, conteniendo la hoja `"Resumen General"` más una pestaña por cada modelo descubierto en `getModelRegistry()`, omitiendo automáticamente todo campo con `select: false` y credenciales (`password`, `passwordHash`).
 - [ ] **AC-BKP-03 (Protección de Acceso)**: Peticiones no autenticadas o con rol distinto a `admin` son rechazadas con error HTTP 401 o 403.
 - [ ] **AC-BKP-04 (Dry-run de Rollback)**: Al subir un archivo `.zip` de respaldo, la interfaz muestra primero una tabla comparativa con el conteo de documentos actuales vs. respaldados y solicita confirmación explícita.
 - [ ] **AC-BKP-05 (Rollback Exitoso)**: Al confirmar el rollback, la base de datos se restaura con el contenido exacto del respaldo manteniendo los `_id` de los documentos.
@@ -486,9 +488,9 @@ abaq-backup-YYYY-MM-DD-HHmmss.zip
 
 ### `[SRS 9.5.11.6 Requerimientos Funcionales - Reglas de Negocio y Ciclo de Vida]`
 
-- **RF-LIFECYCLE-01 (Regla de Desvinculación por 2 Meses de Inactividad)**:
-  - En estricto apego al Reglamento de Servicio Social ABAQ, 2 meses (60 días naturales) de inactividad no previamente notificada causará la baja o cancelación automática del programa de servicio social.
-  - El sistema debe comparar en tiempo real la fecha actual contra la última fecha de actividad o asistencia registrada del estudiante, marcando visualmente en los paneles de administración aquellos colaboradores que se encuentren en riesgo o superen el umbral de inactividad.
+- **RF-LIFECYCLE-01 (Cláusula Reglamentaria de Continuidad y Gestión Administrativa Manual)**:
+  - En apego al Reglamento de Servicio Social ABAQ, la ausencia prolongada no notificada mayor a 2 meses faculta a la Coordinación para dar de baja al colaborador del programa.
+  - Esta política se gobierna mediante supervisión administrativa en los paneles operativos y cambio de estatus manual (`PATCH` con justificación en `statusHistory`), **sin ningún proceso `node-cron` automático en segundo plano** que altere cuentas de manera desatendida.
 
 - **RF-LIFECYCLE-02 (Tope de Horas y Carta de Aceptación)**:
   - Ningún estudiante de servicio social puede superar el tope de horas estipulado por su institución educativa (máximo legal de 480 horas).
@@ -628,7 +630,7 @@ abaq-backup-YYYY-MM-DD-HHmmss.zip
 
 ---
 
-## 13. Módulo de Ciclo de Vida, Inactivación Automática y Deshidratación de Base de Datos (v2.4.0)
+## 13. Módulo de Ciclo de Vida, Gestión de Inactividad y Deshidratación de Base de Datos (v2.5.0)
 
 ### `[SRS 13.1 Requerimientos Funcionales - Máquina de Estados del Usuario]`
 
@@ -658,11 +660,11 @@ abaq-backup-YYYY-MM-DD-HHmmss.zip
     5. Inserta una entrada en `statusHistory` con motivo `'re_registration'`.
 
 - **RF-STATE-05 (Bitácora statusHistory y Trazabilidad de Comentarios)**:
-  - Cada entrada de `statusHistory` en `Student` y `Volunteer` debe persistir: `previousStatus`, `newStatus`, `changedAt`, `changedBy` (ObjectId del User admin o `'system_cron'`), `changedByEmail` (`req.user.email` o `'system_cron'`), `changedByRole` (`'admin' | 'system'`), `reason` y `comments`.
+  - Cada entrada de `statusHistory` en `Student` y `Volunteer` debe persistir: `previousStatus`, `newStatus`, `changedAt`, `changedBy` (ObjectId del User admin o `'system'`), `changedByEmail` (`req.user.email` o `'system'`), `changedByRole` (`'admin' | 'system'`), `reason` y `comments`.
   - **Alineación con el Esquema de Usuarios:** Como el modelo `User` en MongoDB no cuenta con atributo de nombre propio para las cuentas de rol `admin`, la auditoría se asocia fehacientemente al correo electrónico autenticado (`changedByEmail = req.user.email`).
   - **Llenado Autónomo vs. Manual:**
-    - Eventos del sistema (cumplimiento de 480 hrs, inactividad a los 60 días, re-registro): El sistema asigna un comentario institucional predeterminado.
-    - Eventos manuales del Administrador (rechazo de expediente, baja discrecional, aceptación): La interfaz web despliega un modal con campo de texto para que el admin justifique el dictamen. Si se deja en blanco, aplica un comentario formal por defecto.
+    - Eventos autónomos en petición explícita (cumplimiento de 480 hrs `'hours_completed'`, registro inicial `'initial_signup'`, re-registro `'re_registration'`): El sistema asigna un comentario institucional predeterminado (sin procesos `node-cron` en segundo plano).
+    - Eventos manuales del Administrador (rechazo de expediente `'admin_rejection'`, desactivación administrativa `'administrative_decision'`, aceptación `'admin_approval'`): La interfaz web despliega un modal con campo de texto para que el admin justifique el dictamen. Si se deja en blanco, aplica un comentario formal por defecto.
   - **Visibilidad en Interfaz de Expediente (`/onboarding/expediente`)**:
     - Aplica a ambos roles de voluntario (`SS` y `VG`).
     - En estado `accepted` (`active`), muestra el comentario de aprobación y felicitación institucional de la Coordinación (`comments`).
@@ -670,7 +672,7 @@ abaq-backup-YYYY-MM-DD-HHmmss.zip
   - **Consumo en Notificaciones Resend:**
     - El cuerpo del correo transaccional incorpora el campo `comments` en una caja destacada (*callout*), asegurando que el voluntario conozca formalmente la razón del cambio de estado en su bandeja de entrada.
 
-### `[SRS 13.2 Requerimientos Funcionales - Inactivación Automática Dual]`
+### `[SRS 13.2 Requerimientos Funcionales - Transiciones Controladas a Inactividad (Sin Cron en Background)]`
 
 - **RF-AUTO-01 (Inactivación Inmediata por Cumplimiento de 480 Horas)**:
   - Aplica exclusivamente al rol `student` (Servicio Social).
@@ -681,24 +683,19 @@ abaq-backup-YYYY-MM-DD-HHmmss.zip
     4. Registra el evento en `statusHistory` con motivo `'hours_completed'`.
     5. Despacha vía Resend el correo transaccional de finalización con el enlace de descarga oficial.
 
-- **RF-AUTO-02 (Inactivación Integral por 2 Meses de Inactividad - 60 Días)**:
-  - Aplica a ambos roles de voluntarios (`student` y `volunteer`).
-  - La última actividad se calcula mediante:
-    $$\text{fechaUltimaActividad} = \max(\text{lastLogin}, \text{fechaUltimaAcreditacion}, \text{fechaInscripcionActividad}, \text{fechaAceptacionExpediente})$$
-  - Un proceso programado (Cron Job diario en backend) evalúa los días de ausencia:
-    - **A los 45 días continuos sin actividad (15 días antes del corte):** Envía al voluntario el correo de alerta preventiva urgente (`sendInactivityWarningEmail(stage='day45')`).
-    - **A los 60 días continuos sin actividad:** Actualiza `accountStatus = 'inactive'`, asigna `fechaDesactivacion = Date.now()`, registra en `statusHistory` (`'inactivity_60_days'`) y envía el correo de rescisión por abandono (`sendInactivityWarningEmail(stage='day60')`). No se emite constancia de mérito.
+- **RF-AUTO-02 (Prohibición de Barridos Automáticos en Segundo Plano - Zero Background Cron)**:
+  - El sistema **no ejecuta ningún `node-cron` diario de inactividad (45/60 días)** ni expone endpoints de barrido manual/programado (`inactivity.service.js`, `scheduleInactivitySweep` y `POST /student/check-inactivity` quedan retirados).
+  - Ningún proceso desatendido en background revisa ni muta estados de `Student` o `Volunteer`.
+  - Los atributos existentes en los esquemas Mongoose (`fechaDesactivacion`, `statusHistory`, `inactivityStage`) se preservan intactos exclusivamente por compatibilidad con documentos preexistentes, scripts de *seed* y respaldos `.zip` previos.
 
-- **RF-AUTO-03 (Desactivación Administrativa)**:
-  - El administrador puede desactivar manualmente a un colaborador desde la tabla de voluntarios, especificando el motivo del cese en `statusHistory` (`'administrative_decision'`). La emisión de constancia queda restringida únicamente a casos donde concluyó formalmente.
+- **RF-AUTO-03 (Desactivación Administrativa Manual)**:
+  - El administrador puede cambiar manualmente el estado de cualquier `student` o `volunteer` a `'inactive'` desde el portal administrativo, registrando el motivo del cese en `statusHistory` (`'administrative_decision'`). La emisión de constancia queda restringida únicamente a casos donde concluyó formalmente.
 
 ### `[SRS 13.3 Requerimientos Funcionales - Permisos y Restricción Operativa de Inactivos]`
 
 - **RF-INACT-01 (Modo de Solo Consulta Histórica Previa a la Baja)**:
-  - Un usuario con `accountStatus: 'inactive'` puede autenticarse para consultar su perfil e historial pasado.
-  - El endpoint `GET /activities` detecta si el usuario está inactivo e inyecta el filtro obligatorio:
-    $$\{ \text{createdAt}: \{ \$lte: \text{fechaDesactivacion} \} \}$$
-    Impidiendo que reciba convocatorias o actividades creadas con posterioridad a su baja.
+  - Un usuario con `accountStatus: 'inactive'` puede autenticarse para consultar su perfil e historial pasado mientras su documento no haya sido deshidratado manualmente en `/backup`.
+  - El endpoint `GET /activities` detecta si el usuario está inactivo e inyecta el filtro obligatorio sobre su fecha de baja (`fechaDesactivacion || updatedAt || createdAt`), impidiendo que reciba convocatorias o actividades creadas con posterioridad a su desvinculación.
 
 - **RF-INACT-02 (Bloqueo de Acciones de Modificación e Inscripción)**:
   - Toda petición de un usuario inactivo para inscribirse a actividades (`POST /activities/:id/enroll`), solicitar nuevas acreditaciones (`POST /accreditations`) o editar datos del expediente es interceptada y rechazada con código HTTP `403 Forbidden`.
@@ -707,61 +704,64 @@ abaq-backup-YYYY-MM-DD-HHmmss.zip
   - **Perfil Personal del Voluntario (`/volunteer-profile` o perfil de estudiante):**
     - Cuando la cuenta tiene `accountStatus: 'inactive'`, la vista de perfil muestra de **forma fija y permanente en la parte superior (inmediatamente debajo del header)** un banner destacado que le comunica su estatus de baja/inactivo, la fecha de desactivación, la causal (`reason`) y el comentario explicativo oficial (`comments`).
   - **Ficha del Voluntario en Administración (`StudentDetailComponent` y `VolunteerDetailComponent`):**
-    - Mientras el colaborador inactivo sea visible en las interfaces normales operativas ($< 12$ meses), la ficha de detalle que consulta el administrador renderiza permanentemente en la parte superior (cerca del header) una tarjeta informativa con el comentario del cambio a `inactive`, el responsable (`changedByEmail`), la fecha y la causal, permitiendo que el admin distinga de inmediato la justificación de la baja (cumplimiento de horas, inactividad de 60 días, o baja administrativa).
+    - Mientras el colaborador inactivo permanezca en la base de datos activa (hasta que se ejecute un corte manual en `/backup`), la ficha de detalle que consulta el administrador renderiza permanentemente en la parte superior (cerca del header) una tarjeta informativa con el comentario del cambio a `inactive`, el responsable (`changedByEmail`), la fecha y la causal, permitiendo distinguir de inmediato la justificación de la baja (cumplimiento de 480 horas vs. gestión administrativa manual).
 
-### `[SRS 13.4 Requerimientos Funcionales - Visibilidad Escalonada y Voluntarios Pasados]`
+### `[SRS 13.4 Requerimientos Funcionales - Persistencia sin Ventana de 12 Meses y Voluntarios Pasados]`
 
-- **RF-VIS-01 (Ventana Operativa de 12 Meses en Tabla Principal)**:
-  - Los colaboradores inactivos con menos de 12 meses de antigüedad desde su `fechaDesactivacion` permanecen en la tabla general de voluntarios (`/volunteers` o `/student`).
-  - La fila del registro se estiliza con fondo gris claro (`#f1f5f9`) y texto atenuado (`#64748b`), ordenándose al final de la paginación.
+- **RF-VIS-01 (Persistencia Completa en Tablas Operativas sin Corte de Antigüedad)**:
+  - Las consultas principales (`getAllStudents` y `getAllVolunteers`) devuelven **todos** los registros existentes en MongoDB sin aplicar ningún filtro ni recorte de antigüedad de 12 meses (`TWELVE_MONTHS_MS` y `twelveMonthVisibilityFilter` eliminados).
+  - Las filas de cuentas con `accountStatus: 'inactive'` se estilizan con fondo gris claro (`#f1f5f9`) y texto atenuado (`#64748b`), ordenándose siempre al final de la paginación hasta que un administrador ejecute un corte manual en `/backup`.
 
-- **RF-VIS-02 (Retiro de Vistas Operativas a los 12 Meses)**:
-  - Al cumplirse 1 año (365 días) de su fecha de desactivación, los registros quedan excluidos de la consulta principal y sólo son accesibles en la vista de historial.
+- **RF-VIS-02 (Ausencia de Ocultamiento o Purga Automática por Antigüedad)**:
+  - Ningún colaborador `inactive` se oculta automáticamente de las tablas operativas ni de `/volunteers/history` por el mero paso del tiempo; la única vía de retiro físico es el Corte y Deshidratación manual bajo demanda en `/backup`.
 
 - **RF-VIS-03 (Vista Dedicada de Voluntarios Pasados - `/volunteers/history`)**:
   - Se implementa un botón principal en el encabezado de voluntarios: *"Ver Voluntarios Pasados"*, que redirige a `/volunteers/history`.
-  - La vista cuenta con dos pestañas alimentadas por Aggregation Pipelines que proyectan de forma ligera los campos exactos:
+  - Los controladores `getPastStudents`, `getPastVolunteers` y `getStatusAuditLog` consultan la totalidad de los registros `inactive` y transiciones vigentes en MongoDB sin filtro temporal, alimentando tres pestañas con Aggregation Pipelines ligeros:
     1. **Pestaña Estudiantes Pasados:** Nombre completo, contacto (teléfono y correo), edad, fecha en la organización, fecha de activación, fecha de desactivación, total de acreditaciones, total de horas cubiertas, tipo de periodo cursado (enum universitario) y universidad.
     2. **Pestaña Voluntarios Generales Pasados:** Nombre completo, contacto, edad, fecha en la organización, fecha de activación, fecha de desactivación y total de acreditaciones (sin conteo de horas).
-    3. **Pestaña Bitácora de Estados:** Visualización del historial de transiciones (`statusHistory`).
+    3. **Pestaña Bitácora de Estados:** Visualización íntegra del historial de transiciones (`statusHistory`).
 
-### `[SRS 13.5 Requerimientos Funcionales - Deshidratación Indivisible de Base de Datos]`
+### `[SRS 13.5 Requerimientos Funcionales - Elegibilidad Inmediata y Deshidratación Indivisible (Opción A)]`
 
-- **RF-DEHYD-01 (Principio del Corte Limpio e Indivisible)**:
-  - El sistema no permite purgas parciales. Para que una actividad u oportunidad sea purgada y deshidratada, **no puede haber ni un solo alumno activo** vinculado a ella.
-  - Si una actividad u oportunidad cuenta con al menos un alumno activo o con inactividad menor a 1 año, **no se elimina nada** y permanece íntegra en la base de datos operativa.
-  - Cuando se cumple la condición (todos los participantes inactivos $> 1$ año y actividad/oportunidad concluida en el pasado), se purga simultáneamente todo el bloque relacional: el usuario inactivo, sus acreditaciones y los registros hijos de las oportunidades pasadas.
+- **RF-DEHYD-01 (Elegibilidad Inmediata de Inactivos y Principio del Corte Indivisible Opción A)**:
+  - Todo colaborador (`student` o `volunteer`) con `accountStatus: 'inactive'` cuya fecha efectiva (`fechaDesactivacion || updatedAt || createdAt`) sea `<= cutoffDate` —con tope máximo al cierre del día actual UTC (`23:59:59.999Z`), rechazando con HTTP `400` únicamente fechas futuras— es candidato **inmediato** al corte sin requerir ninguna antigüedad mínima adicional e incluyendo bajas manuales con `fechaDesactivacion: null`.
+  - Las cuentas de acceso en `users` (exclusivamente con `role` en `['student', 'volunteer']`, jamás `'admin'`) se resuelven mediante `authId || userId` e incluyen `+passwordHash` en el paquete exportado.
+  - **Regla Indivisible Opción A para Actividades Compartidas:** El colaborador inactivo elegible se exporta al `.zip` y se purga con sus subdocumentos embebidos (`assignedActivities` y `accreditations`), mientras que una actividad colectiva (`Activity`) **se conserva en MongoDB** si al menos uno de sus participantes inscritos no pertenece al conjunto elegible de inactivos hasta `cutoffDate`, y **solo se purga** cuando el 100 % de sus inscritos pertenecen a dicho conjunto elegible.
 
 - **RF-DEHYD-02 (Catálogo Unificado de Oportunidades - 11 Modalidades)**:
   - El concepto de oportunidad abarca cualquier vía formal de participación en ABAQ. El proceso de deshidratación barre los modelos de las 11 opciones operativas:
     `EVENT`, `INDUCTION`, `IDENTIFICATION`, `STERILIZATION`, `ADOPTION`, `ADOPTION_MODULE`, `TALK`, `CAMPAIGN`, `MEDIA`, `SOCIAL_MEDIA`, `DONATION` y `ADMINISTRATIVE`.
-  - Las plantillas maestras de actividades rápidas (`QuickActivity`) quedan permanentemente excluidas de la purga.
+  - Las plantillas maestras de actividades rápidas (`QuickActivity`), cuentas `users` con `role: 'admin'`, el padrón `Pet` y `DehydrationAuditLog` quedan permanentemente excluidos de la purga.
 
-### `[SRS 13.6 Requerimientos Funcionales - Flujo en Dos Pasos y Token Criptográfico de Purga]`
+### `[SRS 13.6 Requerimientos Funcionales - Flujo Guiado en 4 Pasos y Token Criptográfico de Purga]`
 
-- **RF-PURGE-01 (Tercera Columna en Sección de Respaldos e Indicador de Carga Operativa)**:
-  - En la vista `/backup` ("Generar y Descargar Copias Locales"), la cuadrícula de acciones se extiende a un **diseño de tres columnas (3 tarjetas)**:
-    - *Tarjeta 1:* Respaldo Completo del Sistema (`.ZIP / JSON` para rollback).
-    - *Tarjeta 2:* Libro Consolidado en Excel (`.XLSX` para auditoría y patronato).
-    - *Tarjeta 3:* Corte y Deshidratación de Base de Datos (`.ZIP / PURGA` para depuración histórica).
+- **RF-PURGE-01 (Tercera Columna en `/backup`, Escaneo en Una Pasada y Aviso Temporal en Botón)**:
+  - En la vista `/backup` ("Generar y Descargar Copias Locales"), la cuadrícula de acciones se estructura en **tres columnas (3 tarjetas)**:
+    - *Tarjeta 1:* Respaldo Completo del Sistema (`.ZIP / JSON` dinámico vía `getModelRegistry()` para rollback).
+    - *Tarjeta 2:* Libro Consolidado en Excel (`.XLSX` dinámico vía `getModelRegistry()` con omisión de `select: false`).
+    - *Tarjeta 3:* Corte y Deshidratación de Base de Datos (`.ZIP / PURGA`) gobernado por un **flujo guiado bajo demanda de 4 pasos**:
+      1. **Paso 1 — Analizar sistema:** Invoca `POST /backup/dehydrate/analyze` con `{}` ejecutando `discoverAvailableCutoffs` en una sola pasada de consultas sin N+1 (hasta el cierre del día actual UTC). Si no existen fechas candidatas con impacto `> 0`, el propio botón cambia temporalmente su etiqueta a `"No se encontraron fechas de corte disponibles"` durante `3.5 s` y vuelve automáticamente a `"Analizar sistema"`.
+      2. **Paso 2 — Elegir fecha:** Selector desplegable de fechas candidatas con resumen de impacto precalculado y evaluado en memoria sin disparar nuevas consultas al cambiar de fecha.
+      3. **Paso 3 — Descargar corte `.zip`:** Descarga local del paquete firmado (ver `RF-PURGE-02`).
+      4. **Paso 4 — Borrar registros:** Ejecución condicionada del borrado en MongoDB (ver `RF-PURGE-03`).
   - La Tarjeta 3 expone de forma obligatoria una **alerta visual preventiva de procesamiento**:
-    > *"⚠️ Aviso: Se recomienda ejecutar esta operación fuera de horarios operativos durante el día. La verificación relacional de las 14 colecciones, empaquetado y purga demandan recursos intensivos de CPU y base de datos que podrían ralentizar el portal."*
-  - La tarjeta integra un control dropdown para seleccionar la fecha de corte, el botón del Paso 1 (*"1. Descargar Corte Limpio (.zip)"*) y el botón del Paso 2 (*"2. Purgar Registros de la BD"*).
+    > *"⚠️ Aviso: Se recomienda ejecutar esta operación fuera de horarios operativos durante el día. La verificación relacional entre colecciones, empaquetado y purga demandan recursos intensivos de CPU y base de datos que podrían ralentizar el portal."*
 
-- **RF-PURGE-02 (Paso 1: Descarga y Emisión de Token de Purga)**:
-  - Al pulsar *"Descargar Corte Limpio (.zip)"*, el backend procesa los registros de usuarios inactivos $> 1$ año y oportunidades concluidas que cumplan el principio de corte indivisible.
-  - Genera el archivo ZIP descargable en la máquina local del administrador con los JSONs y `manifest.json` con hash SHA-256.
-  - El backend emite en la cabecera HTTP un token criptográfico de un solo uso: `X-Purge-Token` (con TTL de 15 minutos).
+- **RF-PURGE-02 (Paso 3: Descarga del Corte `.zip` y Emisión de Token de Purga)**:
+  - Al pulsar *"Descargar corte (.zip)"*, el backend procesa el plan de purga para la `cutoffDate` seleccionada sobre los registros con `accountStatus: 'inactive'` (`fechaDesactivacion || updatedAt || createdAt <= cutoffDate`) y oportunidades concluidas bajo Opción A.
+  - Genera el archivo `.zip` descargable en la máquina local del administrador con los JSONs (incluyendo `+passwordHash` en `users` resueltos vía `authId || userId`) y `manifest.json` con hashes SHA-256.
+  - El backend emite en la cabecera HTTP un token criptográfico firmado con HMAC-SHA256 de un solo uso: `X-Purge-Token` (con vigencia estricta de **15 minutos**).
 
-- **RF-PURGE-03 (Paso 2: Borrado Bloqueante Condicionado)**:
-  - El botón *"Purgar registros de la BD"* se encuentra deshabilitado por defecto y se habilita únicamente cuando el cliente posee un `purgeToken` válido emitido tras la descarga exitosa.
-  - Al presionar el botón y confirmar con credenciales de administrador en modal de seguridad, el backend valida el token y ejecuta la purga atómica de los documentos respaldados en MongoDB.
+- **RF-PURGE-03 (Paso 4: Borrado Bloqueante Condicionado)**:
+  - El botón *"Borrar registros"* permanece deshabilitado por defecto y se habilita únicamente cuando el cliente posee un `X-Purge-Token` vigente emitido tras la descarga exitosa del Paso 3.
+  - Al presionar el botón y confirmar con contraseña del administrador en sesión en el modal de seguridad (`POST /backup/dehydrate/purge`), el backend valida la firma y vigencia del token (15 min), autentica la contraseña, ejecuta el borrado de los documentos respaldados en MongoDB, inserta `DehydrationAuditLog` e invalida el token.
 
 ### `[SRS 13.7 Requerimientos Funcionales - Rehidratación Idempotente y Auditoría]`
 
 - **RF-REHYD-01 (Rehidratación por Subida de Paquete ZIP)**:
-  - El administrador puede subir un archivo ZIP de deshidratación previamente descargado en `/backup`.
-  - El backend procesa los JSONs y efectúa un `bulkWrite` con `replaceOne` y `upsert: true`, restaurando los documentos con sus identificadores `_id` y relaciones originales exactas.
+  - El administrador puede subir un archivo ZIP de deshidratación previamente descargado en `/backup` (`POST /backup/dehydrate/restore`).
+  - El backend verifica los hashes SHA-256 contra `manifest.json` y efectúa un `bulkWrite` en orden topológico con `replaceOne` y `upsert: true`, restaurando los documentos con sus identificadores `_id`, credenciales y relaciones originales exactas sin afectar registros activos vigentes.
 
 - **RF-AUDIT-01 (Bitácora Granular de Deshidratación y Rehidratación - DehydrationAuditLog)**:
   - Toda operación de corte/purga (`dehydrate_purge`) y de rehidratación (`rehydrate_restore`) se registra de forma obligatoria e inmutable en la colección `DehydrationAuditLog`.
@@ -769,21 +769,20 @@ abaq-backup-YYYY-MM-DD-HHmmss.zip
   - **Trazabilidad y Folio Operativo:** Asigna un folio único determinista `operationFolio` (p. ej. `DEHYD-YYYYMMDD-HEX`), `cutoffDate`, `executedAt`, `durationMs` y estado (`completed`, `failed`, `rolled_back`).
   - **Integridad Criptográfica del Paquete:** Registra `fileName`, `sha256` (hash hexadecimal de 64 caracteres del archivo ZIP generado), `fileSizeBytes` y versión de manifiesto.
   - **Métricas Globales:** Registra `totalCollectionsAffected`, `totalDocumentsPurged`, `totalBytesFreed`, `preExecutionStorageBytes` y `postExecutionStorageBytes`.
-  - **Desglose Granular por Colección:** Almacena un arreglo tipado `collections` que desglosa detalladamente para cada modelo retirado: `collectionName`, `modelKey`, `modelName`, `documentCount`, `estimatedBytesFreed`, `purgedDocumentIds` (arreglo de ObjectIds purgados), `sampleFoliosOrEmails` y `filterCriteria` aplicado.
+  - **Desglose Granular por Colección:** Almacena un arreglo tipado `collections` que desglosa detalladamente para cada modelo retirado: clave/nombre de colección, conteo de documentos purgados, `purgedDocumentIds` (arreglo de ObjectIds purgados), muestra representativa y `filterCriteria` aplicado.
   - **Alcance Estricto de Purgas y Preservación:**
-    - *Modelos Purgables (12):* `students`, `volunteers`, `users` (únicamente con rol `student` o `volunteer`), `accreditations`, `activities` (concluidas sin alumnos activos), `notifications` (asociadas a usuarios archivados, ~41.4% del volumen histórico), `surveys`, `contacts`, `identifications`, `talks`, `campaigns` y `adoptions`.
+    - *Modelos Purgables:* `students` y `volunteers` con `accountStatus: 'inactive'` y fecha efectiva `<= cutoffDate`, `users` vinculados vía `authId || userId` (únicamente con rol `student` o `volunteer`), `accreditations`, `activities` (concluidas cuyo 100 % de inscritos es elegible), `notifications` (asociadas a usuarios archivados, ~41.4 % del volumen histórico), `surveys`, `contacts`, `identifications`, `talks`, `campaigns` y `adoptions`.
     - *Modelos Preservados Permanentemente (4):* `quickactivities` (plantillas maestras reutilizables), `users` con rol `'admin'`, `pets` (censo comunitario de bienestar animal) y `DehydrationAuditLog`.
 
 ### `[SRS 13.8 Requerimientos Funcionales - Notificaciones Exclusivas a Voluntarios]`
 
-- **RF-NOTIF-01 (Despacho Exclusivo al Correo de los Voluntarios vía Resend)**:
+- **RF-NOTIF-01 (Despacho Exclusivo al Correo de los Voluntarios vía Resend sin Cron en Background)**:
   - Todas las notificaciones transaccionales del ciclo de vida son **exclusivamente para los voluntarios** (a su correo personal registrado).
-  - No existen notificaciones a los administradores ni se implementa interfaz web in-app ni campana de notificaciones.
-  - Los 4 disparadores de correo transaccional son:
+  - No existen notificaciones a los administradores, ni procesos `node-cron` en segundo plano, ni interfaz web in-app o campana de notificaciones.
+  - Los disparadores transaccionales activos son:
     1. Aceptación de expediente (`sendAcceptanceEmail`).
-    2. Alerta preventiva a los 45 días de inactividad (`sendInactivityWarningEmail` etapa 45).
-    3. Baja por 60 días de inactividad (`sendInactivityWarningEmail` etapa 60).
-    4. Conclusión de vinculación (`sendCompletionEmail`, diferenciando horas y certificado oficial para estudiantes, vs agradecimiento sin horas para voluntarios generales).
+    2. Notificaciones derivadas de dictamen o cambio administrativo explícito de estado (incorporando `comments`).
+    3. Conclusión formal de vinculación (`sendCompletionEmail`, diferenciando 480 horas y certificado oficial para estudiantes, vs agradecimiento sin horas para voluntarios generales).
 
 ### `[SRS 13.9 Requerimientos Funcionales - Homologación Visual de Encabezados]`
 
@@ -804,8 +803,8 @@ abaq-backup-YYYY-MM-DD-HHmmss.zip
 
 - **RF-FOL-02 (Arquitectura de Desacoplamiento por Doble Arreglo Embebido y Cero-Null)**:
   - Tanto `Student` como `Volunteer` alojan sus propios arreglos autosuficientes `assignedActivities` y `accreditations`.
-  - **Garantía Anti-Null en Deshidratación:** Al ejecutar el corte (Opción A), el colaborador inactivo $> 1$ año se exporta al paquete ZIP (`students.json` o `volunteers.json`) con su historial completo embebido, eliminándose de Atlas sin dejar registros huérfanos ni campos nulos (`studentRef: null` erradicado al 100%).
-  - Las actividades colectivas compartidas permanecen vivas en Atlas si cuentan con al menos un participante activo.
+  - **Garantía Anti-Null en Deshidratación:** Al ejecutar un corte manual en `/backup` (Opción A), todo colaborador elegible con `accountStatus: 'inactive'` (`fechaDesactivacion || updatedAt || createdAt <= cutoffDate`) se exporta al paquete ZIP (`students.json` o `volunteers.json`) con su historial completo embebido, eliminándose de Atlas sin dejar registros huérfanos ni campos nulos (`studentRef: null` erradicado al 100 %).
+  - Las actividades colectivas compartidas permanecen vivas en Atlas si cuentan con al menos un participante inscrito fuera del conjunto elegible de inactivos.
   - **Restauración Transparente:** La rehidratación con `bulkWrite` (`replaceOne` con `upsert: true`) restaura al colaborador con sus dos listados completos y folios deterministas intactos, restableciendo su historial sin dependencias foráneas.
 
 

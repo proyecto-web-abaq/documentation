@@ -1,8 +1,8 @@
 # Documento de Arquitectura de Software (SAD)
 **Estándar:** ISO/IEC/IEEE 42010:2022  
 **Proyecto:** Plataforma Web ABAQ (Servicio Social, Censo Comunitario y Documentación Pedagógica)  
-**Versión:** 2026.10.31 (CalVer)  
-**Fecha:** 2026-10-31  
+**Versión:** 2026.11.03 (CalVer)  
+**Fecha:** 2026-11-03  
 **Estado:** Aprobado  
 **Autores:** Equipo de Arquitectura e Ingeniería de Software ABAQ  
 
@@ -19,7 +19,7 @@ La plataforma **ABAQ** es un sistema full-stack en producción real (Angular v22
    - **Estudiante de Servicio Social (`SS`)**: Acumula horas (meta típica de 480 h), recibe 10 horas automáticas por la inducción formativa (Fase 2), prioriza entre las 11 actividades institucionales oficiales del reglamento con valores de acreditación explícitos, y está sujeto a la regla de baja por inactividad no notificada mayor a 2 meses.
    - **Voluntario General (`VG`)**: Participa sin fines curriculares escolares; su flujo omite toda referencia o badge de acreditación de 10 horas de inducción, y sus actividades no muestran horas académicas.
    - **Administrador (`admin`)**: Gestión operativa mediante tablas densas de alto contraste con búsqueda, filtrado en tiempo real, auditoría de asistencias, validación de horas, y herramientas de respaldo/restauración de base de datos.
-5. **Subsistema de Respaldos, Exportación y Rollback (Disaster Recovery)**: Exportación streaming en formato técnico (ZIP con 14 colecciones JSON y `manifest.json` con firmas SHA-256) y formato gerencial (libro Excel multi-hoja formateado vía `ExcelJS`), complementado con un mecanismo de restauración con validación previa en seco (*dry-run*).
+5. **Subsistema de Respaldos Dinámicos, Deshidratación en 4 Pasos y Rollback (Disaster Recovery)**: Descubrimiento dinámico de todos los modelos Mongoose registrados mediante `getModelRegistry()` en `backup.service.js` (exponiendo métricas `activeCollections / totalCollections`), exportación streaming en formato técnico (`.zip` con JSONs íntegros incluyendo campos `select: false` como `+passwordHash` y `manifest.json` con firmas SHA-256) y formato gerencial (`.xlsx` multi-hoja vía `ExcelJS` omitiendo automáticamente campos `select: false` y credenciales), complementado con *rollback* tras validación *dry-run* y corte manual bajo demanda en 4 pasos para cuentas `inactive`.
 6. **Levantamiento Censal y Encuestas Dinámicas**: Captura de encuestas de bienestar animal en campo y seguimiento veterinario.
 
 ### 1.2 Partes Interesadas (Stakeholders) y Puntos de Vista
@@ -342,37 +342,40 @@ flowchart TD
 
 ### 2.5 Subsistema de Respaldos, Exportación Multi-Formato y Rollback de Datos
 
-El subsistema de respaldos y recuperación provee soberanía operativa a los administradores sin requerir acceso directo a la consola de base de datos o utilidades de línea de comandos en la nube.
+El subsistema de respaldos y recuperación provee soberanía operativa a los administradores sin requerir acceso directo a la consola de base de datos o utilidades de línea de comandos en la nube, apoyándose en el descubrimiento dinámico de modelos Mongoose (`getModelRegistry()`).
 
 ```mermaid
 flowchart TD
     subgraph UI["Portal Web Admin (Angular 22)"]
-        BC["BackupComponent<br/>(/admin/backups)"]
+        BC["BackupComponent\n(/backup, /admin/backups)"]
         BS["BackupService (RxJS / HttpClient)"]
         BC <--> BS
     end
 
     subgraph API["Backend API (Express / Node.js)"]
-        BR["backup.route.js<br/>(auth & admin role middleware)"]
+        BR["backup.route.js\n(auth & admin role middleware)"]
         BCTL["backup.controller.js"]
-        BSERV["backup.service.js"]
-        BR --> BCTL --> BSERV
+        BSERV["backup.service.js\n(getModelRegistry dinámico)"]
+        DSERV["dehydration.service.js\n(discoverAvailableCutoffs + buildPurgePlan)"]
+        BR --> BCTL
+        BCTL --> BSERV
+        BCTL --> DSERV
     end
 
     subgraph EX["Generadores de Salida (Streaming)"]
-        ZIP["Archiver (ZIP Streaming)<br/>14 JSONs + manifest.json"]
-        XLSX["ExcelJS Engine<br/>14 Worksheets con estilo"]
+        ZIP["Archiver (ZIP Streaming)\nJSONs dinámicos (+select:false) + manifest.json"]
+        XLSX["ExcelJS Engine\nResumen + Worksheets dinámicos (sin select:false)"]
     end
 
     subgraph DB["Persistencia (MongoDB Atlas - Producción Real)"]
-        MOD["Mongoose Models<br/>(14 colecciones)"]
+        MOD["Registro Dinámico Mongoose\n(models/*.model.js + mongoose.models)"]
     end
 
-    BS -- "GET /backup/download/json" --> BR
-    BS -- "GET /backup/download/excel" --> BR
-    BS -- "POST /backup/restore (ZIP file)" --> BR
+    BS -- "GET /backup/status | /download/json | /download/excel" --> BR
+    BS -- "POST /backup/restore | /dehydrate/*" --> BR
 
-    BSERV -- "Consulta documentos" --> MOD
+    BSERV -- "Inspección de esquemas y consulta" --> MOD
+    DSERV -- "Corte Opción A y rehidratación upsert" --> MOD
     BSERV --> ZIP
     BSERV --> XLSX
     ZIP -- "application/zip stream" --> BS
@@ -382,14 +385,15 @@ flowchart TD
 
 #### Componentes y Responsabilidades
 1. **`BackupComponent` & `BackupService` (Frontend)**:
-   - Muestra estado vital de la base de datos (colecciones, documentos, estado de conectividad).
+   - Muestra estado vital de la base de datos (`activeCollections / totalCollections`, `totalDocuments` y estado de conectividad).
    - Descarga en un clic los archivos binarios mediante `Blob` y URLs temporales (`window.URL.createObjectURL`).
-   - Administra la subida del archivo `.zip` para recuperación, renderizando un modal de confirmación con vista previa (*dry-run*) del impacto en registros antes de proceder.
+   - Opera la tarjeta guiada en **4 pasos** de Corte y Deshidratación bajo demanda (análisis con aviso temporal de `3.5 s` en el botón cuando no hay fechas disponibles, elección de fecha evaluada en memoria, descarga `.zip` con `X-Purge-Token` de 15 min y borrado confirmado) y administra la subida de paquetes `.zip` tanto para *rollback* completo como para rehidratación selectiva con vista previa (*dry-run*).
 2. **`backup.controller.js` & `backup.service.js` (Backend)**:
-   - `getBackupStatus`: Retorna el inventario de las 14 colecciones con su conteo exacto de documentos.
-   - `exportJsonZip`: Itera sobre todas las colecciones mediante cursores lean, serializa a JSON formateado, calcula checksums SHA-256, genera `manifest.json` y empaqueta en ZIP con compresión de nivel 6 vía streaming.
-   - `exportExcel`: Utiliza `ExcelJS` para construir un libro con 14 hojas nombradas, encabezados corporativos (#24366f), formateo de columnas y exclusión de hashes de contraseñas.
-   - `restoreBackup`: Descomprime el `.zip` en memoria/temporal, valida el `manifest.json`, ejecuta validación cruzada de esquemas, y si `confirm=true`, ejecuta una restauración controlada reemplazando colecciones mediante operaciones ordenadas de MongoDB preservando `_id`.
+   - `getModelRegistry()`: Descubre dinámicamente todos los modelos Mongoose registrados desde `backend/models/*.model.js` y `mongoose.models`, detectando en `schema.paths` los atributos con `select: false` y credenciales (`password`, `passwordHash`).
+   - `getBackupSummary()`: Retorna el inventario dinámico con `activeCollections`, `totalCollections` y `totalDocuments`.
+   - `streamJsonZipBackup`: Itera sobre `getModelRegistry()` forzando la inclusión de campos `select: false` (p. ej. `+passwordHash`) para garantizar un *rollback* íntegro, calcula hashes SHA-256, genera `manifest.json` y transmite el `.zip` comprimido en streaming.
+   - `streamExcelBackup`: Construye mediante `ExcelJS` una hoja `"Resumen General"` más una hoja por cada modelo descubierto en `getModelRegistry()`, con encabezados corporativos (`#24366f`) y exclusión automática de campos `select: false` y hashes de contraseñas.
+   - `processRollback`: Descomprime el `.zip` en memoria, valida `manifest.json` y hashes SHA-256 contra `getModelRegistry()`, entrega el reporte *dry-run* y, si `confirm=true`, restaura las colecciones preservando `_id`.
 
 ---
 
@@ -463,39 +467,37 @@ flowchart TD
 
 - **Aislamiento en Control de Versiones**: Todo el código de producción y documentación del proyecto está unificado y versionado en la rama `main` en los repositorios de frontend y backend.
 
-### 2.8 Subsistema de Ciclo de Vida, Inactivación Automática y Deshidratación de Base de Datos
-Este subsistema desacopla la operación diaria activa de la custodia histórica de expedientes en ABAQ, garantizando que los usuarios pasen por un ciclo de vida ordenado, con desaturación de vistas operativas y una capacidad integral de purga y rehidratación de la base de datos sin pérdida de datos ni dependencias rotas.
+### 2.8 Subsistema de Ciclo de Vida, Gestión de Inactividad y Deshidratación de Base de Datos
+Este subsistema gobierna el ciclo de vida de los colaboradores en ABAQ **sin procesos automáticos `node-cron` ni ventanas de purga de 12 meses en segundo plano**, manteniendo todos los registros disponibles en listados operativos e historial hasta que un administrador ejecute intencionalmente el flujo guiado de 4 pasos de corte y deshidratación en `/backup`.
 
 ```mermaid
 flowchart TD
     subgraph Frontend["Frontend Angular (SPA)"]
         UI_Login["Login Component\n(Verifica accountStatus y primerIngresoRealizado)"]
         UI_Expediente["Expediente Recibido\n(/onboarding/expediente)"]
-        UI_MainVolunteers["Tabla de Voluntarios (/volunteers)\n(Filtro < 12 meses, inactivos en gris al fondo)"]
-        UI_PastVolunteers["Vista Voluntarios Pasados (/volunteers/history)\n(Pestañas Estudiantes / Generales / Bitácora)"]
-        UI_Backup["Respaldos y Deshidratación (/backup)\n(Flujo en 2 pasos con purgeToken)"]
+        UI_MainVolunteers["Tabla de Voluntarios (/student, /volunteers)\n(Todos los registros; inactivos en gris al fondo)"]
+        UI_PastVolunteers["Vista Voluntarios Pasados (/volunteers/history)\n(Todos los inactivos y bitácora sin filtro de antigüedad)"]
+        UI_Backup["Respaldos y Deshidratación (/backup)\n(Flujo guiado en 4 pasos + X-Purge-Token 15 min)"]
     end
 
     subgraph Backend["Backend Express.js (Node.js)"]
         Guard_Auth["AuthGuard & Session Flag\n(Redirige primer ingreso no reconocido)"]
-        Ctrl_Student["Student & Volunteer Controllers\n(findByIdAndUpdate, reset a pending en re-registro)"]
-        Cron_Inactive["Task Scheduler / Cron Diario\n(Evalúa inactividad: alerta 45d, baja 60d)"]
-        Service_Dehydrate["Dehydration & Backup Service\n(Corte limpio indivisible, stream ZIP, purgeToken)"]
-        Service_Email["Resend Email Service (utils/email.js)\n(Notificaciones exclusivas a voluntarios)"]
+        Ctrl_Student["Student & Volunteer Controllers\n(480 h SS, gestión manual, sin filtro de 12m ni cron)"]
+        Service_Dehydrate["Dehydration & Backup Services\n(getModelRegistry, corte Opción A en 1 pasada, authId || userId)"]
+        Service_Email["Resend Email Service (utils/email.js)\n(Notificaciones transaccionales exclusivas a voluntarios)"]
     end
 
     subgraph Database["MongoDB Atlas"]
-        Col_Students["Colección students & volunteers\n(statusHistory, fechaDesactivacion, primerIngresoRealizado)"]
-        Col_Ops["Colecciones de Oportunidades\n(accreditations, activities, talks, campaigns, etc.)"]
-        Col_Audit["Colección DehydrationAuditLog\n(Auditoría interna de deshidratación/rehidratación)"]
+        Col_Students["Colecciones students & volunteers\n(accountStatus, statusHistory, fechaDesactivacion, primerIngresoRealizado)"]
+        Col_Ops["Colecciones de Oportunidades y Usuarios\n(users, accreditations, activities, talks, campaigns, etc.)"]
+        Col_Audit["Colección DehydrationAuditLog\n(Auditoría inmutable de corte y rehidratación)"]
     end
 
     UI_Login --> Guard_Auth
     Guard_Auth --> UI_Expediente
-    UI_Expediente -->|Botón Ingresar a Plataforma| Ctrl_Student
+    UI_Expediente -->|"Botón Ingresar a Plataforma"| Ctrl_Student
     Ctrl_Student --> Col_Students
-    Cron_Inactive --> Col_Students
-    Cron_Inactive --> Service_Email
+    Ctrl_Student --> Service_Email
     UI_MainVolunteers --> Ctrl_Student
     UI_PastVolunteers --> Ctrl_Student
     UI_Backup --> Service_Dehydrate
@@ -507,17 +509,18 @@ flowchart TD
 #### Principios Clave del Subsistema:
 1. **Flujo de Primer Ingreso Asimétrico:** Tras ser aceptado por el admin, el usuario va obligatoriamente a `/onboarding/expediente` la primera vez, descarga su carta y pulsa *"Ingresar a la Plataforma ABAQ"*, persistiendo `primerIngresoRealizado: true`. En inicios posteriores, entra directo a su rol (`/activity-list`).
 2. **Re-registro Idempotente:** Si un usuario rechazado (`accountStatus: "rejected"`) se registra de nuevo con su mismo correo, se reutiliza su `_id` original, se resetea a `"pending"`, se actualizan sus credenciales y se registra el evento en `statusHistory`.
-3. **Inactivación Automática Dual:** 
-   - Estudiantes de servicio social: Al alcanzar 480 horas, se inactiva de inmediato en la misma transacción donde el admin aprueba la acreditación, emitiendo el certificado oficial.
-   - Ambos roles: Inactividad integral evaluada por cron diario. A los 45 días sin interacción se envía correo de alerta preventiva; a los 60 días se pasa a `"inactive"` (sin constancia).
-4. **Visibilidad Escalonada (12 Meses):**
-   - $< 12$ meses: Visible en la tabla de voluntarios con fila gris (`#f1f5f9`) al final.
-   - $\ge 12$ meses: Excluido de la tabla operativa; consultable en `/volunteers/history` mediante aggregation pipelines optimizados.
-5. **Corte Limpio e Indivisible ("O se quita todo o no se quita nada"):**
-   - Una actividad u oportunidad pasada se deshidrata y purga únicamente si **todos** sus participantes son inactivos de más de un año. Si hay al menos un alumno activo, no se toca nada.
-   - Barre todas las 11 modalidades del catálogo de oportunidades (`accreditations`, `identifications`, `talks`, `campaigns`, `adoptions`, etc.).
-6. **Seguridad en Dos Pasos y Rehidratación:** La descarga del archivo ZIP emite un `purgeToken` con TTL de 15 minutos que desbloquea el borrado en base de datos. La rehidratación se realiza vía subida de ZIP con `replaceOne` / upsert manteniendo IDs originales.
-7. **Notificaciones Exclusivas para Voluntarios:** Cuatro correos transaccionales vía Resend dirigidos únicamente a la casilla de correo del voluntario. Sin notificaciones a administradores ni bandejas in-app.
+3. **Transición Controlada a `inactive` (Cero Cron en Background):**
+   - Se elimina por completo el barrido nocturno `node-cron` de 45/60 días (`inactivity.service.js`, `scheduleInactivitySweep` y `POST /student/check-inactivity`).
+   - El cambio a `accountStatus: "inactive"` ocurre únicamente al acreditarse las **480 horas** en `student` (emitiendo certificado oficial) o mediante **gestión administrativa manual** (`PATCH`), conservando intactos los campos del esquema Mongoose (`fechaDesactivacion`, `statusHistory`, `inactivityStage`) por compatibilidad con respaldos y *seeds*.
+4. **Persistencia Integral sin Ventana de 12 Meses:**
+   - No existe ningún filtro ni ocultamiento de 12 meses (`365` días): todos los registros persisten en las tablas principales (con los `inactive` estilizados en gris `#f1f5f9` ordenados al final) y todos los inactivos y transiciones se consultan en `/volunteers/history` hasta que un administrador ejecute un corte manual en `/backup`.
+5. **Elegibilidad Inmediata y Corte Indivisible (Opción A):**
+   - Cualquier `student` o `volunteer` con `accountStatus: "inactive"` cuya fecha efectiva (`fechaDesactivacion || updatedAt || createdAt`) sea `<= cutoffDate` (con tope en el fin del día actual UTC, `23:59:59.999Z`) es candidato inmediato sin espera de antigüedad, resolviendo sus cuentas `users` mediante `authId || userId`.
+   - Una actividad colectiva compartida solo se purga si el **100 %** de sus participantes inscritos pertenecen al conjunto elegible de inactivos hasta `cutoffDate`; si hay al menos un participante activo o fuera del corte, la actividad se retiene en MongoDB mientras el colaborador inactivo sí se exporta al `.zip` y se purga sin dejar valores `null`.
+6. **Flujo Guiado Bajo Demanda en 4 Pasos y Rehidratación:**
+   - **1) Analizar sistema** (`POST /backup/dehydrate/analyze` con `{}` en una sola pasada sin N+1; si no existen fechas con impacto `> 0`, el propio botón muestra temporalmente `"No se encontraron fechas de corte disponibles"` durante `3.5 s` y vuelve a `"Analizar sistema"`) $\rightarrow$ **2) Elegir fecha** en selector desplegable evaluado en memoria $\rightarrow$ **3) Descargar corte `.zip`** (emite `X-Purge-Token` con vigencia de 15 minutos) $\rightarrow$ **4) Borrar registros** (`POST /backup/dehydrate/purge`).
+   - La rehidratación se realiza vía subida del `.zip` (`POST /backup/dehydrate/restore`) con `bulkWrite` (`replaceOne` + `upsert: true`) manteniendo `_id` originales.
+7. **Notificaciones Exclusivas para Voluntarios:** Correos transaccionales vía Resend disparados únicamente por eventos explícitos del ciclo de vida hacia el correo del voluntario, sin cron en background, sin notificaciones a administradores ni bandejas in-app.
 
 ---
 
@@ -550,16 +553,16 @@ flowchart TD
   - *Positivas*: Máxima claridad formativa y mantenibilidad a largo plazo; compatibilidad total con herramientas IDE (IntelliSense, TypeDoc, JSDoc); cero impacto en el rendimiento en tiempo de ejecución.
   - *Negativas*: Requiere esfuerzo continuo de autoría y auditoría para mantener sincronizados los comentarios con la evolución del código.
 
-### ADR-04: Estrategia Dual de Exportación y Rollback (JSON Streaming + Excel Formateado)
+### ADR-04: Registro Dinámico de Modelos y Estrategia Dual de Exportación y Rollback (JSON Streaming + Excel Sanitizado)
 - **Estado**: Aceptado y Aplicado.
-- **Contexto**: Las administradoras requieren generar copias de seguridad de la base de datos descargables a su máquina local, tanto para fines de respaldo técnico que permita restaurar el sistema ante contingencias (*disaster recovery/rollback*), como para consulta y auditoría gerencial en hojas de cálculo.
-- **Decisión**: Se implementa un subsistema desacoplado en el backend con dos formatos especializados:
-  1. **Formato Técnico (JSON ZIP)**: Exporta cada una de las 14 colecciones en formato JSON con tipos nativos, comprimidos en un solo archivo `.zip` junto a un `manifest.json` con metadatos y hashes SHA-256. Este artefacto es la única fuente admitida para ejecutar procedimientos de reversión (*rollback*).
-  2. **Formato Gerencial (Excel .xlsx)**: Exporta un libro de trabajo consolidado mediante `exceljs` con 14 hojas nombradas, formateo visual acorde al manual de diseño (`#24366f`, cabeceras fijas) y sanitización activa (exclusión estricta de hashes de contraseñas de usuarios).
-  3. **Rollback en Dos Fases**: Toda restauración a partir del `.zip` exige una fase preliminar en seco (*dry-run*) que compara registros existentes contra los a restaurar y exige confirmación explícita del administrador.
+- **Contexto**: Las administradoras requieren generar copias de seguridad descargables a su máquina local tanto para recuperación técnica ante contingencias (*disaster recovery/rollback*) como para auditoría gerencial en hojas de cálculo, sin que la incorporación o evolución de modelos Mongoose deje colecciones fuera del respaldo ni exponga campos sensibles.
+- **Decisión**: Se implementa un subsistema desacoplado en `services/backup.service.js` gobernado por descubrimiento dinámico (`getModelRegistry()`, que inspecciona `backend/models/*.model.js` y `mongoose.models` y expone métricas `activeCollections / totalCollections`):
+  1. **Formato Técnico (`.zip` JSON)**: Exporta cada modelo descubierto en formato JSON con tipos nativos e incluye explícitamente los atributos configurados con `select: false` (p. ej. `+passwordHash`) junto a un `manifest.json` con metadatos y hashes SHA-256. Este artefacto es la fuente oficial para ejecutar procedimientos de reversión (*rollback*) sin pérdida de credenciales.
+  2. **Formato Gerencial (Excel `.xlsx`)**: Exporta mediante `exceljs` una hoja `"Resumen General"` más una pestaña dinámica por cada modelo descubierto, con cabeceras corporativas (`#24366f`) y sanitización automática al omitir todo campo con `select: false` en el esquema y atributos de contraseñas (`password`, `passwordHash`).
+  3. **Rollback en Dos Fases**: Toda restauración a partir del `.zip` exige una fase preliminar en seco (*dry-run*) que valida checksums SHA-256 contra `getModelRegistry()`, compara conteos actuales vs. respaldados y exige confirmación explícita del administrador.
 - **Consecuencias**:
-  - *Positivas*: Independencia operativa para el usuario; separación limpia entre respaldo ejecutable (JSON) y reporte legible (Excel); mitigación de riesgos de sobreescritura accidental.
-  - *Negativas*: Procesar colecciones con decenas de miles de registros en Excel requiere streaming cuidadoso para controlar el uso de memoria.
+  - *Positivas*: Cero desfase al añadir nuevos modelos Mongoose; separación limpia entre respaldo ejecutable íntegro (JSON) y reporte gerencial sanitizado (Excel); mitigación de sobreescritura accidental.
+  - *Negativas*: Procesar colecciones extensas en Excel requiere streaming cuidadoso para controlar el uso de memoria.
 
 ### ADR-05: Arquitectura Cero Archivos (Zero-File) y Certificados Criptográficos Dinámicos
 - **Estado**: Aceptado y Aplicado.
@@ -580,13 +583,13 @@ flowchart TD
   - *Positivas*: Cero pérdida de datos ante desconexiones o recargas; experiencia móvil limpia y fluida; navegación clara por fases y subsecciones.
   - *Negativas*: Requiere migración y versionamiento de la llave de almacenamiento (`STORAGE_KEY`) cuando cambian los esquemas de datos del borrador.
 
-### ADR-07: Regla de Desvinculación por Inactividad de 2 Meses en Servicio Social
-- **Estado**: Aceptado y Aplicado.
-- **Contexto**: El reglamento oficial de Servicio Social ABAQ estipula que un estudiante no puede abandonar sus actividades por periodos prolongados sin aviso, ya que compromete la logística de las brigadas comunitarias y de bienestar animal.
-- **Decisión**: Se implementa en el modelo de dominio y controladores la regla de negocio institucional: 2 meses de inactividad no previamente notificada causará la cancelación o baja automática del programa de servicio social. El sistema calcula en tiempo real la diferencia entre la fecha actual y la fecha de la última actividad o actualización del estudiante, alertando en los paneles administrativos cuando un colaborador supera dicho umbral.
+### ADR-07: Cláusula Reglamentaria de Inactividad de 2 Meses bajo Supervisión Administrativa Manual
+- **Estado**: Aceptado y Aplicado (Actualizado — Sin Cron en Segundo Plano).
+- **Contexto**: El reglamento oficial de Servicio Social ABAQ estipula que un estudiante no puede abandonar sus actividades por periodos prolongados sin aviso. Sin embargo, ejecutar demonios automáticos en segundo plano (`node-cron`) generaba bajas desatendidas no deseadas.
+- **Decisión**: La regla institucional de continuidad (2 meses sin participación no notificada) se aplica mediante supervisión administrativa en los paneles operativos y transición manual controlada a `accountStatus: "inactive"` (`PATCH` con justificación en `statusHistory`), prohibiendo cualquier proceso `node-cron` en segundo plano que mute cuentas automáticamente.
 - **Consecuencias**:
-  - *Positivas*: Mantenimiento de un padrón de prestadores activo y veraz; cumplimiento estricto del reglamento de colaboración con las universidades vinculadas.
-  - *Negativas*: Requiere que la administración registre oportunamente las asistencias para evitar falsos positivos de inactividad.
+  - *Positivas*: Control humano total sobre bajas por ausencia; cero bajas accidentales en segundo plano; cumplimiento transparente del reglamento universitario.
+  - *Negativas*: Requiere que la coordinación aplique manualmente el cambio de estatus cuando dictamine una baja por abandono.
 
 ### ADR-08: Folio de Expediente como Propiedad Obligatoria en la Raíz del Esquema (Prohibición de Valores Null)
 - **Estado**: Aceptado y Aplicado (Regla Estricta de Integridad en Producción).
@@ -648,17 +651,17 @@ flowchart TD
   - *Positivas*: Blindaje contra bots sin fricción para el usuario legítimo (sin CAPTCHAs de imágenes distorsionadas); reducción de carga en el backend Express.
   - *Negativas*: Dependencia externa del servicio de Cloudflare para la verificación en registro y login.
 
-### ADR-13: Corte Indivisible, Desacoplamiento por Doble Arreglo Embebido y Token Criptográfico de Purga (Opción A)
+### ADR-13: Elegibilidad Inmediata de Inactivos, Corte Indivisible (Opción A) y Flujo Guiado de 4 Pasos con Token de Purga
 - **Estado**: Aceptado y Autorizado.
-- **Contexto**: Purgar datos de usuarios inactivos dejaba registros huérfanos o actividades rotas cuando una actividad colectiva tenía participantes mixtos (alumnos inactivos y alumnos aún activos). Asimismo, un borrado accidental sin descarga previa representaba un riesgo crítico e irreversible.
+- **Contexto**: Purgar datos de usuarios inactivos dejaba registros huérfanos cuando una actividad colectiva tenía participantes mixtos, exigir 12 meses de espera impedía depurar bajas recientes cuando la administración lo requería, y un borrado accidental sin descarga previa representaba un riesgo irreversible.
 - **Decisión**:
-  1. **Adopción Oficial de Opción A y Desacoplamiento por Doble Arreglo Embebido:** `Student` y `Volunteer` almacenan dos arreglos independientes de subdocumentos autosuficientes: `assignedActivities` (folios `AC-...`) y `accreditations` (folios `OP-...`). Si un estudiante inactivo cumple $> 1$ año, **se purga al ZIP con todo su historial embebido**, mientras que la actividad colectiva compartida **se conserva viva en MongoDB** si cuenta con al menos un participante activo. Cero campos `null` y cero llaves rotas. La actividad se purgará de Atlas únicamente cuando el 100% de sus inscritos cumplan el año de inactividad.
-  2. El catálogo de oportunidades barre de forma unificada las 11 modalidades del sistema (`accreditations`, `identifications`, `talks`, `campaigns`, `adoptions`, etc.).
-  3. El flujo en `/backup` es bloqueante en 2 pasos: la descarga genera un `X-Purge-Token` criptográfico temporal con TTL de 15 minutos; el botón de purga en BD solo se habilita con este token válido.
-  4. La rehidratación se ejecuta mediante subida del ZIP y `bulkWrite` con `replaceOne` / upsert preservando los `_id`s originales y registrando la operación en `DehydrationAuditLog`. Al restaurar el documento del usuario, sus dos arreglos vuelven íntegros, re-vinculando su historial sin parches.
+  1. **Elegibilidad Inmediata y Resolución `authId || userId`:** Todo `student` o `volunteer` con `accountStatus: "inactive"` cuya fecha efectiva (`fechaDesactivacion || updatedAt || createdAt`) sea `<= cutoffDate` (con tope máximo al cierre del día actual UTC, `23:59:59.999Z`) es candidato inmediato al corte sin esperar 12 meses, resolviendo sus cuentas `users` (roles `student`/`volunteer`, jamás `admin`) mediante `authId || userId`.
+  2. **Adopción Oficial de Opción A y Desacoplamiento por Doble Arreglo Embebido:** `Student` y `Volunteer` almacenan `assignedActivities` (folios `AC-...`) y `accreditations` (folios `OP-...`). El colaborador inactivo elegible **sí se purga al `.zip` con todo su historial embebido**, mientras que la actividad colectiva compartida **se conserva viva en MongoDB** si cuenta con al menos un participante inscrito fuera del conjunto elegible de inactivos, purgándose únicamente cuando el 100 % de sus inscritos sean candidatos elegibles.
+  3. **Flujo Guiado Bajo Demanda en 4 Pasos en `/backup`:** **1) Analizar sistema** (`POST /backup/dehydrate/analyze` con `{}` en una sola pasada sin N+1 via `discoverAvailableCutoffs`; si no hay fechas con impacto `> 0`, el propio botón muestra temporalmente `"No se encontraron fechas de corte disponibles"` durante `3.5 s` y vuelve a `"Analizar sistema"`) $\rightarrow$ **2) Elegir fecha** en selector desplegable evaluado en memoria $\rightarrow$ **3) Descargar corte `.zip`** (emite cabecera `X-Purge-Token` con TTL de 15 minutos) $\rightarrow$ **4) Borrar registros** (`POST /backup/dehydrate/purge` con contraseña de administrador).
+  4. **Rehidratación Idempotente:** Subida del `.zip` (`POST /backup/dehydrate/restore`) y `bulkWrite` con `replaceOne` + `upsert: true` preservando `_id` originales y registrando `DehydrationAuditLog`.
 - **Consecuencias**:
-  - *Positivas*: Cero registros huérfanos, eliminación absoluta de campos nulos (`null-free`), protección contra pérdidas de datos accidentales y 100% de reversibilidad en caso de contingencia.
-  - *Negativas*: Las actividades pasadas que aún cuenten con algún voluntario activo permanecen en MongoDB hasta que todos sus participantes cumplan el año de inactividad.
+  - *Positivas*: Elegibilidad inmediata para cualquier cuenta `inactive` (incluso con `fechaDesactivacion: null`), cero registros huérfanos, cero campos `null`, cero consultas N+1 al cambiar fechas y 100 % de reversibilidad.
+  - *Negativas*: Las actividades compartidas con participantes aún activos permanecen en MongoDB hasta que todos sus inscritos pasen a `inactive` dentro de la fecha de corte elegida.
 
 ### ADR-14: Flujo Asimétrico de Activación (Primer Ingreso Obligatorio por Expediente)
 - **Estado**: Aceptado y Autorizado.
@@ -673,16 +676,17 @@ flowchart TD
   - *Positivas*: Garantía de que el alumno lee su estatus y descarga su constancia oficial la primera vez, con navegación fluida y sin fricción en los accesos futuros.
   - *Negativas*: Requiere una actualización atómica en base de datos al momento de pulsar el botón de entrada inicial.
 
-### ADR-15: Arquitectura de Retención Escalonada (Ventana Operativa de 12 Meses y Consulta Agregada)
-- **Estado**: Aceptado y Autorizado.
-- **Contexto**: La acumulación de voluntarios inactivos a lo largo de los semestres saturaba visualmente las tablas operativas de administración y aumentaba los tiempos de carga en el frontend.
+### ADR-15: Persistencia Operativa e Histórica sin Ventana de 12 Meses ni Barridos en Segundo Plano
+- **Estado**: Aceptado y Autorizado (Sustituye la ventana previa de 12 meses).
+- **Contexto**: Ocultar registros inactivos tras 12 meses (`365` días) y ejecutar un `node-cron` diario de inactividad introducía mutaciones silenciosas en background y fragmentaba la consulta operativa antes de que la administración decidiera realizar un corte formal.
 - **Decisión**:
-  1. Se implementa una ventana de retención operativa de 12 meses: los inactivos con menos de 1 año siguen en la tabla principal pero distinguidos con fondo gris claro (`#f1f5f9`) y reordenados al final.
-  2. Al cumplir 12 meses desde `fechaDesactivacion`, los registros se retiran de la tabla operativa y pasan a una vista dedicada: `/volunteers/history`.
-  3. La vista `/volunteers/history` expone dos tablas resumidas (Estudiantes y Voluntarios Generales) con campos consolidados optimizados mediante MongoDB Aggregation Pipelines (sin traer modelos pesados).
+  1. Se retiran por completo los filtros temporales de 12 meses (`TWELVE_MONTHS_MS`, `twelveMonthVisibilityFilter`) y el barrido nocturno en segundo plano (`inactivity.service.js`, `node-cron` en `app.js` y `POST /student/check-inactivity`).
+  2. Todos los colaboradores permanecen visibles en las tablas operativas principales (`/student`, `/volunteer`), distinguiendo los `accountStatus: "inactive"` con fondo gris claro (`#f1f5f9`) y ordenándolos al final de la paginación.
+  3. La vista `/volunteers/history` proyecta mediante MongoDB Aggregation Pipelines la totalidad de los colaboradores `inactive` (Estudiantes y Voluntarios Generales) y la bitácora de transiciones vigentes en base de datos, sin ningún filtro de antigüedad.
+  4. Un registro solo sale de MongoDB cuando el administrador ejecuta manualmente el Corte y Deshidratación en `/backup`; los campos existentes del esquema (`fechaDesactivacion`, `statusHistory`, `inactivityStage`) se mantienen intactos por compatibilidad con respaldos `.zip` y *seeds*.
 - **Consecuencias**:
-  - *Positivas*: Tablas operativas ágiles y limpias para el personal administrativo; preservación de acceso histórico instantáneo en una vista especializada.
-  - *Negativas*: Requiere un endpoint dedicado con proyecciones y pipeline de agregación en el backend.
+  - *Positivas*: Cero procesos mutantes en segundo plano; visibilidad predecible y completa de todo el padrón en base de datos hasta decisión explícita de corte en `/backup`.
+  - *Negativas*: La desaturación física de la base de datos depende de que la administración ejecute periódicamente el corte manual bajo demanda en `/backup`.
 
 ---
 
