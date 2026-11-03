@@ -23,6 +23,7 @@ nav = [
   ]},
   { "Documentación Técnica" = [
     { "Índice" = "technical/index.md" },
+    { "Implementación M5 (Ciclo de Vida y Folios)" = "technical/implementacion-m5-ciclo-vida.md" },
     { "Ideas y Propuestas" = [
       "technical/ideas/index.md",
       { "Protección Perimetral Cloudflare (WAF y Turnstile)" = "technical/cloudflare-waf-turnstile-proposal.md" },

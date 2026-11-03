@@ -1,10 +1,41 @@
 # Diseño del Sistema de Notificaciones
 
 **Proyecto:** Plataforma Web ABAQ (Servicio Social)
-**Versión:** 0.3.0
-**Fecha:** 2026-10-14
-**Estado:** Propuesta en evolución (estrategia de correo pendiente de decisión)
-**Relacionado:** [Perfil del Usuario](perfil-usuario-design.md) · [Autenticación](auth-design.md) · [Datos, Respaldo y Recuperación](datos-respaldo-recuperacion-design.md)
+**Versión:** 0.4.0
+**Fecha:** 2026-11-03
+**Estado:** Propuesta en evolución (estrategia de correo pendiente de decisión). El ciclo de vida de inactividad se alinea con ciclo-vida v1.2.0.
+**Relacionado:** [Perfil del Usuario](perfil-usuario-design.md) · [Autenticación](auth-design.md) · [Datos, Respaldo y Recuperación](datos-respaldo-recuperacion-design.md) · [Ciclo de Vida de Voluntarios](ciclo-vida-voluntarios-deshidratacion-design.md)
+
+---
+
+## 0. Contrato de funciones y alineación con ciclo-vida v1.2.0 (VIGENTE)
+
+!!! warning "Precedencia"
+    Donde este documento (v0.3.0 y anteriores) contradiga a [ciclo-vida §6](ciclo-vida-voluntarios-deshidratacion-design.md), **manda ciclo-vida**. En particular: los umbrales de inactividad vigentes son **45 y 60 días** (no 30/45), y las notificaciones del ciclo de vida son **exclusivamente al voluntario** (sin correo a admin ni toasts in-app para estos eventos). Las reglas de §2 y §3 de abajo que dicen otra cosa quedan **derogadas** por esta sección.
+
+### 0.1 Funciones de notificación (contrato backend)
+
+Se implementan en `backend/utils/notifications.js` sobre el punto de integración `backend/utils/email.js` (`sendEmail`). Destino: **solo el colaborador** (estudiante SS o voluntario general), a su correo registrado.
+
+| Función | Disparador | Contenido | Diferencia por rol |
+|---|---|---|---|
+| `sendAcceptanceEmail(user)` | Transición a `active` (aprobación de expediente) | Bienvenida + enlace a Carta de Aceptación (token HMAC `acceptance`) | Texto SS vs VG |
+| `sendInactivityWarningEmail(user, stage)` | Cron diario: `stage='day45'` a los 45 días; `stage='day60'` a los 60 | day45: alerta, 15 días restantes. day60: baja definitiva ejecutada | Igual para ambos roles |
+| `sendCompletionEmail(user)` | Término formal: SS al aprobar ≥ 480 h; VG al concluir vinculación regular | SS: 480 h + enlace a Certificado (token HMAC `completion`). VG: agradecimiento, **sin cómputo de horas** | Texto y adjunto difieren |
+
+!!! danger "Exclusión de certificado"
+    `sendCompletionEmail` se dispara **solo** por término exitoso. Una baja por **inactividad (60 días)** o **sanción administrativa** NO emite certificado de finalización.
+
+### 0.2 Umbrales de inactividad vigentes (reemplazan la §2.1)
+
+```mermaid
+timeline
+    title Programación de alertas de inactividad (VIGENTE, ciclo-vida v1.2.0)
+    Día 45 : Aviso urgente al voluntario (15 días restantes) -> sendInactivityWarningEmail('day45')
+    Día 60 : Baja por inactividad ejecutada -> accountStatus='inactive' + sendInactivityWarningEmail('day60')
+```
+
+El cálculo de inactividad usa `fechaUltimaActividad = max(lastLogin, fechaUltimaAcreditacion, fechaInscripcionActividad, fechaAceptacionExpediente)`.
 
 ---
 

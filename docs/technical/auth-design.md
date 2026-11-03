@@ -307,9 +307,19 @@ const studentSchema = new mongoose.Schema({
   horasPendientes: { type: Number, default: 470 },
   accountStatus: {
     type: String,
-    enum: ["pending", "active", "rejected"],
+    enum: ["pending", "active", "inactive", "rejected"],
     default: "pending",
   },
+  primerIngresoRealizado: { type: Boolean, default: false },
+  fechaDesactivacion: { type: Date, default: null },
+  statusHistory: [{
+    fromStatus: String,
+    toStatus: String,
+    reason: String,
+    comments: String,
+    changedByEmail: String,
+    date: { type: Date, default: Date.now },
+  }],
   cloudUrls: {
     ine: { type: String, default: "" },
     cv: { type: String, default: "" },
@@ -344,9 +354,19 @@ const volunteerSchema = new mongoose.Schema({
   },
   accountStatus: {
     type: String,
-    enum: ["pending", "active", "rejected"],
+    enum: ["pending", "active", "inactive", "rejected"],
     default: "pending",
   },
+  primerIngresoRealizado: { type: Boolean, default: false },
+  fechaDesactivacion: { type: Date, default: null },
+  statusHistory: [{
+    fromStatus: String,
+    toStatus: String,
+    reason: String,
+    comments: String,
+    changedByEmail: String,
+    date: { type: Date, default: Date.now },
+  }],
   nombreCompleto: { type: String, required: true, trim: true },
   correoPersonal: { type: String, required: false, trim: true, lowercase: true },
   telefono: { type: String, required: true, trim: true },
@@ -379,6 +399,28 @@ const volunteerSchema = new mongoose.Schema({
   assignedActivities: [assignedActivitySchema],
 }, { timestamps: true });
 ```
+
+---
+
+### 6.3 Ciclo de Vida de la Cuenta, Primer Ingreso y Re-registro
+
+Fuente de verdad del ciclo de vida completo: [ciclo-vida §2](ciclo-vida-voluntarios-deshidratacion-design.md). Resumen de los campos y reglas que `auth.controller.js` y el `OnboardingGuard` deben respetar:
+
+**Estados (`accountStatus`):** `pending` (default tras onboarding) → `active` (aprobación admin) · `pending` → `rejected` (rechazo, el documento NO se borra) · `active` → `inactive` (480 h cumplidas, 60 días de inactividad, o baja administrativa) · `rejected` → `pending` (re-registro con el mismo email).
+
+**Primer ingreso (`primerIngresoRealizado: Boolean`):**
+- Tras ser aceptado, en el primer login el usuario es dirigido obligatoriamente a `/onboarding/expediente` para ver su Carta de Aceptación.
+- Al pulsar **"Ingresar a la Plataforma ABAQ"**, el backend fija `primerIngresoRealizado = true` (endpoint `PATCH /students/:id/primer-ingreso` y equivalente de voluntario).
+- El `OnboardingGuard` del frontend intercepta cualquier ruta operativa mientras `primerIngresoRealizado === false` y regresa a `/onboarding/expediente`; una vez `true`, libera las rutas.
+
+**Re-registro idempotente (mismo correo):** si un aspirante en estado `rejected` vuelve a registrarse con el mismo email, el backend localiza el documento existente por correo y:
+1. Reemplaza datos personales, académicos y respuestas de formulario.
+2. Re-hashea y actualiza la contraseña.
+3. Limpia las observaciones de rechazo previas.
+4. Cambia `accountStatus` a `pending`, **conservando el `folio` institucional original**.
+5. Registra una entrada en `statusHistory` con `reason: 're_registration'`.
+
+**Bitácora (`statusHistory[]`):** todo cambio de `accountStatus` se registra mediante el helper único `applyStatusChange(user, {toStatus, reason, comments, changedBy})` (`backend/utils/status-history.js`). Cada entrada guarda `fromStatus`, `toStatus`, `reason`, `comments`, `changedByEmail`, `date`. Viaja embebida con el documento en la deshidratación/rehidratación.
 
 ---
 
