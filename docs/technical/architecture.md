@@ -973,6 +973,30 @@ El subsistema de respaldos y deshidratación histórica se robustece conforme a 
   - *Positivas*: Interfaz 100% consumible y ergonómica en teléfonos y tabletas; tipografía de constancias legible sin compresión en todas las resoluciones; experiencia táctil sin saltos de zoom en Safari; descarga instantánea de certificados en imagen PNG nativa.
   - *Negativas*: Las tablas ocupan mayor altura vertical en móviles al expandirse como tarjetas individuales, compensado con el scroll natural del dispositivo.
 
+### ADR-20: Optimización de Usabilidad Táctil, Liberación de Ancho Horizontal y Eliminación de Anidamiento Rígido ("Caja dentro de Caja") en Teléfonos y Tabletas Convencionales
+- **Estado**: Aceptado y Operativo en Producción (5 nov 2026).
+- **Contexto**:
+  1. **Contenedor Envolvente Rígido y Desperdicio de Ancho Horizontal**: En resoluciones de smartphone (`<= 768px`) y tabletas medianas (`<= 1024px`), las pantallas principales (`.profile-page`, `.student-detail-page`, `.students-page`, `.admin-dashboard`, `.home-page`, `.volunteer-home`) heredaban márgenes y separaciones diseñadas para monitores amplios (24px a 40px) sobre contenedores macro (`padding: 32px-38px`) y tarjetas de detalle internas (`.info-card`, padding 18px). Esta superposición consumía más de 140px únicamente en márgenes vacíos (más del 35% del ancho de un teléfono de 390px).
+  2. **Saturación y Efecto Asfixiante "Caja dentro de Caja"**: Grids multi-columna en pantallas reducidas forzaban a textos largos (nombres completos, correos institucionales, identificadores, estados) a fracturarse en saltos de línea incómodos y tarjetas innecesariamente alargadas.
+  3. **Colisión de Etiquetas y Contenidos en Filas de Tablas Móviles**: En las filas de tarjeta `td` que utilizaban `display: flex; justify-content: space-between; align-items: center;` sin envoltura de línea (`flex-wrap: nowrap`), las etiquetas institucionales fijas (ej. "HORAS POR ACREDITAR") y los valores colisionaban, forzando cortes antiestéticos.
+  4. **Preservación Incondicional de Escritorio y Accesibilidad Táctil**: Era mandatorio mantener la visualización de escritorio (`min-width: 1025px`) estrictamente inalterada, así como blindar las reglas de accesibilidad que previenen el auto-zoom de Safari móvil en campos de captura (`font-size: 16px !important`, `touch-action: manipulation`, meta viewport `maximum-scale=1.0, user-scalable=no, viewport-fit=cover`).
+- **Decisión**:
+  1. **Liberación Global de Separaciones Laterales (`frontend/src/styles.scss`)**:
+     - En tabletas convencionales (`<= 1024px`): Padding lateral del viewport unificado a `16px !important`, liberando el 95%+ del ancho para tarjetas y módulos.
+     - En teléfonos y dispositivos móviles (`<= 768px`): Padding lateral unificado a `10px !important`, con relleno interno de tarjetas macro reducido a `16px 12px`, permitiendo respiración visual y eliminando el confinamiento.
+     - En teléfonos compactos (`<= 480px`): Padding lateral ajustado a `8px !important` y tarjetas internas a `10px 12px`.
+  2. **Alineación Fluida y Flex-Wrap en Filas de Tarjeta Móvil**:
+     - Las celdas `td` de tablas en vista móvil se configuraron con `flex-wrap: wrap !important; gap: 4px 8px;`, `overflow-wrap: anywhere !important; word-break: break-word;` y `max-width: 100%`. Esto permite que identificadores y correos extensos caigan naturalmente a una segunda línea ocupando el 100% del ancho útil de la tarjeta sin romperse a nivel de sílaba.
+  3. **Desacoplamiento y Reacomodo Componente por Componente**:
+     - Refactorización de estilos aislada en: `volunteer-profile.scss`, `student-profile.scss`, `volunteer-detail.scss`, `student-detail.scss`, `student.component.scss`, `admin-home.scss`, `home.component.scss`, `volunteer-home.component.scss`, `volunteers-history.component.scss` y `accreditation-list.scss`.
+     - Cuadrículas internas (`.info-grid`, `.social-grid`, `.summary-grid`, `.hero-stats-row`) reconfiguradas a 1 sola columna en pantallas móviles (`grid-template-columns: 1fr !important; gap: 10px !important;`), eliminando la compresión horizontal.
+  4. **Invarianza de Escritorio y Blindaje de Accesibilidad Táctil**:
+     - En resoluciones `>= 1025px`, se conservan al 100% los anchos máximos (`max-width: 1200px`), paddings amplios de escritorio y grillas multi-columna originales.
+     - Se preservó íntegramente la regla de `font-size: 16px !important` y `touch-action: manipulation` para todos los elementos interactivos, garantizando que Safari en iOS/iPadOS no realice ningún zoom involuntario al interactuar con campos de texto.
+- **Consecuencias**:
+  - *Positivas*: Máximo aprovechamiento del ancho horizontal disponible en teléfonos y tabletas convencionales; lectura limpia y holgada de identificadores y correos; compatibilidad fluida con Safari sin zoom indeseado; arquitectura de escritorio totalmente respetada.
+  - *Negativas*: Mayor longitud de desplazamiento vertical natural en dispositivos móviles debido a la distribución en una columna holgada.
+
 ---
 
 ## 4. Atributos de Calidad del Sistema (Quality Attributes)
