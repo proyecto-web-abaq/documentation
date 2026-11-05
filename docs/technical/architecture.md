@@ -731,6 +731,12 @@ El subsistema de respaldos y deshidratación histórica se robustece conforme a 
    - Reutilización simétrica de la tarjeta institucional (`rollback-card`), zonas de arrastre (`upload-zone`) y selectores de archivo tanto para la restauración total como para la rehidratación de cortes históricos.
    - Disposición en **doble columna en resolución de navegador de escritorio** (`grid-template-columns: repeat(2, 1fr)`) y apilamiento vertical fluido en tabletas y móviles (`grid-template-columns: 1fr` en pantallas `<= 991px`).
    - El proceso de revisión preliminar y balance de integridad (*dry-run*) se encapsula en **modales dedicados con scroll interno** (`modal-dialog-scrollable` con tablas optimizadas para toque), impidiendo deformaciones de diseño en escritorio y proveyendo botones apilados táctiles (mínimo 44px) en pantallas pequeñas.
+7. **Blindaje de Backend: Tokens Anti-Replay, Prevención de Fugas de Memoria, Mutex y Transaccionalidad Atómica**:
+   - **Registro Anti-Replay de Un Solo Uso (`consumedPurgeTokens`):** Cada `purgeToken` emitido se invalida irrevocablemente en el momento en que se consume para la purga; cualquier reintento o reenvío tras recargar la pestaña (F5) se rechaza con HTTP 409 Conflict.
+   - **Prevención de Retención de Memoria en Heap:** Se eliminó la persistencia de colecciones completas (`plan`) en la memoria del proceso de Node.js, almacenando únicamente metadatos mínimos. Se implementó la nulificación explícita de buffers pesados (`zipBuffer = null`, `zip = null`, `req.file.buffer = null`) en bloques `finally` y listeners `res.on('finish')`/`res.on('close')`.
+   - **Detección de Desconexión Temprana (`req.on('close')`):** Los generadores de streams (ZIP y Excel) abortan la compresión si el cliente cancela la descarga o recarga la página.
+   - **Candado Mutex de Concurrencia (`isDatabaseOperationLocked`):** Bloquea operaciones destructivas concurrentes (Rollback, Purga, Rehidratación confirmada) rechazando ejecuciones paralelas con HTTP 409 Conflict.
+   - **Transaccionalidad Atómica en Rollback (`processRollback`):** El vaciado e inserción masiva se ejecuta dentro de una sesión transaccional de Mongoose (`startTransaction()` + `abortTransaction()`), garantizando que ante cualquier interrupción o error la base de datos se revierta íntegramente sin dejar colecciones vacías.
 
 ---
 
