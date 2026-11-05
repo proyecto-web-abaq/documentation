@@ -997,6 +997,27 @@ El subsistema de respaldos y deshidratación histórica se robustece conforme a 
   - *Positivas*: Máximo aprovechamiento del ancho horizontal disponible en teléfonos y tabletas convencionales; lectura limpia y holgada de identificadores y correos; compatibilidad fluida con Safari sin zoom indeseado; arquitectura de escritorio totalmente respetada.
   - *Negativas*: Mayor longitud de desplazamiento vertical natural en dispositivos móviles debido a la distribución en una columna holgada.
 
+### ADR-21: Pestaña "Todos" Predeterminada, Desambiguación Contextual de Filtros de Estatus y Ergonomía Táctil en Pestañas Administrativas (Móvil y Tablet)
+- **Estado**: Aceptado y Operativo en Producción (5 nov 2026).
+- **Contexto**:
+  1. **Confusión en Dos Niveles de Filtrado**: En la vista administrativa de voluntarios (`/student`), coexistían chips superiores (`Todos` / `Solicitan ingresar`) y pestañas inferiores (`Servicio Social` / `Voluntariado General`), generando ambigüedad al compartir el término "Todos" sin una indicación explícita de qué propiedad filtraba cada control.
+  2. **Ausencia de Vista Global por Defecto**: La plataforma forzaba al administrador a iniciar exclusivamente en la pestaña de "Servicio Social", impidiendo visualizar la fuerza total de voluntarios de ABAQ al ingresar al módulo.
+  3. **Quiebre y Falta de Ergonomía Táctil en Pestañas Móviles**: En resoluciones de smartphone y tabletas, las pestañas (`.vol-tabs`) sufrían quiebres multilínea que fracturaban el borde inferior activo, o colapsaban los badges de conteo en pantallas de menos de 400px.
+- **Decisión**:
+  1. **Desambiguación Contextual de Filtros**:
+     - Se integró la etiqueta contextual institucional `Estatus:` sobre los chips de admisión superior, delimitando claramente que dicho bloque filtra el estado de ingreso/cuenta (`Todos los estatus` vs `Solicitan ingresar`).
+  2. **Pestaña "Todos" Predeterminada**:
+     - Se incorporó la pestaña `Todos` con el total general de colaboradores registrados (`filteredVolunteerList.length`) como primera opción y estado activo por defecto (`activeTab = 'all'`).
+     - Al estar seleccionada la pestaña "Todos", se presentan ordenadamente ambas secciones completas ("Servicio Social" y "Voluntariado General") con sus respectivas métricas, encabezados institucionales, tablas paginadas y acciones operativas.
+     - Se preservó la capacidad de aislar individualmente cada programa al hacer clic o tap en "Servicio Social" o "Voluntariado General".
+     - Se integró un estado vacío estilizado (`.empty-state-volunteers`) para búsquedas o filtros sin resultados.
+  3. **Ergonomía Táctil en Móvil y Tablet (Look & Feel Desktop Preservado)**:
+     - En pantallas de escritorio (`> 1024px`), la composición visual permanece 100% idéntica al estándar del sistema.
+     - En tabletas y teléfonos (`<= 1024px`, `<= 800px`), `.vol-tabs` adopta un contenedor horizontal continuo (`overflow-x: auto; flex-wrap: nowrap; -webkit-overflow-scrolling: touch; scroll-snap-type: x mandatory; scrollbar-width: none;`).
+     - Cada pestaña cumple con un área de toque táctil mínima de 44px (`min-height: 44px`), alineación `scroll-snap-align: start`, y los badges numéricos quedan protegidos con `flex-shrink: 0`.
+- **Consecuencias**:
+  - *Positivas*: Claridad semántica total entre estado de cuenta y tipo de voluntariado; vista panorámica inmediata de todos los colaboradores al abrir el módulo; navegación táctil fluida y ergonómica en móviles y tabletas; cero impacto visual en pantallas de escritorio.
+
 ---
 
 ## 4. Atributos de Calidad del Sistema (Quality Attributes)
