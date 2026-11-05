@@ -1,9 +1,9 @@
 # Documento de Arquitectura de Software (SAD)
 **Estándar:** ISO/IEC/IEEE 42010:2022  
 **Proyecto:** Plataforma Web ABAQ (Servicio Social, Censo Comunitario y Documentación Pedagógica)  
-**Versión:** 2026.11.03 (CalVer)  
-**Fecha:** 2026-11-03  
-**Estado:** Aprobado  
+**Versión:** 2026.11.04 (CalVer)  
+**Fecha:** 2026-11-04  
+**Estado:** Aprobado e Implementado en Vivo (Railway Cloud + OpenTofu + AWS Route 53)  
 **Autores:** Equipo de Arquitectura e Ingeniería de Software ABAQ  
 
 ---
@@ -12,7 +12,7 @@
 
 ### 1.1 Propósito y Misión del Sistema
 La plataforma **ABAQ** es un sistema full-stack en producción real (Angular v22 Standalone + Node.js/Express + MongoDB sin datos simulados / mock data) orientado a coordinar el servicio social universitario, el voluntariado comunitario, el censo animal en Querétaro y el ciclo de vida del expediente digital de colaboradores. El sistema comprende:
-1. **Flujo de Registro e Inducción en 4 Fases (Onboarding Guiado)**: Proceso interactivo estructurado con persistencia reactiva en navegador (`localStorage`), autoguardado con *debounce*, outline adaptativo según el dispositivo, y formalización digital mediante casillas de consentimiento informado bajo protesta de decir verdad.
+1. **Flujo de Proceso de Onboarding y Registro Guiado**: Proceso interactivo estructurado con persistencia reactiva en navegador (`localStorage`), autoguardado con *debounce*, outline adaptativo según el dispositivo, y formalización digital mediante casillas de consentimiento informado bajo protesta de decir verdad.
 2. **Arquitectura Cero Archivos (Zero-File Storage)**: Eliminación de la carga física de archivos pesados al servidor en el onboarding. Los documentos de identificación y académicos se validan mediante enlaces públicos permanentes en la nube (Google Drive / OneDrive), verificables en modo incógnito, persistidos como datos estructurados JSON.
 3. **Motor Criptográfico de Certificados y Constancias Oficiales**: Generación dinámica bajo demanda de Cartas de Aceptación y Certificados de Finalización (480 horas) utilizando tokens firmados con HMAC-SHA256 (`st_[id]_[certType]_[hmac32]`), plantillas HTML autocontenidas con fuentes/gráficos incrustados en Base64, y compilación client-side a PDF nativo con `html2pdf.js` e impresión física con sellos de verificación criptográfica.
 4. **Segregación Estricta de Roles y Reglas de Negocio**:
@@ -48,6 +48,58 @@ La plataforma **ABAQ** es un sistema full-stack en producción real (Angular v22
 ---
 
 ## 2. Vistas Arquitectónicas (ISO/IEC/IEEE 42010:2022)
+
+```mermaid
+flowchart TD
+    subgraph ClientTier["Capa de Cliente Web (Frontend Angular v22 Standalone)"]
+        UI["Componentes UI Standalone<br/>(Onboarding, Student, Volunteer, Backup)"]
+        STATE["OnboardingStateService<br/>(Persistencia Reactiva en LocalStorage)"]
+        HTTP_SVC["Servicios HTTP e Inyección Funcional<br/>(Auth, Student, Activity, Backup)"]
+        INTERCEPTORS["AuthInterceptor & AuthGuard<br/>(Bearer JWT)"]
+        
+        UI <--> STATE
+        UI --> HTTP_SVC
+        HTTP_SVC --> INTERCEPTORS
+    end
+
+    subgraph NetworkTier["Capa Perimetral y DNS (AWS Route 53 + Railway Edge)"]
+        DNS["AWS Route 53 (hypercoreqro.lat)<br/>Perfil: rout53 / OpenTofu"]
+        EDGE["Railway Edge Router & TLS Proxy<br/>Let's Encrypt Wildcard / SNI"]
+        DNS --> EDGE
+    end
+
+    subgraph ServerTier["Capa de Backend (Express.js v4 + Node.js v22)"]
+        PIPELINE["Express Middleware Pipeline<br/>(Helmet, CORS Reflexivo, JSON, Cookies)"]
+        ROUTERS["Enrutadores REST Modulares<br/>(/auth, /student, /volunteer, /backup, /activity)"]
+        CTRL["Controladores y Logica de Negocio"]
+        CRYPTO["Motor Criptografico HMAC-SHA256<br/>backend/utils/certificates.js"]
+        BACKUP_SVC["Dynamic Backup & Dehydration Engine<br/>backend/services/backup.service.js"]
+        
+        INTERCEPTORS ==>|"Peticiones HTTP/2 HTTPS"| EDGE
+        EDGE --> PIPELINE
+        PIPELINE --> ROUTERS
+        ROUTERS --> CTRL
+        CTRL --> CRYPTO
+        CTRL --> BACKUP_SVC
+    end
+
+    subgraph DataTier["Capa de Persistencia y Datos (Railway & MongoDB Atlas)"]
+        MONGO_MODELS["Mongoose ODM Models v8.4<br/>(User, Student, Volunteer, Activity, etc)"]
+        MONGO_DB[("MongoDB 7.0 Engine<br/>abaqTesting--dev-rivers")]
+        
+        CTRL --> MONGO_MODELS
+        BACKUP_SVC --> MONGO_MODELS
+        MONGO_MODELS ==>|"TCP 27017 (Red Privada Interna)"| MONGO_DB
+    end
+
+    subgraph OrganizadorTier["Ecosistema Complementario (ABAQ-Organizador)"]
+        PHP_APP["PHP 8.2 CLI Application<br/>Built-in Server (Puerto 80)"]
+        MYSQL_DB[("MySQL 8.0 Database<br/>Plugin Oficial Railway")]
+        
+        EDGE ==>|"organizador.hypercoreqro.lat"| PHP_APP
+        PHP_APP -->|"MySQLi / PDO (conexion.php)"| MYSQL_DB
+    end
+```
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
@@ -102,7 +154,7 @@ La vista lógica organiza el sistema en capas de responsabilidad única y desaco
    - Cada componente encapsula su plantilla HTML, lógica TypeScript y estilos SCSS.
    - Componentes clave del sistema:
      - `SignupComponent` & `LoginComponent`: Selección inicial de rol (Estudiante de Servicio Social `SS` vs. Voluntario General `VG`) y autenticación con secuenciación compatible con gestores de contraseñas.
-     - `OnboardingPhaseComponent`: Motor unificado del onboarding en 4 fases (`01 Perfil`, `02 Inducción`, `03 Sobre Mí`, `04 Documentos y Consentimientos`), con outline adaptativo responsivo (oculto en pantallas `<=1024px`), autoguardado reactivo y validación dinámica de faltantes.
+     - `OnboardingPhaseComponent`: Motor unificado del proceso de onboarding y registro (`01 Perfil`, `02 Inducción`, `03 Sobre Mí`, `04 Documentos y Consentimientos`), con outline adaptativo responsivo (oculto en pantallas `<=1024px`), autoguardado reactivo y validación dinámica de faltantes.
      - `ExpedienteRecibidoComponent`: Pantalla de cierre de registro que muestra el folio institucional (`SS-YYMMDD-XX` o `VG-YYMMDD-XX`), reproduce la animación de fade-out del navbar sin desplazamiento del contenido (*zero layout shift*) y dispara una lluvia de confeti ligero.
      - `HomeComponent` & `AdminHomeComponent`: Paneles diferenciados para alumnos (progreso de 480 horas, actividades pendientes e historial) y administradores (triaje de solicitudes pendientes, auditoría de asistencias y validación de horas).
      - `StudentComponent`, `StudentDetail`, `VolunteerDetailComponent` & `VolunteerProfileComponent`: Vistas de alta densidad y expedientes completos que reflejan los datos recolectados (CURP, periodos académicos compuestos, fechas de servicio y enlaces a redes sociales).
@@ -230,7 +282,7 @@ Cada petición recibida atraviesa una tubería secuencial estrictamente ordenada
 5. Middleware Global de Errores: (err, req, res, next) ──> JSON estandarizado { status, message }
 ```
 
-#### B. Pipeline de Onboarding Guiado en 4 Fases y Persistencia en Navegador
+#### B. Pipeline de Onboarding y Registro Guiado y Persistencia en Navegador
 ```mermaid
 flowchart TD
     S0["Paso 0: /auth/signup<br/>Elección de Rol: SS vs VG + Email & Password"] --> F1
@@ -524,6 +576,164 @@ flowchart TD
 
 ---
 
+### 2.9 Subsistema de Paginación Estandarizada UI/UX y Cohesión Relacional de Datos Operativos
+
+Este subsistema garantiza navegación homogénea y fluida en todas las tablas y cuadrículas de la plataforma, acoplando las operaciones de colaboradores con los modelos operativos de ABAQ:
+
+```mermaid
+flowchart TD
+    subgraph UI_Components ["Vistas de Presentación (Angular 22 Standalone)"]
+        PAG["<app-pagination>\n[(page)] | totalItems | pageSize | scrollBehavior\n.pagination | .pagination-button | .active"]
+        
+        STU["/student\n(socialServiceVolunteers vs generalVolunteers)\npageSize = 8"] --> PAG
+        HIS["/volunteers/history\n(Estudiantes, Voluntarios, Bitácora)\npageSize = 8"] --> PAG
+        ACT["/activity-list (Convocatorias)\npageSize = 6"] --> PAG
+        TLK["/admin/talks (Pláticas)\npageSize = 6 (3x2)"] --> PAG
+        CAM["/admin/campaigns (Campañas)\npageSize = 6 (2x3)"] --> PAG
+        ADO["/admin/adoptions (Adopciones)\npageSize = 6"] --> PAG
+        IDE["/admin/identifications (Placas)\npageSize = 6 (2x3)"] --> PAG
+        QCK["/admin/quick-activities (Plantillas)\npageSize = 6 (3x2)"] --> PAG
+        CNT["/contact (Directorio)\npageSize = 8"] --> PAG
+        PET["/pets (Censo Animal)\npageSize = 6"] --> PAG
+    end
+
+    subgraph Relational_Cohesion ["Cohesión Relacional e Historia de Colaboradores"]
+        COLAB["Usuario (Student / Volunteer)"]
+        ACC["Accreditation (OP-CAT-YYMMDD-HEX)\nstudentRef / volunteerRef"]
+        OP_MODEL["Modelos Operativos:\nTalk (speakerRef) · Campaign (responsibleName)\nIdentification (studentRef) · Adoption (promoterRef)"]
+        
+        COLAB -->|1. Genera| OP_MODEL
+        OP_MODEL -->|2. Emite| ACC
+        ACC -->|3. Refleja Folio OP-* en| COLAB
+    end
+
+    subgraph REST_Publisher ["Publicador Automatizado REST (publish-data-endpoints.js)"]
+        JSON_SRC["cuentas-ciclo-vida.json\n(28 Cuentas + 8-12 Registros por Modelo\nPrefijo Diagnóstico [DEBUG-*])"] --> PUB_SCRIPT["publish-data-endpoints.js"]
+        PUB_SCRIPT -->|POST /api/auth/login| JWT["JWT Admin Bearer Token"]
+        JWT -->|POST Endpoints Oficiales| MONGO[(MongoDB Atlas: abaqTesting--dev-rivers)]
+    end
+```
+
+1. **Componente Standalone Reutilizable `<app-pagination>`:**
+   - Centralizado en `frontend/src/app/components/ui/pagination/`.
+   - Soporta two-way binding `[(page)]`, recálculo por `totalItems` + `pageSize` o `totalPages` explícito, y condensación visual mediante elipsis (`…`) con `maxVisiblePages` (default 7).
+   - Preservación de posición vertical de scroll (`scrollBehavior = 'preserve'` con `window.scrollY` y `requestAnimationFrame`).
+   - Mantiene estricta fidelidad con el diseño de `accreditation-list` y `my-accreditations` (botones `38px × 38px`, border-radius 10px, paleta `#2563eb` y `#eff6ff`).
+2. **Desacoplamiento de Servicio Social y Voluntariado General en `/student`:**
+   - Para evitar que la paginación de una tabla oculte o mezcle filas de la otra, el componente TypeScript desglosa en memoria `socialServiceVolunteers` y `generalVolunteers` de forma independiente, aplicando `pagedSocialServiceVolunteers` (`pageSize = 8`) y `pagedGeneralVolunteers` (`pageSize = 8`).
+3. **Cohesión Relacional de Datos Operativos:**
+   - Las actividades operativas (`Talk`, `Campaign`, `Adoption`, `Identification`) referencian formalmente al estudiante o voluntario que las registró (`studentRef`, `volunteerRef`, `linkerName`).
+   - El folio de interacción determinista `OP-CAT-YYMMDD-HEX` se almacena sincronizado tanto en la colección raíz `accreditations` como dentro del arreglo embebido `accreditations` del colaborador.
+4. **Nomenclatura Semántica de Depuración (`[DEBUG-*]`):**
+   - Todos los registros creados para pruebas portan prefijos diagnósticos que identifican el rol y caso de prueba (`[DEBUG-SS-ACTIVO]`, `[DEBUG-TALK-COMPLETADA]`, etc.), con el 100% de campos poblados para asegurar que ningún campo quede vacío o roto en la UI.
+5. **Publicación Fiel vía Endpoints REST Oficiales:**
+   - El script `publish-data-endpoints.js` obtiene un token JWT de administrador y realiza llamadas `POST` contra la API REST oficial de Express, ejecutando todas las validaciones de esquema, sanitizadores y ganchos de modelo de producción.
+6. **Estabilidad de Altura Contenedora (Layout Stability / Anti-CLS):**
+   - Establecimiento de `min-height: 480px` en contenedores de tablas (`.table-wrapper`, `.volunteer-group .table-wrapper`, `.table`) y `min-height: 520px` en cuadrículas y listas (`.activity-list`, `.talk-list`, `.campaign-list`, `.adoption-list`, `.identification-grid`, `.quick-activities-grid`, `.pet-grid`), asegurando que la contracción del DOM no desplace bruscamente la botonera de paginación al navegar entre páginas con menor densidad de datos.
+7. **Tratamiento Prioritario y Estilo Diferenciado de Colaboradores Inactivos:**
+   - Los listados de Servicio Social y Voluntariado General en `/student` ordenan deterministamente a los colaboradores inactivos y rechazados al final de la tabla (`sortWithInactivesAtEnd`), desplazándolos a las últimas páginas. Asimismo, aplican la clase visual `.row-inactive` (fondo `#f8fafc`, texto atenuado `#64748b`) y la insignia de estado `.badge-inactive` (`⏹ Inactivo`).
+
+---
+
+### 2.10 Subsistema de Transiciones de Estatus, Modal con Guard de Folio, Comentarios y Notificaciones Resend
+
+Este subsistema establece la gobernanza unificada del ciclo de vida de colaboradores en ABAQ, garantizando la trazabilidad histórica de cada cambio de estatus, un guard de seguridad para prevenir bajas accidentales y notificaciones transaccionales contextualizadas mediante la API de Resend:
+
+```mermaid
+flowchart TD
+    subgraph UI_Admin["Panel Administrativo (Admin Only)"]
+        T["Tabla /student (SS y General)"] -->|Inactivar| M["InactivateVolunteerModalComponent"]
+        D1["StudentDetail /student/:id"] -->|Inactivar| M
+        D2["VolunteerDetail /volunteer-detail/:id"] -->|Inactivar| M
+        T -->|Rechazar| MR["Modal de Captura de Observaciones"]
+        D1 -->|Rechazar| MR
+        D2 -->|Rechazar| MR
+    end
+
+    subgraph Guard_Modal["Guard de Seguridad por Folio"]
+        M --> G{"¿Folio Tipeado Coincide\ny Comentario no Vacío?"}
+        G -->|No| B_DIS["Botón Deshabilitado"]
+        G -->|Sí| B_ACT["Confirmar (reason: administrative_decision)"]
+    end
+
+    subgraph Backend_Governance["Gobernanza Backend & ODM"]
+        B_ACT --> EP["PATCH /student|volunteer/:id/account-status"]
+        MR --> EP
+        EP --> ASC["applyStatusChange(doc, {toStatus, reason, comments})"]
+        ASC --> DB[(MongoDB: statusHistory[] + fechaDesactivacion)]
+    end
+
+    subgraph Notifications_Resend["Despacho Asíncrono Resend"]
+        EP -->|admin_approval| E_ACC["sendAcceptanceEmail + Callout de Bienvenida"]
+        EP -->|admin_rejection| E_REJ["sendRejectionEmail + Callout de Observaciones"]
+        EP -->|administrative_decision| E_INA["sendInactivityWarningEmail (Cero Certificados)"]
+    end
+
+    subgraph Onboarding_ReReg["Re-Registro y Blindaje"]
+        LOG["Login Aspirante Rechazado"] --> EXP["Expediente: Muestra {{comments}} (Solo Lectura)"]
+        SIGN["Signup Aspirante Rechazado"] --> CHK{"¿Mismo Rol?"}
+        CHK -->|Sí| UPD["Actualiza doc y contraseña (pending)"]
+        CHK -->|No| SWP["Crea doc destino y purga doc viejo con deleteOne"]
+    end
+```
+
+#### Principios Arquitectónicos del Subsistema:
+
+1. **Catálogo Oficial de Causales Internas (`reason`):**
+   - El atributo `reason` en `statusHistory` es un valor técnico interno de base de datos administrado automáticamente por el backend:
+     - `initial_signup`: Alta automática tras completar el proceso de onboarding y registro.
+     - `admin_approval`: Aprobación formal manual por Coordinación (`pending` ➔ `active`).
+     - `admin_rejection`: Rechazo con captura obligatoria de observaciones institucionales (`pending` ➔ `rejected`).
+     - `hours_completed`: Acreditación automática de 480 horas curriculares para estudiantes (`active` ➔ `inactive`).
+     - `administrative_decision`: Baja administrativa discrecional ejecutada por el admin mediante el modal con guard de folio (`active` ➔ `inactive`).
+     - `re_registration`: Reingreso de expediente corregido tras rechazo (`rejected` ➔ `pending`).
+2. **Componente Modal Reutilizable `InactivateVolunteerModalComponent`:**
+   - Componente Angular Standalone desacoplado (`frontend/src/app/components/shared/inactivate-volunteer-modal/`).
+   - Requiere obligatoriamente que el administrador escriba de forma idéntica el folio del colaborador (`typedFolio.trim() === targetFolio.trim()`) y redacte una justificación obligatoria (`comments.trim().length > 0`) para desbloquear el botón de confirmación de baja destructiva.
+3. **Flujo Dual de Re-Registro y Purga Atómica de Huérfanos al Cambiar de Rol:**
+   - El aspirante rechazado que entra a `/onboarding/expediente` visualiza sus observaciones institucionales y solo cuenta con opciones de cerrar sesión o contactar a Coordinación.
+   - Si decide corregir o cambiar de modalidad, entra a `/auth/signup`:
+     - **Mismo rol:** Sobrescribe el documento existente, actualiza credenciales y pasa a `pending` con `reason: 're_registration'`.
+     - **Cambio de rol (`SS` ➔ `VG` o `VG` ➔ `SS`):** Crea el documento en la colección destino, actualiza `users.role` y **elimina atómicamente el documento rechazado anterior** (`Student.deleteOne` o `Volunteer.deleteOne`) para evitar colisiones de índices de email o lecturas erróneas.
+4. **Blindaje Estricto de Seguridad y Aislamiento Perimetral:**
+   - El middleware `requireActiveAccount` intercepta todas las rutas operativas (`/activity`, `/accreditation`, `/campaigns`, `/identification`, `/talks`, `/adoptions`, `/pets`, `/contact`, `/student/me`, `/volunteer/me`), rechazando con `403 Forbidden` a usuarios con estatus `pending` o `rejected`.
+   - El `AuthGuard` de Angular bloquea toda navegación interna hacia rutas de la aplicación para aspirantes `pending` o `rejected`, forzando la permanencia en `/onboarding/expediente`.
+5. **Subsistema de Notificaciones Transaccionales Resend:**
+   - `sendAcceptanceEmail`: Notifica el alta formal e inyecta la caja destacada con las notas de bienvenida redactadas por el administrador.
+   - `sendRejectionEmail`: Notifica el rechazo con caja destacada ámbar/rojo con las observaciones exactas de Coordinación e instrucciones para ingresar a `/auth/signup`.
+   - `sendInactivityWarningEmail`: Notifica bajas administrativas discrecionales con el motivo capturado en el modal.
+   - **Prohibición de Certificados sin Mérito:** Las bajas por inactividad o decisión administrativa tienen estrictamente vetada la emisión o enlace a constancias o certificados de término.
+   - **Despacho No Bloqueante:** Toda invocación a la API de Resend se maneja de forma asíncrona no bloqueante; los fallos de red no interrumpen ni revierten transacciones en MongoDB.
+6. **Tarjeta Amigable de Estatus en Perfiles:**
+   - Sustitución de variables de depuración crudas (`expediente_aprobado`, `Aceptado`) por un contenedor institucional con redacción corporativa, insignias de estado, fecha formateada y notas de bienvenida.
+
+### 2.11 Subsistema de Estabilización de Deshidratación, Manifiesto Dual (.zip + .txt MD), Gobernanza de Rehidratación y Resiliencia
+
+El subsistema de respaldos y deshidratación histórica se robustece conforme a la propuesta técnica aprobada del 4 de noviembre de 2026:
+
+1. **Corrección Polimórfica del Empaquetador ZIP (Archiver v8)**:
+   - Integración del helper unificado `createZipArchive(options)` en [`backend/utils/zip.js`](file:///Users/riosisraelg/Desktop/1/abaq/backend/utils/zip.js), asegurando compatibilidad nativa con constructores exportados como objetos (`new archiver.ZipArchive(options)`) y previniendo el error en tiempo de ejecución `TypeError: archiver is not a function`.
+2. **Descarga Dual Asíncrona (Paquete Binario + Resumen de Lectura Humana)**:
+   - Al ejecutar `POST /backup/dehydrate/download`, el backend expone el manifiesto criptográfico en la cabecera HTTP `X-Dehydration-Manifest` (codificado en Base64URL) y expuesto por CORS.
+   - El frontend descarga inmediatamente el archivo binario oficial `abaq-corte-YYYY-MM-DD.zip` y, con un desfase no intrusivo de 300 ms, genera y descarga el archivo complementario `abaq-corte-YYYY-MM-DD-resumen.txt` con formato Markdown limpio para consulta humana inmediata.
+   - **Inmunidad de Scripts**: Los motores de rollback y rehidratación operan exclusivamente sobre archivos `.zip` que contengan `manifest.json`, ignorando por completo cualquier archivo externo `.txt`.
+3. **Gobernanza de Rehidratación y Preservación de Credenciales**:
+   - `loadEligibleDataset()` incluye obligatoriamente `.select("+passwordHash")` para que las cuentas de usuario (`users`) conserven sus credenciales cifradas originales al ser archivadas y rehidratadas.
+   - Detección de colisiones contra índices únicos activos (`email` en `users` y `interactionFolio` en `accreditations`): si un registro archivado colisiona con un documento activo de `_id` diferente, se omite de forma segura sin abortar la operación (`DUPLICATE_KEY_ACTIVE_RECORD`).
+   - Omisión en cascada de expedientes (`students` y `volunteers`) cuyo `authId` corresponda a un usuario omitido por colisión (`DEPENDS_ON_SKIPPED_USER`).
+4. **Validación en Seco (Dry-Run) y Trazabilidad en Bitácora**:
+   - Soporte del parámetro `confirm` en `POST /backup/dehydrate/restore`: si `confirm !== true`, se ejecuta un análisis en memoria que devuelve el balance proyectado (en paquete, restaurables, colisiones y ya presentes en BD) sin modificar registros.
+   - Al confirmar (`confirm === true`), se ejecutan las operaciones mediante `replaceOne({ _id: doc._id }, doc, { upsert: true })` y se registra un evento pericial inmutable en `DehydrationAuditLog` (`operationType: 'rehydrate_restore'`) documentando el folio `REHYD-YYYYMMDD-XXXX` y los conflictos detectados.
+5. **Resiliencia de Memoria y Validación de Formato**:
+   - Validación binaria de magic bytes (`PK\x03\x04` / `PK\x05\x06`) mediante `isZipBuffer()` antes de descomprimir archivos en memoria.
+   - Ampliación del límite de Multer a 100 MB para paquetes de corte histórico consolidados.
+6. **Diseño de Carga en Doble Columna y Proceso de Revisión (Dry-Run) en Modales Responsivos**:
+   - Reutilización simétrica de la tarjeta institucional (`rollback-card`), zonas de arrastre (`upload-zone`) y selectores de archivo tanto para la restauración total como para la rehidratación de cortes históricos.
+   - Disposición en **doble columna en resolución de navegador de escritorio** (`grid-template-columns: repeat(2, 1fr)`) y apilamiento vertical fluido en tabletas y móviles (`grid-template-columns: 1fr` en pantallas `<= 991px`).
+   - El proceso de revisión preliminar y balance de integridad (*dry-run*) se encapsula en **modales dedicados con scroll interno** (`modal-dialog-scrollable` con tablas optimizadas para toque), impidiendo deformaciones de diseño en escritorio y proveyendo botones apilados táctiles (mínimo 44px) en pantallas pequeñas.
+
+---
+
 ## 3. Registros de Decisiones Arquitectónicas (Architectural Decision Records - ADRs)
 
 ### ADR-01: Adopción de Componentes Independientes (Standalone) e Inyección Funcional en Angular 22
@@ -572,13 +782,13 @@ flowchart TD
   - *Positivas*: Reducción a cero del almacenamiento binario en servidor; copias de seguridad de base de datos ligeras (solo JSON); rendimiento ultra veloz (HTML generado en ~28ms); eliminación de dependencias pesadas como Chromium/Puppeteer en producción; eliminación de fallos de CORS/iframes al abrir documentos directamente en pestaña nueva nativa de la nube.
   - *Negativas*: Dependencia de que los enlaces compartidos por el usuario o administrador en Google Drive/OneDrive se mantengan públicos y accesibles.
 
-### ADR-06: Onboarding Guiado en 4 Fases con Auto-Guardado Reactivo y Outline Adaptativo
+### ADR-06: Proceso de Onboarding y Registro Guiado con Auto-Guardado Reactivo y Outline Adaptativo
 - **Estado**: Aceptado y Aplicado.
 - **Contexto**: El proceso de admisión es extenso (datos personales, académicos, 6 reflexiones formativas, ordenamiento de 11 actividades, enlaces y consentimientos). Si el usuario refresca o cierra el navegador accidentalmente, no debe perder su trabajo. Además, en dispositivos móviles y tabletas, las barras laterales y outlines complejos roban espacio e interfieren con los campos de entrada táctil.
 - **Decisión**:
-  1. Se consolida el registro en **4 Fases temáticas**: 01 Perfil, 02 Inducción, 03 Sobre Mí, 04 Documentos y Consentimientos.
+  1. Se consolida el registro en el **proceso de onboarding y registro**: 01 Perfil, 02 Inducción, 03 Sobre Mí, 04 Documentos y Consentimientos.
   2. Se implementa auto-guardado reactivo en `localStorage` con debounce de 400ms y listener `window:beforeunload`, reflejado con un distintivo minimalista `cloud_done Guardado` en cada sección.
-  3. El outline de navegación se configura como un elemento sticky centrado verticalmente a la mitad de la pantalla (`top: 50vh; transform: translateY(-50%)`) en pantallas de escritorio (>1024px). En resoluciones medianas, tabletas y móviles (`<= 1024px`), el outline se oculta completamente (`display: none !important;`), dejando exclusivamente la barra superior de 4 fases para garantizar que los formularios y campos compuestos aprovechen el 100% del ancho sin truncamientos.
+  3. El outline de navegación se configura como un elemento sticky centrado verticalmente a la mitad de la pantalla (`top: 50vh; transform: translateY(-50%)`) en pantallas de escritorio (>1024px). En resoluciones medianas, tabletas y móviles (`<= 1024px`), el outline se oculta completamente (`display: none !important;`), dejando exclusivamente la barra superior de onboarding y registro para garantizar que los formularios y campos compuestos aprovechen el 100% del ancho sin truncamientos.
 - **Consecuencias**:
   - *Positivas*: Cero pérdida de datos ante desconexiones o recargas; experiencia móvil limpia y fluida; navegación clara por fases y subsecciones.
   - *Negativas*: Requiere migración y versionamiento de la llave de almacenamiento (`STORAGE_KEY`) cuando cambian los esquemas de datos del borrador.
@@ -606,7 +816,7 @@ flowchart TD
 
 ### ADR-09: Paridad de Dominio e Integridad de Modelos SS vs VG con Grados Modulares Dinámicos
 - **Estado**: Aceptado y Aplicado.
-- **Contexto**: La plataforma gestiona dos perfiles con diferentes naturalezas legales pero que comparten el mismo proceso de onboarding: Estudiantes de Servicio Social (`SS`) y Voluntarios Generales (`VG`). Se requería evitar la dispersión de modelos y asegurar que ambos almacenen la totalidad de la información capturada en las 4 fases.
+- **Contexto**: La plataforma gestiona dos perfiles con diferentes naturalezas legales pero que comparten el mismo proceso de onboarding: Estudiantes de Servicio Social (`SS`) y Voluntarios Generales (`VG`). Se requería evitar la dispersión de modelos y asegurar que ambos almacenen la totalidad de la información capturada en el proceso de onboarding y registro.
 - **Decisión**:
   1. Se unifica el esquema de datos base en MongoDB y en mappers TypeScript: `curp`, `bioPersonal`, `intereses`, `talentos`, `aportesAbaq`, `animalExperience`, `descExperiencia`, `motivacionAbaq`, `rankedActivities`, `cloudUrls`, `consents`, `inductionReflections`.
   2. En el aspecto académico se establece una segregación intencional: `SS` mantiene un esquema rígido institucional (`school`, `career`, `semester`, `matricula`), mientras que `VG` adopta una colección modular de grados académicos (`degrees`: `[{ degree, institution, fieldOfStudy, graduationYear, status }]`).
@@ -687,6 +897,78 @@ flowchart TD
 - **Consecuencias**:
   - *Positivas*: Cero procesos mutantes en segundo plano; visibilidad predecible y completa de todo el padrón en base de datos hasta decisión explícita de corte en `/backup`.
   - *Negativas*: La desaturación física de la base de datos depende de que la administración ejecute periódicamente el corte manual bajo demanda en `/backup`.
+
+### ADR-16: Componente Standalone de Paginación Homologada y Cohesión Relacional de Modelos
+- **Estado**: Aceptado y Autorizado (Fuente de Verdad del Sprint).
+- **Contexto**: Diez vistas de la plataforma carecían de paginación, provocando scroll excesivo e inconsistencias visuales, mientras que los datos sintéticos de prueba no vinculaban las actividades y acreditaciones a los colaboradores responsables.
+- **Decisión**:
+  1. Se implementa el componente Angular Standalone `<app-pagination>` en `frontend/src/app/components/ui/pagination/`, replicando exactamente la estructura de clases (`.pagination`, `.pagination-button`, `.active`, `[disabled]`) y estilos de `accreditation-list` y `my-accreditations` sin rediseñar los layouts existentes.
+  2. En `StudentComponent`, se desacoplan en memoria los getters `socialServiceVolunteers` y `generalVolunteers` antes de aplicar `.slice()`, asegurando paginación independiente (`pageSize = 8`) para cada tabla.
+  3. En las vistas de cuadrícula (`talk-list`, `campaign-list`, `identification-list`, `quick-activities`, `pets`), se establece `pageSize = 6` para mantener simetría visual en columnas 3x2 y 2x3.
+  4. Los datos sintéticos se estructuran en `cuentas-ciclo-vida.json` con **cohesión relacional e historia de colaboradores**: cada plática, campaña, adopción y placa se vincula a su gestor (`studentRef`, `volunteerRef`, `linkerName`), y el folio determinista `OP-CAT-YYMMDD-HEX` se sincroniza tanto en la colección raíz de acreditación como dentro del arreglo `accreditations` del usuario.
+  5. Se implementa el script `backend/scripts/publish-data-endpoints.js` con autenticación JWT de administrador para poblar `abaqTesting--dev-rivers` consumiendo los endpoints `POST` oficiales de Express.
+- **Consecuencias**:
+  - *Positivas*: Experiencia de usuario unificada y predecible; navegación ágil sin saltos de scroll; datos de prueba representativos con relaciones cruzadas y nombres diagnósticos `[DEBUG-*]` para pruebas visuales inmediatas.
+  - *Negativas*: Requiere importar `PaginationComponent` en los 10 componentes del frontend y mantener sincronizado el manifiesto JSON de prueba.
+
+### ADR-17: Manifiesto Dual (.zip + .txt MD), Preservación de Credenciales (+passwordHash) y Rehidratación con Dry-Run y Detección de Colisiones
+- **Estado**: Aceptado y Autorizado (Fuente de Verdad del Sprint - 4 nov 2026).
+- **Contexto**: El proceso de deshidratación histórica arrojaba un error 500 no capturado debido a la instanciación de Archiver v8 como función directa (`archiver is not a function`). Además, el administrador carecía de un resumen legible sin descomprimir el ZIP, las consultas omitían el `passwordHash` de usuarios archivados, no existía interfaz gráfica para rehidratar paquetes de corte y la rehidratación carecía de validación *dry-run* y prevención de colisiones de correo.
+- **Decisión**:
+  1. Estandarizar la instanciación de compresión con `createZipArchive()` en [`backend/utils/zip.js`](file:///Users/riosisraelg/Desktop/1/abaq/backend/utils/zip.js).
+  2. Implementar descarga dual en frontend (`.zip` oficial + `abaq-corte-YYYY-MM-DD-resumen.txt` en Markdown para el usuario), exponiendo el manifiesto estructurado en la cabecera HTTP `X-Dehydration-Manifest`.
+  3. Incluir `.select("+passwordHash")` al archivar usuarios para preservar credenciales intactas.
+  4. Homologar el endpoint `POST /backup/dehydrate/restore` con flujo en 2 pasos (`confirm: false` para *dry-run* y `confirm: true` para ejecución definitiva con bitácora `DehydrationAuditLog`).
+  5. Implementar detección de colisiones de llaves únicas (`email`, `interactionFolio`) y omisión en cascada de perfiles huérfanos.
+  6. Añadir sección dedicada en la consola `/backup` para carga, previsualización *dry-run* y confirmación de rehidratación.
+- **Consecuencias**:
+  - *Positivas*: Descarga 100% estable, legibilidad inmediata para el usuario en texto plano sin comprometer la integridad de scripts, reingreso seguro de datos sin riesgo de colisiones ni pérdida de contraseñas.
+  - *Negativas*: Requiere procesar dos descargas consecutivas en el cliente web y mantener la comprobación previa de colisiones contra MongoDB.
+
+### ADR-18: Despliegue Multi-Proyecto en Railway con Infraestructura como Código (OpenTofu) y Enrutamiento DNS en AWS Route 53 (Sandbox de Seguridad)
+- **Estado**: Aceptado y Operativo en Vivo (4 nov 2026).
+- **Contexto**: Se requería un despliegue inmediato y funcional de la plataforma completa: el sistema principal ABAQ (Frontend Angular v22 y Backend Node.js Express) y el sistema complementario de gestión interna (ABAQ-Organizador en PHP 8.2 y MySQL). Dicho entorno no debía configurarse como producción estricta, sino con `NODE_ENV=development` para permitir auditorías de penetración, inyecciones de prueba y cargas agresivas por parte de evaluadores académicos sin que firewalls perimetrales (Cloudflare WAF / Turnstile) bloquearan las solicitudes. Además, la infraestructura DNS debía gestionarse bajo el dominio `hypercoreqro.lat` en AWS Route 53 mediante OpenTofu (IaC).
+- **Decisión**:
+  1. **Segregación en Dos Proyectos en Railway**:
+     - **Proyecto 1 (`abaq-dev-app`)**: Contiene el servicio `backend` (Express en Node 22, puerto 3000), el servicio `frontend` (Angular v22 en contenedor Alpine con servidor SPA Express 5 en puerto 8080) y el plugin de `MongoDB` (motor 7.0, persistencia en `/data/db`, DNS interno `mongodb.railway.internal:27017` y proxy TCP público `crossover.proxy.rlwy.net:23648`).
+     - **Proyecto 2 (`abaq-organizador`)**: Contiene el plugin oficial de `MySQL` y el contenedor PHP 8.2 (`php:8.2-cli` con servidor integrado `php -S 0.0.0.0:${PORT} -t /app`), evitando fallos de Apache MPM.
+  2. **Capa de Conexión Dinámica y Auto-DDL en PHP**: Se implementó `conexion.php` para leer variables dinámicas de Railway (`MYSQLHOST`, `MYSQL_URL`) y auto-crear las 5 tablas operativas (`usuarios`, `tareas`, `comentarios_extra_tareas`, `historial_actividad`, `notificaciones`), sembrando al administrador inicial `admin@abaq.org` (`Admin123!`).
+  3. **CORS Abierto y Reflexivo**: En `backend/app.js`, se configuró `cors({ origin: (origin, callback) => callback(null, true), credentials: true })` para permitir pruebas desde cualquier cliente, navegador o herramienta de seguridad.
+  4. **Orquestación con OpenTofu v1.13.1**: En `infrastructure/route53-railway/main.tf`, se aprovisionaron 6 registros DNS en la zona `hypercoreqro.lat.` (`Z09055831PEII3K2XVDLB`) bajo el perfil AWS `rout53`:
+     - `abaq.hypercoreqro.lat` (CNAME) y `_railway-verify.abaq` (TXT) $\rightarrow$ Frontend.
+     - `api.hypercoreqro.lat` (CNAME) y `_railway-verify.api` (TXT) $\rightarrow$ Backend.
+     - `organizador.hypercoreqro.lat` (CNAME) y `_railway-verify.organizador` (TXT) $\rightarrow$ Organizador.
+- **Consecuencias**:
+  - *Positivas*: Despliegue 100 % automatizado, cero dependencia del equipo local, certificación TLS automática vía Let's Encrypt, base de datos completamente sembrada y sandbox permisivo para auditorías de seguridad académicas.
+  - *Negativas*: El modo `NODE_ENV=development` expone trazas de depuración y relaja políticas de seguridad, lo cual es intencional para esta fase de evaluación pero requerirá endurecimiento previo a la entrega productiva final.
+
+### ADR-19: Responsividad Integral de Expedientes, Transformación de Tablas a Tarjetas Táctiles, Arquitectura Desacoplada de Constancias en Imagen (PNG) y Prevención de Auto-Zoom en Safari iOS
+- **Estado**: Aceptado y Operativo en Producción (4 nov 2026).
+- **Contexto**:
+  1. **Zoom Indeseado en Safari iOS**: Al interactuar con campos de texto (`input`, `textarea`, `select`), Safari forzaba un auto-zoom en pantallas táctiles cuando el tamaño de fuente era inferior a 16px, desorientando a los usuarios en iPhone y iPad.
+  2. **Ilegibilidad de Tablas Institucionales en Teléfonos y Tabletas**: Las tablas de participación (`sd-combined-table`, `ranked-activities-table`, grados académicos) desbordaban horizontalmente, cortaban insignias de estatus y obligaban a desplazamientos horizontales incómodos en vistas de expediente (`volunteer-profile`, `student-profile`, `volunteer-detail`, `student-detail`).
+  3. **Compresión Crítica de la Tarjeta de Constancias (`official-cert-card`)**: Al desplegarse en una cuadrícula multi-columna con layout flex horizontal, los botones con `white-space: nowrap` dejaban menos de 80px de ancho para el bloque de información en pantallas de tableta y móvil, colapsando el título, la descripción y los metadatos criptográficos en columnas verticales ilegibles.
+  4. **Generación Pesada e Incompatible de Documentos en PDF**: El script de constancias generaba PDFs mediante Chromium y librerías cliente (`html2pdf.js`), dificultando la visualización inmediata y el guardado táctil en dispositivos móviles.
+- **Decisión**:
+  1. **Prevención Global de Auto-Zoom en iOS**:
+     - Configuración de `viewport-fit=cover` en la meta-etiqueta de viewport.
+     - En `frontend/src/styles.scss`, imposición de `font-size: 16px !important` bajo `@media screen and (max-width: 1024px)` para todos los elementos de formulario (`input`, `textarea`, `select`, `.form-control`, `.form-select`).
+  2. **Transformación Táctil de Tablas a Tarjetas (Card Transformation)**:
+     - Inyección de atributos `data-label` en cada celda `<td>` de las tablas de acreditaciones, actividades asignadas y grados académicos.
+     - En pantallas `<= 900px`, ocultación de `<thead>` y conversión de filas `<tr>` en tarjetas verticales desacopladas con etiquetas institucionales destacadas (`td::before { content: attr(data-label); font-weight: 700; ... }`), garantizando legibilidad total sin scroll horizontal.
+     - Habilitación de scroll horizontal táctil nativo con *momentum* (`-webkit-overflow-scrolling: touch`) en la barra de pestañas `.sd-tabs`.
+  3. **Arquitectura Responsiva y Anti-Compresión de Tarjetas de Constancias (`official-cert-card`)**:
+     - Eliminación de cuadrículas multi-columna en móviles y tabletas: `.official-certs-container` se unifica a `display: flex; flex-direction: column; width: 100%;`.
+     - Layout vertical prioritario (`flex-direction: column; align-items: stretch`) en pantallas táctiles y tabletas (`<= 1024px`), reservando el 100% del ancho para el bloque `.cert-info`.
+     - Botón de acción (`btn-view-cert`) de ancho completo (`width: 100%`) con área táctil cómoda (`min-height: 44px`).
+     - Despliegue horizontal amplio reservado exclusivamente para pantallas de escritorio (`min-width: 992px`).
+     - Homologación del componente `.official-cert-card` en las cuatro vistas de expediente (`volunteer-profile`, `student-profile`, `volunteer-detail`, `student-detail`), soportando las variantes de Aceptación General, Aceptación Servicio Social y Término/Liberación (`.cert-completion`).
+  4. **Exportación Estricta de Constancias como Imagen PNG (Cero PDFs)**:
+     - En `backend/subprojects/tool-constancias/generate_html.js`, sustitución de `page.pdf` por `page.screenshot` con `deviceScaleFactor: 2` para generar exclusivamente archivos `.png` de alta resolución.
+     - En `backend/utils/certificates.js`, migración de `html2pdf.js` a `html2canvas`, habilitando el botón **`📥 Descargar Imagen (PNG)`** para guardado directo en la galería fotográfica del dispositivo móvil.
+- **Consecuencias**:
+  - *Positivas*: Interfaz 100% consumible y ergonómica en teléfonos y tabletas; tipografía de constancias legible sin compresión en todas las resoluciones; experiencia táctil sin saltos de zoom en Safari; descarga instantánea de certificados en imagen PNG nativa.
+  - *Negativas*: Las tablas ocupan mayor altura vertical en móviles al expandirse como tarjetas individuales, compensado con el scroll natural del dispositivo.
 
 ---
 
