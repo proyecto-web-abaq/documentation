@@ -31,10 +31,12 @@ Verificado en `backend/package.json` y código fuente:
 | **Framework Web** | Express | `^4.19.2` | Servidor HTTP RESTful, middleware de CORS, parsing de JSON y enrutamiento modular. |
 | **ODM / Base de Datos** | Mongoose / MongoDB Atlas | `^8.4.4` (driver `^6.7.0`) | Modelado de datos (`Student`, `Volunteer`, `Activity`, `Accreditation`), validaciones de esquema e índices. |
 | **Seguridad y Criptografía** | `crypto` (nativo) + `jsonwebtoken` (`^9.0.2`) + `bcryptjs` (`^2.4.3`) | Nativo / LTS | Emisión y validación de tokens JWT (7 días), hashing seguro de contraseñas y sellado criptográfico HMAC-SHA256 con protección de tiempo constante (`timingSafeEqual`). |
+| **Generador de Folios Deterministas** | `crypto` nativo (`backend/utils/folio-generator.js`) | Nativo | Generación de folios de interacción de colaboradores sin colisiones: `AC-YYMMDD-HEX` (actividades) y `OP-CAT-YYMMDD-HEX` (12 modalidades mnemónicas). |
 | **Motor de Certificados** | HTML5/CSS3 en memoria (`backend/utils/certificates.js`) | Nativo | Generación dinámica de cartas y constancias oficiales sin sobrecarga de Puppeteer (~2.2 MB RAM por petición). |
-| **Exportación y Respaldos** | `exceljs` (`^4.4.0`) + `multer` (`^1.4.5-lts.1`) | Producción | Respaldos integrales de MongoDB en JSON comprimido, generación de hojas de cálculo Excel (`.xlsx`) y restauración con dry-run. |
+| **Exportación, Respaldos y Deshidratación** | `exceljs` (`^4.4.0`) + `multer` (`^1.4.5-lts.1`) + `archiver` (`^7.0.1`) | Producción | Respaldos integrales en JSON comprimido, cortes limpios indivisibles en ZIP para deshidratación, exportación Excel (`.xlsx`) y restauración granular. |
 | **Validaciones** | `express-validator` | `^7.1.0` | Saneamiento de payloads, validación de CURP, correos y restricciones de campos. |
-| **Correo Transaccional** | Nodemailer | `^6.9.14` | Envío de notificaciones de estado y avisos institucionales. |
+| **Correo Transaccional** | Nodemailer / Resend | `^6.9.14` | Envío de notificaciones de estado, cartas de bienvenida y avisos institucionales. |
+| **Herramientas de QA y Sembrado** | CLI Node.js (`seed-lifecycle-scenarios.js`) + Bash (`seed.sh`) | Nativo | [Sembrado automatizado](../scripts/seed-db.md), enriquecimiento retroactivo de folios (`--backfill-folios`), purga atómica (`--clean`) y sincronización de JSON de prueba. |
 | **Configuración** | `dotenv` | `^16.4.5` | Carga de variables de entorno con reintentos resilientes para sincronización con pipes de secretos. |
 
 ### 2.2 Frontend — `/frontend` (Angular 22 Standalone)
@@ -51,6 +53,17 @@ Verificado en `frontend/package.json` y componentes de Angular:
 | **Efectos y UX** | `canvas-confetti` | Navegador | Celebración visual en la pantalla `/expediente-recibido`. |
 | **Persistencia Local** | `localStorage` + RxJS | Nativo / `^7.8.0` | Auto-guardado reactivo en borrador local con debounce de 400 ms y listener `beforeunload`. |
 
+### 2.3 Portal de Documentación — `/documentation` (Zensical)
+
+Verificado en `documentation/zensical.toml`:
+
+| Categoría | Tecnología / Herramienta | Versión | Propósito en el Sistema |
+|---|---|---|---|
+| **Generador de Sitio Estático** | Zensical (SSG en Python) | Reciente | Compilación ultra-rápida del portal de documentación a HTML/CSS/JS estático. |
+| **Sintaxis y Renderizado** | Markdown + GFM + PyMdown Extensions | Estándar | Tablas avanzadas, admoniciones/callouts, bloques de código tabulados y fórmulas matemáticas. |
+| **Diagramas Arquitectónicos** | Mermaid.js | Integrado | Renderizado de diagramas de estado, flujo C4, secuencias de autenticación y mapas de componentes. |
+| **Iconografía** | Lucide Icons | Integrado | Iconos SVG semánticos en navegación, títulos de tarjetas y encabezados de página. |
+
 ---
 
 ## 3. Resolución de Brechas Arquitectónicas
@@ -65,7 +78,7 @@ En la versión actual de producción se resolvieron de forma definitiva las inco
    - *Solución implementada:* Generador criptográfico ligero en Node.js (~2.2 MB RAM) que devuelve HTML5/CSS3 estilizado con tokens HMAC-SHA256, delegando la rasterización PDF al cliente mediante `html2pdf.js`.
 3. **Flujo de Onboarding Unificado en 4 Fases:**
    - *Brecha previa:* Formularios de 5 o 6 lotes dispersos y falta de soporte para Voluntariado General.
-   - *Solución implementada:* Componente standalone unificado `OnboardingPhaseComponent` con 4 fases guiadas, outline adaptativo (oculto en tabletas y móviles `<=1024px`), control compuesto de periodo académico 100% full width, selector de redes con badges oficiales, y segregación estricta de horas (10h de inducción solo para `SS`).
+   - *Solución implementada:* Componente standalone unificado `OnboardingPhaseComponent` con proceso de onboarding y registro guiado, outline adaptativo (oculto en tabletas y móviles `<=1024px`), control compuesto de periodo académico 100% full width, selector de redes con badges oficiales, y segregación estricta de horas (10h de inducción solo para `SS`).
 4. **Subsistema de Respaldo y Rollback:**
    - *Brecha previa:* Ausencia de mecanismos de recuperación y exportación masiva.
    - *Solución implementada:* Módulo `/backup` en Express y componente `BackupComponent` en Angular que permiten exportaciones completas a JSON y Excel, y restauración con análisis preliminar (*dry-run*) y reversión atómica.

@@ -11,6 +11,24 @@ Esta sección consolida las iniciativas técnicas, propuestas arquitectónicas y
 
 <div class="grid cards" markdown>
 
+-   :lucide-database-backup: **[Deshidratación, Manifiesto Dual (.zip + .txt MD) y Rehidratación (2026-11-04)](./2026-11-04-deshidratacion-respaldos-rehidratacion.md)**
+
+    ---
+
+    Corrección del empaquetador ZIP (Archiver v8), descarga dual de paquete binario más archivo complementario `.txt` en Markdown para legibilidad humana, gobernanza de rehidratación con preservación de `+passwordHash`, matriz de prevención de colisiones y validación en seco (*dry-run*).
+
+-   :lucide-layers: **[Paginación UI/UX, Cohesión Relacional y Publicador de Endpoints (2026-11-04)](./2026-11-04-paginacion-datos-relacionales.md)**
+
+    ---
+
+    Estandarización de paginación en todas las vistas con componente standalone `<app-pagination>`, datos sintéticos con vinculación histórica por voluntario/estudiante, nomenclatura semántica `[DEBUG-*]` y publicación automatizada vía endpoints REST.
+
+-   :lucide-shield-alert: **[Transiciones de Estatus, Modal de Inactivación y Comentarios (2026-11-04)](./2026-11-04-transiciones-estatus-inactivacion.md)**
+
+    ---
+
+    Propuesta integral: homolagación de tarjetas amigables de estatus, componente modal de inactivación con guard de tipeo de folio, comentarios obligatorios a discreción del admin, re-registro de rechazados preservando rol y visibilidad en onboarding.
+
 -   :lucide-shield-check: **[Protección Perimetral Cloudflare (WAF y Turnstile)](../cloudflare-waf-turnstile-proposal.md)**
 
     ---
@@ -67,6 +85,8 @@ Esta sección consolida las iniciativas técnicas, propuestas arquitectónicas y
 
 | Propuesta / Módulo | Área de Impacto | Estado | Documento de Referencia |
 | :--- | :--- | :--- | :--- |
+| **Deshidratación, Manifiesto Dual y Rehidratación** | Respaldos, Criptografía, UI y Base de Datos | Propuesta Aprobada — Fuente de Verdad (4 nov 2026) | [Ver documento](./2026-11-04-deshidratacion-respaldos-rehidratacion.md) |
+| **Transiciones de Estatus, Modal de Inactivación y Comentarios** | Ciclo de Vida, Seguridad, UI y Notificaciones | Propuesta para Autorización (4 nov 2026) | [Ver documento](./2026-11-04-transiciones-estatus-inactivacion.md) |
 | **Cloudflare Proxy & Turnstile** | Seguridad, WAF y Anti-Bot | Propuesta Técnica / Guía DNS | [Ver documento](../cloudflare-waf-turnstile-proposal.md) |
 | **Big Data y Analítica de Expedientes** | Business Intelligence y Tiempos | Implementado en Backend / Fase 1 | [Ver documento](../data-analysis-expedientes.md) |
 | **Arquitecturas Azure y Costeo** | Infraestructura Cloud y FinOps | Propuesta auditada con precios reales | [Ver documento](../cloud-deployment.md) |

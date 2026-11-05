@@ -7,7 +7,7 @@
 **Estado:** Especificación de Producción (Sistema Real Angular v22 Standalone + Express Node.js v24 + MongoDB)  
 **Cambios v2.2.0:**  
 - Reconciliación total con el código en producción (elimina supuestos de datos mock y GridFS obsoleto).
-- Onboarding guiado en **4 Fases** (`OnboardingPhaseComponent`) más pantalla de cierre institucional (`ExpedienteRecibidoComponent`).
+- Proceso de onboarding y registro guiado (`OnboardingPhaseComponent`) más pantalla de cierre institucional (`ExpedienteRecibidoComponent`).
 - Segregación estricta de roles: Servicio Social (`SS`) vs. Voluntario General (`VG`).
 - Arquitectura Zero-File: enlaces públicos validados a nubes personales (Google Drive / OneDrive) en `cloudUrls`.
 - Auto-guardado reactivo en `localStorage` con debounce de 400 ms e indicador visual `cloud_done Guardado`.
@@ -22,7 +22,7 @@
 
 Este documento especifica el diseño técnico, los contratos de datos y la experiencia de usuario de los flujos de acceso de la plataforma ABAQ: **inicio de sesión (login)**, **registro guiado (signup / onboarding)** y **emisión de expediente digital**.
 
-El proceso sustituye por completo los trámites manuales en papel (inducción en PDF, carpetas físicas y firmas autógrafas) por un flujo web reactivo en 4 fases, respaldado por las restricciones operativas institucionales:
+El proceso sustituye por completo los trámites manuales en papel (inducción en PDF, carpetas físicas y firmas autógrafas) por un flujo web reactivo en el proceso de onboarding y registro, respaldado por las restricciones operativas institucionales:
 
 > [!IMPORTANT] Restricciones Fundamentales de Diseño
 > 1. **Firma por Consentimiento Informado Legal:** No existe firma autógrafa física ni carga de documentos firmados. La persona postulante valida cinco casillas obligatorias de consentimiento (Reglamento Oficial, Aviso de Privacidad, Código de Ética y No Maltrato, Verificación en Modo Incógnito y Consentimiento Libre). La fecha, hora, IP y datos del postulante constituyen el equivalente digital de la firma vinculante.
@@ -33,14 +33,14 @@ El proceso sustituye por completo los trámites manuales en papel (inducción en
 | Rol | Código | Propósito | Cómputo de Horas | Onboarding y Certificados |
 |---|---|---|---|---|
 | **Administrador** | `admin` | Coordinación general de ABAQ. Acceso restringido con gestión de expedientes, convalidaciones y respaldos. | No aplica | Panel administrativo `/admin/home` y gestión de expedientes. |
-| **Estudiante de Servicio Social** | `SS` | Estudiante universitario que cursa su servicio social obligatorio en ABAQ. | **Sí** (Meta fija de 480 horas, folios operativos `OP` y acreditaciones `AC`). | Completa 4 fases con datos académicos, recibe **10 horas** por la Fase 2 de inducción, ve tabla de horas por actividad, y obtiene Carta de Aceptación y Certificado de Término. |
-| **Voluntario General** | `VG` | Persona de la sociedad civil que colabora altruistamente sin convenio escolar. | **No**. Su participación es colaborativa; no acumula horas escolares. | Completa 4 fases con datos de grado/ocupación, **NO recibe ni ve ninguna mención de 10 horas** en la inducción ni en actividades, y recibe Carta de Aceptación de Voluntario General. |
+| **Estudiante de Servicio Social** | `SS` | Estudiante universitario que cursa su servicio social obligatorio en ABAQ. | **Sí** (Meta fija de 480 horas, folios operativos `OP` y acreditaciones `AC`). | Completa onboarding y registro con datos académicos, recibe **10 horas** por la Fase 2 de inducción, ve tabla de horas por actividad, y obtiene Carta de Aceptación y Certificado de Término. |
+| **Voluntario General** | `VG` | Persona de la sociedad civil que colabora altruistamente sin convenio escolar. | **No**. Su participación es colaborativa; no acumula horas escolares. | Completa onboarding y registro con datos de grado/ocupación, **NO recibe ni ve ninguna mención de 10 horas** en la inducción ni en actividades, y recibe Carta de Aceptación de Voluntario General. |
 
 ---
 
 ## 2. Reconciliación Arquitectónica (Evolución de Versiones)
 
-Las versiones preliminares proponían un registro dividido en 4 lotes o 5 fases teóricas que incluían GridFS para persistencia binaria (`/upload`). En la implementación real de producción, el sistema se consolidó en **4 Fases Guiadas** con una pantalla final de confirmación, eliminando GridFS por completo en favor del modelo Zero-File:
+Las versiones preliminares proponían un registro dividido en 4 lotes o 5 fases teóricas que incluían GridFS para persistencia binaria (`/upload`). En la implementación real de producción, el sistema se consolidó en el **proceso de onboarding y registro guiado** con una pantalla final de confirmación, eliminando GridFS por completo en favor del modelo Zero-File:
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
@@ -48,7 +48,7 @@ Las versiones preliminares proponían un registro dividido en 4 lotes o 5 fases 
 │                                                                             │
 │   DISEÑO PRELIMINAR (Borrador v1.1.0)        SISTEMA REAL EN PRODUCCIÓN (v2.2.0)    │
 │   ───────────────────────────────────        ───────────────────────────────────    │
-│   • 5 Fases teóricas                         • 4 Fases Guiadas (OnboardingPhase)    │
+│   • 5 Fases teóricas                         • Onboarding y Registro Guiado         │
 │   • Carga binaria en GridFS (/upload)        • Zero-File: Cloud URLs (Drive/OneDrive)│
 │   • PDFs estáticos en servidor               • Generación dinámica HMAC-SHA256      │
 │   • Datos mock para Voluntario General       • Esquema real Mongoose (Volunteer)    │
@@ -111,15 +111,15 @@ sequenceDiagram
 ---
 
 <a id="4-diseno-del-registro-signup-5-fases"></a>
-## 4. Onboarding Guiado en 4 Fases (`OnboardingPhaseComponent`)
+## 4. Proceso de Onboarding y Registro Guiado (`OnboardingPhaseComponent`)
 
-El flujo de registro está unificado en una experiencia tipo asistente guiado con barra de progreso superior, navegación por pestañas de fase y persistencia automática.
+El flujo de registro está unificado en una experiencia tipo asistente guiado con barra de progreso superior, navegación por pestañas y persistencia automática.
 
 ```mermaid
 flowchart TD
     P0["Paso 0: Selección de Rol<br/>(Servicio Social vs. Voluntario General)"] --> F1
     
-    subgraph Onboarding ["Onboarding Guiado en 4 Fases"]
+    subgraph Onboarding ["Proceso de Onboarding y Registro Guiado"]
         F1["Fase 1: Perfil y Redes<br/>- Identidad y CURP<br/>- Periodo Académico / Grado<br/>- Contacto y WhatsApp<br/>- Redes Sociales con Badges"]
         F2["Fase 2: Módulos de Inducción<br/>- 6 Módulos Formativos Oficiales<br/>- 3 Reflexiones por Módulo<br/>- Declaración Bajo Protesta<br/>- 10 Horas (Exclusivo SS)"]
         F3["Fase 3: Sobre Mí y Actividades<br/>- Reseña Biográfica y Talentos<br/>- Experiencia con Animales<br/>- Priorización de 11 Actividades"]
@@ -448,7 +448,7 @@ El endpoint público `/certificate/v/:hashToken` (o `/student/certificate/v/:has
 ## 8. Criterios de Aceptación de Autenticación y Onboarding
 
 - [x] **AC-AUTH-01:** El inicio de sesión acepta correo y contraseña, emite JWT firmado por 7 días y redirige según rol y estado (`/home`, `/admin/home` o `/expediente-recibido`).
-- [x] **AC-AUTH-02:** El registro guía al usuario a través de exactamente 4 fases secuenciales con validación reactiva de campos obligatorios.
+- [x] **AC-AUTH-02:** El registro guía al usuario a través del proceso de onboarding y registro con validación reactiva de campos obligatorios.
 - [x] **AC-AUTH-03:** El control compuesto de periodo académico ocupa el 100% del ancho, formateando dinámicamente el ordinal (`1.er`, `2.º`, etc.) junto al nombre libre del periodo.
 - [x] **AC-AUTH-04:** La Fase 2 acredita 10 horas y muestra el aviso de 10 horas **exclusivamente para estudiantes de Servicio Social**; para Voluntarios Generales no existe ninguna referencia de horas.
 - [x] **AC-AUTH-05:** La Fase 3 permite priorizar las 11 actividades reglamentarias de ABAQ mediante drag/drop o reordenamiento por botones, mostrando horas únicamente a estudiantes.

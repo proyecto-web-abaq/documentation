@@ -1,10 +1,10 @@
 # Especificación de Requerimientos de Software (SRS)
 **Estándar:** ISO/IEC/IEEE 29148:2018  
 **Proyecto:** Plataforma Web ABAQ (Servicio Social, Censo Comunitario y Documentación Pedagógica)  
-**Módulos:** Autenticación, Onboarding en 4 Fases, Certificados Criptográficos, Respaldos y Rollback, Seguridad y Reglas de Negocio, Paridad SS/VG y Auditoría de Expediente  
-**Versión:** 2026.11.03 (CalVer)  
-**Fecha:** 2026-11-03 (Histórico CalVer: 2026.10.31 · 2026.10.30 · 2026.10.22 · 2026.09.03)  
-**Estado:** Aprobado en Producción Real (Angular 22 + MongoDB / Sin datos simulados)  
+**Módulos:** Autenticación, Proceso de Onboarding y Registro, Certificados Criptográficos, Respaldos y Rollback, Seguridad y Reglas de Negocio, Paridad SS/VG y Auditoría de Expediente  
+**Versión:** 2026.11.04 (CalVer)  
+**Fecha:** 2026-11-04 (Histórico CalVer: 2026.11.03 · 2026.10.31 · 2026.10.30 · 2026.10.22 · 2026.09.03)  
+**Estado:** Aprobado y Operativo en Producción de Pruebas (Railway Cloud + OpenTofu + AWS Route 53)  
 **Autores:** Equipo de Ingeniería de Requerimientos y Arquitectura ABAQ  
 
 ---
@@ -13,7 +13,7 @@
 
 ### 1.1 Propósito
 El propósito de este documento es especificar formalmente los requerimientos del sistema para la plataforma **ABAQ**, integrando:
-1. El flujo de registro e inducción guiado en **4 Fases (Onboarding)** con autoguardado reactivo en `localStorage`, outline adaptativo responsivo, validación bajo protesta de decir verdad sin IA ni respuestas vagas, y arquitectura *Zero-File* mediante enlaces a la nube.
+1. El flujo de registro e inducción guiado en el **proceso de onboarding y registro** con autoguardado reactivo en `localStorage`, outline adaptativo responsivo, validación bajo protesta de decir verdad sin IA ni respuestas vagas, y arquitectura *Zero-File* mediante enlaces a la nube.
 2. La segregación estricta de lógica y reglas de negocio entre **Estudiantes de Servicio Social (`SS`)** (meta de 480 horas, 10 horas de inducción, 11 actividades con valores de acreditación, regla de inactividad de 2 meses) y **Voluntarios Generales (`VG`)** (participación comunitaria sin acreditación de horas escolares).
 3. El motor criptográfico de emisión y verificación de **Certificados y Constancias Oficiales** bajo demanda con firmas HMAC-SHA256, sin almacenamiento de binarios PDF en el servidor.
 4. El subsistema de **Respaldos, Exportación Multi-Formato (JSON Streaming y ExcelJS) y Rollback de Datos** con verificación previa en seco (*dry-run*).
@@ -27,7 +27,7 @@ El propósito de este documento es especificar formalmente los requerimientos de
 ### 1.3 Definiciones, Acrónimos y Abreviaturas
 - **SRS**: *Software Requirements Specification* (ISO/IEC/IEEE 29148:2018).
 - **SS / VG**: Estudiante de Servicio Social / Voluntario General.
-- **Onboarding 4 Fases**: Flujo secuencial guiado: 01 Perfil, 02 Inducción, 03 Sobre Mí, 04 Documentos y Legal + Expediente Recibido.
+- **Proceso de Onboarding y Registro**: Flujo secuencial guiado: 01 Perfil, 02 Inducción, 03 Sobre Mí, 04 Documentos y Legal + Expediente Recibido.
 - **Zero-File Architecture**: Modelo de operación donde el servidor no almacena archivos PDF ni imágenes aportados por los usuarios, sustituyéndolos por URLs públicas verificadas en la nube (Google Drive / OneDrive) y casillas de consentimiento informado.
 - **HMAC-SHA256**: Código de autenticación de mensajes basado en hash criptográfico utilizado para emitir y validar certificados con tokens URL-safe `st_[id]_[certType]_[hmac32]`.
 - **RBAC**: *Role-Based Access Control* (`admin`, `student`, `volunteer`).
@@ -55,9 +55,9 @@ El propósito de este documento es especificar formalmente los requerimientos de
 
 ---
 
-## 3. Requerimientos de Onboarding Guiado en 4 Fases y Experiencia de Usuario
+## 3. Requerimientos de Proceso de Onboarding y Registro y Experiencia de Usuario
 
-### `[SRS 9.5.11.2 Requerimientos Funcionales - Onboarding en 4 Fases]`
+### `[SRS 9.5.11.2 Requerimientos Funcionales - Proceso de Onboarding y Registro]`
 
 - **RF-ONB-01 (Elección de Rol Inicial en Signup / Paso 0)**:
   - En `/auth/signup`, el usuario debe seleccionar obligatoriamente su rol de ingreso mediante dos opciones mutuamente excluyentes: `Estudiante de Servicio Social (SS)` o `Voluntario General (VG)`.
@@ -149,7 +149,7 @@ El propósito de este documento es especificar formalmente los requerimientos de
   - La pantalla `ExpedienteRecibidoComponent` desvanece suavemente el navbar superior de fases sin alterar la posición vertical de la tarjeta de felicitación (*zero layout shift*), disparando inmediatamente una animación de confeti ligero.
 
 - **RF-ONB-14 (Auto-Guardado Reactivo en `localStorage`)**:
-  - Todo cambio en cualquier campo de las 4 fases se persiste automáticamente en `localStorage` con debounce de 400ms.
+  - Todo cambio en cualquier campo del proceso de onboarding y registro se persiste automáticamente en `localStorage` con debounce de 400ms.
   - Se vincula el evento `window:beforeunload` para salvaguardar el borrador ante cierres abruptos o recargas.
   - Cada sección (`<legend>`) incluye un distintivo minimalista a la derecha: `cloud_done Guardado`.
 
@@ -170,7 +170,7 @@ El formulario de censo animal (`/survey/form/submit` y `FormComponent`) debe agr
   - `Enter`: Valida campos requeridos y avanza de sección.
   - `Shift + Enter` / `Esc`: Retrocede preservando el estado de todos los datos introducidos.
   - `Tab` / `Flechas`: Cicla y selecciona opciones sin necesidad de ratón.
-- **RNF-UX-02 (Barra Superior de 4 Fases con Micro-Segmentos)**: Barra sticky superior con progreso porcentual global y píldoras segmentadas por subsección completada.
+- **RNF-UX-02 (Barra Superior de Onboarding y Registro con Micro-Segmentos)**: Barra sticky superior con progreso porcentual global y píldoras segmentadas por subsección completada.
 - **RNF-UX-03 (Identidad Visual ABAQ)**: Navy `#24366f`, Forest Green `#5ca83a`, fondo `#f8fafc`, bordes redondeados y transiciones suaves.
 
 ---
@@ -329,7 +329,7 @@ Fuente de verdad: [ciclo-vida §5.3](ciclo-vida-voluntarios-deshidratacion-desig
 - [ ] **AC-ERR-01**: Una URL inexistente muestra la página de error general.
 
 ### 7.7 Resoluciones de Diseño Implementadas (v2.2.0)
-- **Registro de Voluntario General Resuelto**: El registro para el voluntario general (`VG`) quedó formalizado e implementado en las 4 Fases con bifurcación de rol desde Signup (ver `RF-ONB-01` a `RF-ONB-16`):
+- **Registro de Voluntario General Resuelto**: El registro para el voluntario general (`VG`) quedó formalizado e implementado en el proceso de onboarding y registro con bifurcación de rol desde Signup (ver `RF-ONB-01` a `RF-ONB-16`):
   - Fase 1: Perfil personal con ocupación y grados modulares (`degrees`).
   - Fase 2: Inducción formativa con omisión estricta de las 10 horas escolares.
   - Fase 3: Sobre mí con las 11 actividades limpias de referencias a horas académicas.
@@ -552,7 +552,7 @@ abaq-backup-YYYY-MM-DD-HHmmss.zip
       3. *Alineación Centrada*: Ambas tarjetas se centran verticalmente (`col-right-vg`) a la altura de las fechas y métricas de tiempo de la columna izquierda para evitar vacíos visuales.
 
 - **RF-EXP-ANIM-01 (Animación de Celebración y Navbar Inmutable)**:
-  - Al completar la fase 4 y entrar al expediente, la barra superior de 4 fases se oculta limpiamente y se dispara una animación de confeti festivo por una sola vez en la sesión. La animación no vuelve a reproducirse en recargas posteriores para no degradar la experiencia de usuario.
+  - Al completar el registro y entrar al expediente, la barra superior de onboarding y registro se oculta limpiamente y se dispara una animación de confeti festivo por una sola vez en la sesión. La animación no vuelve a reproducirse en recargas posteriores para no degradar la experiencia de usuario.
 
 - **RF-EXP-POLL-01 (Comprobación Reactiva sin Bloqueo)**:
   - La consulta manual o automática del estado (`checkDbStatus`) debe implementar un operador `timeout({ first: 3500 })` y un operador `finalize()` en RxJS.
@@ -636,7 +636,7 @@ abaq-backup-YYYY-MM-DD-HHmmss.zip
 
 - **RF-STATE-01 (Enum Unificado de Estado de Cuenta)**:
   - Los esquemas `Student` y `Volunteer` implementan de forma obligatoria el atributo `accountStatus` con el enum: `['pending', 'active', 'inactive', 'rejected']`.
-  - El estado inicial al concluir el onboarding en 4 fases es `pending`.
+  - El estado inicial al concluir el proceso de onboarding y registro es `pending`.
 
 - **RF-STATE-02 (Aislamiento de Cuentas Pendientes en Login)**:
   - Si un usuario con `accountStatus: 'pending'` inicia sesión, el sistema intercepta la navegación y lo redirige exclusivamente a `/onboarding/expediente`. Se bloquea el acceso a rutas internas mediante `AuthGuard`.
@@ -649,28 +649,38 @@ abaq-backup-YYYY-MM-DD-HHmmss.zip
   - En inicios de sesión subsecuentes (`primerIngresoRealizado: true`), el usuario ya no pasa por el expediente e ingresa directamente a su rol.
   - Si el usuario intenta forzar la navegación por URL a `/activity-list` antes de pulsar el botón de primer ingreso, `AuthGuard` lo devuelve a `/onboarding/expediente`.
 
-- **RF-STATE-04 (Re-registro Idempotente de Usuarios Rechazados)**:
-  - Cuando un administrador rechaza una solicitud, el backend actualiza `accountStatus: 'rejected'` y registra el motivo en `statusHistory`. No se elimina el documento de MongoDB.
-  - El correo electrónico del colaborador **no queda bloqueado**.
-  - Si un usuario rechazado vuelve a registrarse con su mismo correo, el backend reutiliza su `_id` original:
-    1. Reemplaza los datos personales, académicos y respuestas de formulario.
-    2. Hashea y actualiza la nueva contraseña.
-    3. Limpia las causales de rechazo previas.
-    4. Cambia `accountStatus` a `'pending'`.
-    5. Inserta una entrada en `statusHistory` con motivo `'re_registration'`.
+- **RF-STATE-04 (Re-registro Idempotente y Purga de Huérfanos al Cambiar de Rol)**:
+  - Cuando un administrador rechaza una solicitud, el backend actualiza `accountStatus: 'rejected'` y registra las observaciones de rechazo en `statusHistory` (`'admin_rejection'`). No se elimina el documento de MongoDB en ese momento.
+  - El correo electrónico del aspirante **no queda bloqueado**.
+  - Si el aspirante inicia sesión, el sistema lo dirige obligatoriamente a `/onboarding/expediente`, donde únicamente puede consultar las observaciones de Coordinación (`comments`), cerrar sesión o contactar formalmente a la administración. En esta vista no existen botones de re-registro ni cambio de rol.
+  - Para corregir o cambiar de modalidad, el usuario accede directamente a `/auth/signup`:
+    1. **Mismo Rol (`SS` o `VG`):** El backend reutiliza el documento existente en la colección, actualiza la información del formulario y la contraseña, cambia `accountStatus` a `'pending'` y registra una entrada en `statusHistory` con motivo `'re_registration'`.
+    2. **Cambio de Modalidad (`SS` ➔ `VG` o `VG` ➔ `SS`):** El backend actualiza el rol en `users` (`user.role = nuevoRol`), crea el nuevo documento en la colección destino (`students` o `volunteers`) con `accountStatus: 'pending'` y motivo `'re_registration'`, y **elimina/purga atómicamente el documento rechazado anterior en la otra colección** (`Student.deleteOne` o `Volunteer.deleteOne`) para evitar colisiones de índices de correo y registros huérfanos.
 
 - **RF-STATE-05 (Bitácora statusHistory y Trazabilidad de Comentarios)**:
   - Cada entrada de `statusHistory` en `Student` y `Volunteer` debe persistir: `previousStatus`, `newStatus`, `changedAt`, `changedBy` (ObjectId del User admin o `'system'`), `changedByEmail` (`req.user.email` o `'system'`), `changedByRole` (`'admin' | 'system'`), `reason` y `comments`.
   - **Alineación con el Esquema de Usuarios:** Como el modelo `User` en MongoDB no cuenta con atributo de nombre propio para las cuentas de rol `admin`, la auditoría se asocia fehacientemente al correo electrónico autenticado (`changedByEmail = req.user.email`).
-  - **Llenado Autónomo vs. Manual:**
-    - Eventos autónomos en petición explícita (cumplimiento de 480 hrs `'hours_completed'`, registro inicial `'initial_signup'`, re-registro `'re_registration'`): El sistema asigna un comentario institucional predeterminado (sin procesos `node-cron` en segundo plano).
-    - Eventos manuales del Administrador (rechazo de expediente `'admin_rejection'`, desactivación administrativa `'administrative_decision'`, aceptación `'admin_approval'`): La interfaz web despliega un modal con campo de texto para que el admin justifique el dictamen. Si se deja en blanco, aplica un comentario formal por defecto.
+  - **Catálogo de 6 Causales Oficiales (`reason`):**
+    - `initial_signup`: Registro inicial del colaborador tras completar onboarding y registro.
+    - `admin_approval`: Aprobación manual formal por Coordinación.
+    - `admin_rejection`: Rechazo con observaciones obligatorias para corrección.
+    - `hours_completed`: Acreditación automática de 480 horas para estudiantes (emite certificado).
+    - `administrative_decision`: Baja administrativa manual mediante modal con guard de folio.
+    - `re_registration`: Re-registro y reingreso de formulario tras rechazo.
   - **Visibilidad en Interfaz de Expediente (`/onboarding/expediente`)**:
     - Aplica a ambos roles de voluntario (`SS` y `VG`).
     - En estado `accepted` (`active`), muestra el comentario de aprobación y felicitación institucional de la Coordinación (`comments`).
     - En estado `rejected`, despliega la tarjeta destacada con las *"Observaciones de la Coordinación: {{comments}}"*, instruyendo qué corregir antes del re-registro.
   - **Consumo en Notificaciones Resend:**
     - El cuerpo del correo transaccional incorpora el campo `comments` en una caja destacada (*callout*), asegurando que el voluntario conozca formalmente la razón del cambio de estado en su bandeja de entrada.
+
+- **RF-STATE-06 (Tarjeta Amigable en Perfiles Activos)**:
+  - En `/student-profile` y `/volunteer-profile`, se prohíbe la exposición de variables técnicas crudas de depuración (`expediente_aprobado`, `Aceptado`).
+  - La interfaz debe renderizar un contenedor corporativo con redacción formal, insignia de estado, fecha formateada y notas de bienvenida (`comments`).
+
+- **RF-SEC-ISOLATION-01 (Aislamiento Perimetral y Bloqueo Operativo)**:
+  - El middleware `requireActiveAccount` debe aplicarse a todas las rutas de API operativas (`/activity`, `/accreditation`, `/campaigns`, `/identification`, `/talks`, `/adoptions`, `/pets`, `/contact`, `/student/me`, `/volunteer/me`), rechazando con `403 Forbidden` a usuarios en `pending` o `rejected`.
+  - El `AuthGuard` de Angular debe confinar a los usuarios `pending` y `rejected` en `/onboarding/expediente`, impidiendo cualquier navegación a rutas internas de la aplicación.
 
 ### `[SRS 13.2 Requerimientos Funcionales - Transiciones Controladas a Inactividad (Sin Cron en Background)]`
 
@@ -688,8 +698,13 @@ abaq-backup-YYYY-MM-DD-HHmmss.zip
   - Ningún proceso desatendido en background revisa ni muta estados de `Student` o `Volunteer`.
   - Los atributos existentes en los esquemas Mongoose (`fechaDesactivacion`, `statusHistory`, `inactivityStage`) se preservan intactos exclusivamente por compatibilidad con documentos preexistentes, scripts de *seed* y respaldos `.zip` previos.
 
-- **RF-AUTO-03 (Desactivación Administrativa Manual)**:
-  - El administrador puede cambiar manualmente el estado de cualquier `student` o `volunteer` a `'inactive'` desde el portal administrativo, registrando el motivo del cese en `statusHistory` (`'administrative_decision'`). La emisión de constancia queda restringida únicamente a casos donde concluyó formalmente.
+- **RF-AUTO-03 (Desactivación Administrativa Manual con Modal y Guard de Folio)**:
+  - El administrador puede cambiar manualmente el estado de cualquier `student` o `volunteer` a `'inactive'` desde la tabla `/student` o las fichas de detalle (`student-detail`, `volunteer-detail`).
+  - La acción se ejecuta a través de un único componente modal standalone (`InactivateVolunteerModalComponent`) que impone un **guard de seguridad destructivo**:
+    1. El botón de confirmación permanece bloqueado hasta que el admin escribe exactamente el folio del colaborador (`typedFolio.trim() === targetFolio.trim()`).
+    2. El administrador debe capturar obligatoriamente una justificación institucional en el campo de comentarios (`comments.trim().length > 0`).
+  - El sistema asigna automáticamente la causal técnica `reason = 'administrative_decision'` (invisible en la UI).
+  - **Prohibición Estricta de Certificados:** Las bajas administrativas por inactividad o decisión de Coordinación carecen de mérito curricular y tienen estrictamente vetada la emisión, generación o enlace a certificados o constancias. El módulo de certificados permanece desconectado y sin datos mock durante su revisión en rama externa.
 
 ### `[SRS 13.3 Requerimientos Funcionales - Permisos y Restricción Operativa de Inactivos]`
 
@@ -777,12 +792,15 @@ abaq-backup-YYYY-MM-DD-HHmmss.zip
 ### `[SRS 13.8 Requerimientos Funcionales - Notificaciones Exclusivas a Voluntarios]`
 
 - **RF-NOTIF-01 (Despacho Exclusivo al Correo de los Voluntarios vía Resend sin Cron en Background)**:
-  - Todas las notificaciones transaccionales del ciclo de vida son **exclusivamente para los voluntarios** (a su correo personal registrado).
-  - No existen notificaciones a los administradores, ni procesos `node-cron` en segundo plano, ni interfaz web in-app o campana de notificaciones.
+  - Todas las notificaciones transaccionales del ciclo de vida son **exclusivamente para los colaboradores** (a su correo personal registrado), con excepción del aviso de nueva solicitud remitido a `ADMIN_EMAIL`.
+  - No existen procesos `node-cron` en segundo plano mutando cuentas de forma desatendida.
   - Los disparadores transaccionales activos son:
-    1. Aceptación de expediente (`sendAcceptanceEmail`).
-    2. Notificaciones derivadas de dictamen o cambio administrativo explícito de estado (incorporando `comments`).
-    3. Conclusión formal de vinculación (`sendCompletionEmail`, diferenciando 480 horas y certificado oficial para estudiantes, vs agradecimiento sin horas para voluntarios generales).
+    1. **Aceptación de Expediente (`sendAcceptanceEmail`):** Informa el alta oficial, incluye la regla de permanencia de 60 días para SS, enlace firmado a la Carta de Aceptación, e inyecta la caja destacada con el **Mensaje de Bienvenida de la Coordinación** (`comments`).
+    2. **Rechazo de Solicitud de Expediente (`sendRejectionEmail`):** Despacha una notificación cordial con contenedor destacado ámbar/rojo conteniendo las **Observaciones de la Coordinación** (`comments`), explicando los motivos documentales del dictamen e instruyendo al aspirante para reiniciar su proceso corregido en `/auth/signup`.
+    3. **Baja Administrativa Discrecional:** Despacha la resolución de Coordinación con la caja destacada conteniendo el motivo obligatorio redactado en el modal (`comments`), fecha de desactivación y datos de contacto, con **prohibición estricta de generar o adjuntar certificados**.
+    4. **Alertas Preventivas de Inactividad (Día 30, Día 45 y Corte Día 60):** Despacha avisos preventivos informando los días restantes antes de la baja definitiva de oficio.
+    5. **Conclusión Curricular de 480 Horas (`sendCompletionEmail`):** Exclusivo para estudiantes con 480 horas acreditadas con mérito.
+  - **Resiliencia Asíncrona (Fire-and-Forget):** Los envíos de correo se ejecutan en segundo plano con captura de excepciones `.catch()`. Fallas de red o errores de cuota en Resend nunca provocan rollback en transacciones de MongoDB.
 
 ### `[SRS 13.9 Requerimientos Funcionales - Homologación Visual de Encabezados]`
 
@@ -806,6 +824,151 @@ abaq-backup-YYYY-MM-DD-HHmmss.zip
   - **Garantía Anti-Null en Deshidratación:** Al ejecutar un corte manual en `/backup` (Opción A), todo colaborador elegible con `accountStatus: 'inactive'` (`fechaDesactivacion || updatedAt || createdAt <= cutoffDate`) se exporta al paquete ZIP (`students.json` o `volunteers.json`) con su historial completo embebido, eliminándose de Atlas sin dejar registros huérfanos ni campos nulos (`studentRef: null` erradicado al 100 %).
   - Las actividades colectivas compartidas permanecen vivas en Atlas si cuentan con al menos un participante inscrito fuera del conjunto elegible de inactivos.
   - **Restauración Transparente:** La rehidratación con `bulkWrite` (`replaceOne` con `upsert: true`) restaura al colaborador con sus dos listados completos y folios deterministas intactos, restableciendo su historial sin dependencias foráneas.
+
+---
+
+## 14. Requerimientos de Paginación Estandarizada UI/UX, Cohesión Relacional y Publicador REST
+
+### `[SRS 14.1 Requerimientos Funcionales - Paginación Estandarizada UI/UX]`
+
+- **RF-PAG-01 (Componente Standalone Reutilizable `<app-pagination>`)**:
+  - El sistema debe proveer un componente Standalone Angular en `frontend/src/app/components/ui/pagination/` que replique exactamente el marcado HTML (`.pagination`, `.pagination-button`, `.active`, `[disabled]`) y las dimensiones (`min-width: 38px`, `height: 38px`, `border-radius: 10px`, bordes y paleta `#2563eb`) de `accreditation-list` y `my-accreditations`.
+  - Debe soportar two-way binding `[(page)]`, cálculo automático por `totalItems` y `pageSize`, condensación visual con elipsis (`…`) para colecciones con más de 7 páginas, y preservación de scroll vertical (`scrollBehavior: 'preserve'`).
+
+- **RF-PAG-02 (Paginación Desacoplada e Independiente en `/student`)**:
+  - En la vista `/student`, el componente debe separar en memoria los listados de Servicio Social (`socialServiceVolunteers`) y Voluntariado General (`generalVolunteers`) previo a la segmentación `.slice()`.
+  - La navegación de página en Servicio Social (`ssPage`, `ssPageSize = 8`) debe ser completamente independiente de la página de Voluntariado General (`generalPage`, `generalPageSize = 8`).
+  - Cualquier cambio en el buscador de texto (`filter.valueChanges`) o en el selector de pendientes (`showPendingOnly`) debe reiniciar reactivamente la página activa a `1`.
+
+- **RF-PAG-03 (Paginación Homologada en Vistas Operativas y Catálogos)**:
+  - El componente `<app-pagination>` debe integrarse al pie de las tablas y cuadrículas de:
+    - `/volunteers/history`: Tablas en sus 3 pestañas (`pageSize = 8`).
+    - `/activity-list`: Lista vertical de convocatorias (`pageSize = 6`).
+    - `/pets`: Cuadrícula de tarjetas de censo animal (`pageSize = 6`).
+    - `/admin/talks`: Cuadrícula de pláticas comunitarias (`pageSize = 6`, cuadrícula 3x2).
+    - `/admin/campaigns`: Cuadrícula de campañas de esterilización (`pageSize = 6`, cuadrícula 2x3).
+    - `/admin/adoptions`: Lista de expedientes de adopción (`pageSize = 6`).
+    - `/admin/identifications`: Cuadrícula de 2 columnas de placas (`pageSize = 6`, cuadrícula 2x3).
+    - `/admin/quick-activities`: Cuadrícula de plantillas rápidas (`pageSize = 6`).
+    - `/contact`: Tabla de directorio institucional (`pageSize = 8`).
+
+- **RF-PAG-04 (Estabilidad de Altura Contenedora Anti-CLS)**:
+  - Todo contenedor paginado (tablas `.table-wrapper` con `min-height: 480px`, cuadrículas y listas con `min-height: 520px`) debe preservar una altura mínima fija para evitar que al cambiar a páginas con menos registros la vista colapse verticalmente y mueva de posición la barra de navegación.
+
+- **RF-PAG-05 (Ordenamiento y Estilización Diferenciada de Colaboradores Inactivos)**:
+  - En la vista `/student`, los colaboradores con estado `inactive` o `rejected` deben ordenarse prioritariamente al final de las tablas de Servicio Social y Voluntariado General (`sortWithInactivesAtEnd`), desplazándose a las últimas páginas.
+  - Las filas correspondientes deben recibir la clase visual `.row-inactive` (fondo `#f8fafc`, texto atenuado `#64748b`) y la insignia de estatus `.badge-inactive` (`⏹ Inactivo`).
+
+### `[SRS 14.2 Requerimientos Funcionales - Cohesión Relacional de Datos Operativos]`
+
+- **RF-DAT-01 (Catálogo Estructurado en JSON)**:
+  - El archivo `cuentas-ciclo-vida.json` debe alojar un inventario de 28 cuentas de usuario (14 casos del ciclo de vida + 14 cuentas adicionales para pruebas de paginación con contraseña `123456789.a`) y entre 8 y 12 registros completos para cada uno de los 8 modelos complementarios.
+
+- **RF-DAT-02 (Cohesión Relacional con Expedientes de Colaboradores)**:
+  - Cada registro operativo debe enlazarse formalmente al colaborador que ejecutó la acción:
+    - En `Identification`: `studentRef` y `linkerName` apuntando al estudiante gestor.
+    - En `Talk`: Ponente asignado y asistentes con folio `OP-TLK-*`.
+    - En `Campaign`: Voluntario responsable y pacientes con folio `OP-CAM-*` o `OP-STE-*`.
+    - En `Adoption`: Voluntario gestor y folio `OP-ADO-*` vinculado a la mascota.
+  - El folio determinista `OP-CAT-YYMMDD-HEX` debe existir sincronizado tanto en la colección raíz `accreditations` como dentro del arreglo embebido `accreditations` del colaborador.
+
+- **RF-DAT-03 (Nomenclatura Semántica de Depuración y Campos Completos)**:
+  - Todo registro de prueba debe portar el prefijo `[DEBUG-*]` expresando su rol y estado para verificación visual inmediata.
+  - Todos los campos de cada modelo deben estar completamente poblados (teléfonos, edades, direcciones, escuelas, evidencias, firmas HMAC, costos) para garantizar que la UI no presente campos vacíos o rotos.
+
+### `[SRS 14.3 Requerimientos Funcionales - Publicador Automatizado vía Endpoints REST]`
+
+- **RF-PUB-01 (Publicación vía Endpoints Oficiales de Express)**:
+  - El sistema debe disponer del script ejecutable `backend/scripts/publish-data-endpoints.js` que inicie sesión como administrador (`POST /api/auth/login`) y consuma los endpoints `POST` oficiales para crear usuarios, actividades, mascotas, pláticas, campañas, adopciones, identificaciones, contactos y acreditaciones.
+  - Debe soportar modo dual: llamadas HTTP Axios si el servidor Express está activo, o invocación directa de controladores con Mongoose si el servidor se encuentra apagado.
+
+### `[SRS 14.4 Requerimientos No Funcionales - Paginación y Cohesión de Datos]`
+
+- **RNF-PAG-01 (Fidelidad Visual y Cero Regresión de Layout)**:
+  - La paginación en cada vista debe respetar exactamente la posición y estilos existentes, emitiendo clases `.pagination` y `.pagination-button` sin alterar contenedores circundantes.
+- **RNF-PAG-02 (Rendimiento en Cliente)**:
+  - El rebanado y cambio de página debe ejecutarse en menos de 16 ms (60 FPS) mediante `ChangeDetectionStrategy.OnPush` y operaciones de rebanado `.slice()` en memoria.
+- **RNF-DAT-01 (Aislamiento de Entorno)**:
+  - Todas las operaciones de publicación deben dirigirse exclusivamente a la base de datos `abaqTesting--dev-rivers`, protegiendo la base de producción `abaqPrototype`.
+
+---
+
+## 15. Requerimientos de Estabilización de Deshidratación, Manifiesto Dual (.zip + .txt MD), Gobernanza de Rehidratación y Resiliencia (v2.7.0)
+
+### `[SRS 15.1 Requerimientos Funcionales - Deshidratación, Manifiesto Dual y Rehidratación]`
+
+- **RF-DEHYD-01 (Instanciación Polimórfica de Compresión)**: El backend debe instanciar el generador de compresión ZIP mediante `createZipArchive()` en `backend/utils/zip.js`, asegurando compatibilidad nativa con constructores tipo objeto (`new archiver.ZipArchive()`) de Archiver v8 para erradicar el error `TypeError: archiver is not a function`.
+- **RF-DEHYD-02 (Decodificación Resiliente de Errores Blob)**: El servicio Angular `BackupService` debe interceptar y parsear asíncronamente el texto subyacente de respuestas de error envueltas en `Blob`, exponiendo el mensaje real del backend en la notificación visual del componente.
+- **RF-DEHYD-03 (Manifiesto Criptográfico Interno)**: El paquete `.zip` de deshidratación debe incluir internamente el archivo `manifest.json` con metadatos de corte, métricas globales y hashes individuales SHA-256 por cada archivo JSON de colección.
+- **RF-DEHYD-04 (Generación del Archivo Complementario de Resumen)**: El sistema debe construir dinámicamente un archivo complementario `abaq-corte-YYYY-MM-DD-resumen.txt` formateado con sintaxis Markdown estandarizada (títulos, tablas, balance de registros e instrucciones de rehidratación).
+- **RF-DEHYD-05 (Descarga Dual Asíncrona y Aislamiento)**: Al pulsar *"Descargar corte"*, el frontend debe disparar secuencialmente la descarga del `.zip` oficial y, con un desfase de 300 ms, la descarga del archivo `.txt` complementario fuera del paquete. Los procesos de restauración y rehidratación deben ignorar nativamente el archivo `.txt`.
+- **RF-DEHYD-06 (Preservación de Credenciales Originales)**: La consulta de extracción de candidatos `loadEligibleDataset()` debe incluir explícitamente `.select("+passwordHash")` para que las cuentas de usuario archivadas conserven sus contraseñas originales al ser rehidratadas.
+- **RF-DEHYD-07 (Validación en Seco / Dry-Run de Rehidratación)**: El endpoint `POST /backup/dehydrate/restore` debe admitir el parámetro `confirm`. Si `confirm !== true`, debe validar hashes SHA-256, comprobar colisiones contra la base de datos y devolver un balance proyectado sin modificar registros.
+- **RF-DEHYD-08 (Detección de Colisiones de Llaves Únicas)**: El motor de rehidratación debe comprobar índices únicos (`email` en `users` e `interactionFolio` en `accreditations`). Si un registro archivado colisiona con un documento activo de `_id` distinto, debe omitirse de forma segura (`DUPLICATE_KEY_ACTIVE_RECORD`) sin abortar la transacción.
+- **RF-DEHYD-09 (Omisión en Cascada de Huérfanos)**: Los perfiles (`students` y `volunteers`) cuyo `authId` corresponda a un usuario omitido por colisión deben omitirse automáticamente en cascada (`DEPENDS_ON_SKIPPED_USER`).
+- **RF-DEHYD-10 (Trazabilidad en Bitácora Pericial)**: Cada rehidratación confirmada (`confirm === true`) debe registrar un evento inmutable en `DehydrationAuditLog` con `operationType: 'rehydrate_restore'`, folio `REHYD-YYYYMMDD-XXXX` y el arreglo de colisiones detectadas.
+- **RF-DEHYD-11 (Interfaz Gráfica de Rehidratación en Consola)**: La vista `/backup` debe incorporar una sección dedicada para cargar paquetes `.zip` de corte, ejecutar validación *dry-run*, previsualizar el balance y confirmar la inserción mediante un modal protegido.
+- **RF-DEHYD-12 (Validación de Cabecera Binaria ZIP y Límites)**: El middleware de carga y los controladores deben validar la cabecera binaria `PK\x03\x04` / `PK\x05\x06` mediante `isZipBuffer()` antes de descomprimir archivos en memoria, elevando el límite de Multer a 100 MB.
+- **RF-DEHYD-13 (Carga en Doble Columna y Revisión Dry-Run en Modales)**: La vista `/backup` debe organizar las operaciones de carga e inyección al sistema (Rollback Total y Rehidratación de Cortes) en una cuadrícula de **doble columna simétrica en resolución de escritorio** (`upload-columns-grid`), apilándose verticalmente a una columna en tabletas y móviles ($\le 991$ px). El reporte de balance preliminar (*dry-run*) de ambas operaciones debe desplegarse obligatoriamente en **modales dedicados con desplazamiento interno** (`modal-dialog-scrollable`), preservando la limpieza del diseño.
+
+### `[SRS 15.2 Requerimientos No Funcionales - Rendimiento, Integridad y Usabilidad]`
+
+- **RNF-DEHYD-01 (Rendimiento de Empaquetado)**: La compresión y emisión streaming del archivo `.zip` para hasta 5,000 registros debe concluir en menos de 2.5 segundos.
+- **RNF-DEHYD-02 (Integridad Criptográfica Estricta)**: Toda rehidratación debe verificar el 100% de los hashes SHA-256 de las colecciones contra `manifest.json`, rechazando archivos manipulados con código HTTP 422.
+- **RNF-DEHYD-03 (Compatibilidad Multiplataforma)**: El archivo `.txt` complementario debe codificarse en UTF-8 sin BOM para garantizar legibilidad inmediata en Windows, macOS y Linux.
+- **RNF-DEHYD-04 (Caducidad y Unicidad del Token de Purga)**: El token criptográfico `X-Purge-Token` debe expirar de forma estricta a los 15 minutos de su emisión y admitir un único uso.
+- **RNF-DEHYD-05 (Idempotencia Total)**: La ejecución reiterada de una rehidratación sobre la misma base de datos debe ser 100% idempotente mediante `replaceOne` con `upsert: true`, sin duplicar documentos ni alterar registros no contemplados.
+- **RNF-DEHYD-06 (Concurrencia No Bloqueante)**: La generación de respaldos y rehidratación debe ejecutarse de forma asíncrona sin bloquear operaciones de lectura y escritura en los módulos operativos.
+- **RNF-DEHYD-07 (Experiencia de Descarga No Intrusiva)**: La descarga dual debe ejecutarse sin provocar el bloqueo de ventanas emergentes en navegadores modernos (Chrome, Firefox, Safari, Edge).
+- **RNF-DEHYD-08 (Auditoría Forense Integral)**: Toda operación de corte o reincorporación debe quedar vinculada de forma indeleble al identificador y correo del administrador autenticado en sesión.
+- **RNF-DEHYD-09 (Accesibilidad Táctil y Usabilidad Móvil/Tablet)**: En dispositivos móviles y tabletas ($\le 768$ px), los modales de revisión deben adoptar un ancho fluido adaptativo (`max-width: calc(100% - 24px)`), las tablas internas deben permitir desplazamiento táctil suave (`-webkit-overflow-scrolling: touch`), los campos de formulario deben inhibir el auto-zoom forzado en Safari iOS manteniendo tamaño base de 16px, y la botonera de confirmación debe ordenarse en columna inversa con áreas táctiles mínimas de 44 px de altura.
+
+---
+
+## 16. Requerimientos de Despliegue en la Nube, Orquestación de Infraestructura (OpenTofu), DNS Route 53 y Sandbox de Auditoría de Seguridad (v2.8.0 - 2026.11.04)
+
+### `[SRS 16.1 Requerimientos Funcionales - Despliegue en Railway y Topología Multi-Proyecto]`
+
+- **RF-DEP-01 (Segregación de Ambientes en Dos Proyectos Railway)**:
+  - El sistema de producción de pruebas debe organizarse en dos proyectos desacoplados en Railway:
+    1. **Proyecto 1 (`abaq-dev-app`)**: Aloja los servicios del sistema principal (`frontend`, `backend` y base de datos `MongoDB`).
+    2. **Proyecto 2 (`abaq-organizador`)**: Aloja el sistema complementario de gestión interna (`organizador` en PHP 8.2 y base de datos `MySQL`).
+- **RF-DEP-02 (Contenerización Ligera de Frontend con Servidor SPA Express 5)**:
+  - El servicio `frontend` debe empaquetarse en un contenedor minimalista `node:22-alpine` que aloje los artefactos precompilados de Angular v22 en modo desarrollo (`dist/browser`) y un servidor Express 5 (`web-server.js`) configurado con middleware universal *catch-all* para responder a rutas pushState de HTML5 en el puerto 8080.
+  - El empaquetador debe excluir mediante `.railwayignore` las carpetas `node_modules/`, `react-mockup/` y archivos `.ts` fuente para garantizar tiempos de compresión y subida inferiores a 5 segundos.
+- **RF-DEP-03 (Contenerización y Resiliencia de Conexión en Backend Express)**:
+  - El servicio `backend` debe ejecutarse en Node.js v22 sobre el puerto 3000, implementando un mecanismo de conexión a base de datos polimórfico que evalúe prioritariamente variables de entorno (`MONGODB_URI` / `MONGO_URL`) sobre el DNS interno `mongodb.railway.internal:27017` y conserve fallback secundario a clústeres Atlas remotos.
+- **RF-DEP-04 (Aprovisionamiento de MongoDB en Railway con Proxy TCP)**:
+  - El sistema de base de datos de documentos debe desplegarse como un plugin nativo de MongoDB en Railway, con volumen persistente en `/data/db` y habilitación de un **Proxy TCP público dedicado** (`crossover.proxy.rlwy.net:23648`) para permitir sembrado automatizado de datos, auditorías remotas e inyecciones de prueba desde terminales autorizadas.
+- **RF-DEP-05 (Contenerización PHP 8.2 CLI y Auto-DDL de ABAQ-Organizador)**:
+  - El servicio `organizador` debe compilarse sobre `php:8.2-cli` con servidor web embebido `php -S 0.0.0.0:${PORT} -t /app` para eliminar conflictos de módulos MPM de Apache.
+  - La capa de persistencia `conexion.php` debe conectarse al servicio MySQL mediante variables dinámicas de entorno y auto-ejecutar sentencias DDL idempotentes (`CREATE TABLE IF NOT EXISTS`) para inicializar las 5 tablas del dominio (`usuarios`, `tareas`, `comentarios_extra_tareas`, `historial_actividad`, `notificaciones`), así como sembrar al administrador inicial `admin@abaq.org` con hash bcrypt.
+
+### `[SRS 16.2 Requerimientos Funcionales - Infraestructura como Código (OpenTofu) y AWS Route 53]`
+
+- **RF-IAC-01 (Gestión Declarativa de Registros DNS con OpenTofu v1.13.1)**:
+  - La configuración perimetral de red debe definirse como código fuente en `infrastructure/route53-railway/main.tf` y aplicarse de forma desatendida mediante OpenTofu utilizando las credenciales del perfil AWS `rout53`.
+- **RF-IAC-02 (Enrutamiento Canónico de Subdominios CNAME)**:
+  - El archivo de infraestructura debe gestionar la zona alojada pública `hypercoreqro.lat.` (`Z09055831PEII3K2XVDLB`) en `us-east-1`, aprovisionando registros `CNAME` con TTL de 300 segundos para:
+    - `abaq.hypercoreqro.lat` $\rightarrow$ Dominio de edge del frontend en Railway.
+    - `api.hypercoreqro.lat` $\rightarrow$ Dominio de edge del backend en Railway.
+    - `organizador.hypercoreqro.lat` $\rightarrow$ Dominio de edge del organizador en Railway.
+- **RF-IAC-03 (Automatización de Desafíos de Verificación TXT)**:
+  - OpenTofu debe aprovisionar simultáneamente los registros `TXT` solicitados por el proxy de Railway (`_railway-verify.abaq`, `_railway-verify.api`, `_railway-verify.organizador`) para permitir la emisión y renovación autónoma de certificados TLS de Let's Encrypt sin intervención manual.
+
+### `[SRS 16.3 Requerimientos No Funcionales - Sandbox de Seguridad y Pruebas de Resiliencia]`
+
+- **RNF-DEP-01 (Modo No-Producción / Sandbox Académico de Pentesting)**:
+  - Todos los servicios deben desplegarse deliberadamente bajo la bandera `NODE_ENV=development`. El sistema no debe interponer muros anti-bot (Cloudflare Turnstile), filtros de evasión WAF ni límites restrictivos de velocidad de peticiones (*rate limiting*), de manera que evaluadores académicos puedan realizar pruebas de inyección SQL/NoSQL, estrés de red y carga de archivos malformados para auditar la tolerancia del software a bajo nivel.
+- **RNF-DEP-02 (CORS Abierto y Reflexivo)**:
+  - La API de Express debe responder con cabeceras `Access-Control-Allow-Origin` reflexivas y `Access-Control-Allow-Credentials: true` ante cualquier origen (o peticiones nulas provenientes de herramientas como curl, Burp Suite o Postman), facilitando el análisis de seguridad dinámico.
+- **RNF-DEP-03 (Tolerancia a Caídas y Auto-Recuperación de Contenedores)**:
+  - Tanto en Railway como a nivel de proceso, los contenedores deben reiniciar su ejecución automáticamente (`restartPolicyType: ON_FAILURE`) en caso de que un payload de prueba o intento de saturación fuerce la detención del proceso (`panic` o `uncaughtException`), garantizando disponibilidad continua del entorno de pruebas.
+- **RNF-DEP-04 (Trazabilidad y Visibilidad de Errores Operacionales)**:
+  - Los códigos de respuesta HTTP de error (4xx y 5xx) deben retornar la descripción textual clara del fallo en formato JSON estructurado, permitiendo a los auditores identificar si una denegación fue producto de la lógica de negocio o de un error interno del motor.
+
+
+
 
 
 

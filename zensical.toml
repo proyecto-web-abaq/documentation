@@ -26,6 +26,9 @@ nav = [
     { "Implementación M5 (Ciclo de Vida y Folios)" = "technical/implementacion-m5-ciclo-vida.md" },
     { "Ideas y Propuestas" = [
       "technical/ideas/index.md",
+      { "Deshidratación, Manifiesto Dual y Rehidratación (2026-11-04)" = "technical/ideas/2026-11-04-deshidratacion-respaldos-rehidratacion.md" },
+      { "Paginación UI/UX y Datos Relacionales (2026-11-04)" = "technical/ideas/2026-11-04-paginacion-datos-relacionales.md" },
+      { "Transiciones de Estatus, Modal y Comentarios (2026-11-04)" = "technical/ideas/2026-11-04-transiciones-estatus-inactivacion.md" },
       { "Protección Perimetral Cloudflare (WAF y Turnstile)" = "technical/cloudflare-waf-turnstile-proposal.md" },
       { "Big Data y Analítica de Expedientes" = "technical/data-analysis-expedientes.md" },
       { "Despliegue en la Nube (Azure): Tres Arquitecturas y Costeo" = "technical/cloud-deployment.md" },
@@ -50,6 +53,7 @@ nav = [
     { "Operación" = [
       "technical/operacion/index.md",
       { "Stack Tecnológico" = "technical/tech-stack.md" },
+      { "Despliegue Real Railway & OpenTofu (Live)" = "technical/despliegue-real-railway-opentofu.md" },
       { "Despliegue en la nube (Azure)" = "technical/cloud-deployment.md" },
       { "Pipelines CI/CD" = "technical/cicd-pipelines-design.md" },
     ]},
@@ -59,6 +63,10 @@ nav = [
       { "Plan de Pruebas: Ciclo de Vida" = "technical/gestion-proyecto/plan-pruebas-ciclo-vida.md" },
       { "Estrategia de Ramas Git" = "technical/gestion-proyecto/estrategia-ramas.md" },
     ]},
+  ]},
+  { "Scripts" = [
+    { "Índice" = "scripts/index.md" },
+    { "Sembrado de Base de Datos (seed.sh)" = "scripts/seed-db.md" },
   ]},
   { "Reportes" = [
       { "Índice" = "reports/index.md" },

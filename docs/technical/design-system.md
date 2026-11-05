@@ -170,7 +170,7 @@ The product's native shape is an **Hour-Accreditation Pipeline, 4-Phase Guided O
 ### 5.2 4-Phase Guided Onboarding (`/auth/signup` — `OnboardingPhaseComponent`)
 - **Hero / Header**:
   - Title: `Registro de Colaborador`
-  - Subtitle: `Completa tu expediente institucional en 4 fases guiadas.`
+  - Subtitle: `Completa tu expediente institucional en el proceso de onboarding y registro guiado.`
   - Auto-save indicator: `cloud_done Guardado`
 - **Fase 1 — Perfil y Redes**:
   - Section `01`: `Datos de la cuenta` (Correo institucional/personal, contraseña de 12+ caracteres).

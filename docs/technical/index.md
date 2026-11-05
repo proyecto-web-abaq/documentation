@@ -67,7 +67,7 @@ icon: lucide/folder-git-2
     
     * **[Arquitectura C4](architecture.md)**: Diagramas de Contexto, Contenedores y Componentes.
     * **[Sistema de Diseño](design-system.md)**: Tokens visuales, gradientes, layout adaptativo y patrones.
-    * **[Diseño de Autenticación](auth-design.md)**: Flujo de onboarding en 4 fases, validación e inmutabilidad.
+    * **[Diseño de Autenticación](auth-design.md)**: Proceso de onboarding y registro, validación e inmutabilidad.
     * **[Mapa de Interfaces Figma](ui-prompts-figma.md)**: Prompts y especificaciones de pantalla.
     * **Esquema de Datos Mongoose**: Modelos relacionales desacoplados de estudiantes y voluntarios.
 
@@ -83,6 +83,7 @@ icon: lucide/folder-git-2
 
     Inventario técnico de producción, entornos y aprovisionamiento:
     
+    * **[Despliegue Real Railway & OpenTofu (Live)](despliegue-real-railway-opentofu.md)**: Topología multi-proyecto real, contenedores, Route 53 y sandbox de pruebas.
     * **[Stack Tecnológico Completo](tech-stack.md)**: Angular 19, Node.js 20+, Express y MongoDB Atlas.
     * **[Despliegue en la Nube](cloud-deployment.md)**: Opciones de hosting sobre grant Azure de \$2,000 USD.
     * **[Diseño de Pipelines](cicd-pipelines-design.md)**: Flujos CI/CD para frontend, backend e infraestructura.
@@ -105,6 +106,22 @@ icon: lucide/folder-git-2
 
     [:octicons-arrow-right-24: Ver Tareas y Progreso](tasks.md)
 
+-   :lucide-terminal:{ .lg .middle } __[💻 Scripts y Herramientas CLI](../scripts/index.md)__
+
+    ---
+
+    <span style="display: inline-block; background: #fdf2f8; color: #9d174d; font-size: 0.72rem; font-weight: 800; padding: 2px 8px; border-radius: 9999px; border: 1px solid #fbcfe8; margin-bottom: 8px;">
+      AUTOMATIZACIÓN & QA
+    </span>
+
+    Sección dedicada a scripts de mantenimiento, sembrado de base de datos y enriquecimiento de folios:
+    
+    * **[Sembrado de Base de Datos (`seed.sh`)](../scripts/seed-db.md)**: CLI ejecutable con flags `--all`, `--lifecycle`, `--models`, `--clean`, `--backfill-folios`.
+    * **Catálogo de 14 Modelos y Cuentas**: Inventario de cuentas con contraseña `123456789.a`, folios `OP-*`/`AC-*` y mascotas.
+    * **Sincronización Automática**: Manifiesto estructurado `cuentas-ciclo-vida.json` en raíz.
+
+    [:octicons-arrow-right-24: Ir a la Sección de Scripts](../scripts/index.md)
+
 </div>
 
 ***
@@ -118,3 +135,4 @@ icon: lucide/folder-git-2
 | **📐 Arquitectura** | Modelo C4 y Flujos de Identidad | [C4 Architecture](architecture.md) · [Auth & Onboarding](auth-design.md) | En Producción |
 | **⚙️ Operación** | Infraestructura y Despliegue | [Tech Stack](tech-stack.md) · [Cloud Deployment](cloud-deployment.md) | Documentado |
 | **📊 Gestión** | Sprint Planning y Control de Versiones | [Tareas (Tasks)](tasks.md) · [Estrategia Git](gestion-proyecto/estrategia-ramas.md) | Seguimiento Activo |
+| **💻 Scripts y CLI** | CLI `seed.sh`, Folios y Casos de Prueba | [Índice de Scripts](../scripts/index.md) · [Sembrado de Base de Datos (`seed.sh`)](../scripts/seed-db.md) | Operativo en Staging |

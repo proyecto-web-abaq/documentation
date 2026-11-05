@@ -40,25 +40,6 @@ hide:
   </div>
 </div>
 
-<div style="display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 30px;">
-  <div style="flex: 1; min-width: 180px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 16px;">
-    <div style="font-size: 0.72rem; color: #64748b; font-weight: 700; text-transform: uppercase;">Folios Institucionales</div>
-    <div style="font-size: 1.15rem; font-weight: 800; color: #047857;">100% Asignados</div>
-  </div>
-  <div style="flex: 1; min-width: 180px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 16px;">
-    <div style="font-size: 0.72rem; color: #64748b; font-weight: 700; text-transform: uppercase;">Meta de Servicio Social</div>
-    <div style="font-size: 1.15rem; font-weight: 800; color: #24366f;">480 Horas</div>
-  </div>
-  <div style="flex: 1; min-width: 180px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 16px;">
-    <div style="font-size: 0.72rem; color: #64748b; font-weight: 700; text-transform: uppercase;">Onboarding Formativo</div>
-    <div style="font-size: 1.15rem; font-weight: 800; color: #7c3aed;">4 Fases Guiadas</div>
-  </div>
-  <div style="flex: 1; min-width: 180px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 16px;">
-    <div style="font-size: 0.72rem; color: #64748b; font-weight: 700; text-transform: uppercase;">Seguridad Perimetral</div>
-    <div style="font-size: 1.15rem; font-weight: 800; color: #0284c7;">Cloudflare WAF Ready</div>
-  </div>
-</div>
-
 ***
 
 ## Secciones del Portal
@@ -95,8 +76,8 @@ hide:
     
     * **[Requisitos SRS (ISO/IEC/IEEE 29148)](technical/srs.md)**: Casos de uso y reglas de servicio.
     * **[Arquitectura C4](technical/architecture.md)**: Diagramas de Contexto, Contenedores y Componentes.
-    * **[Diseño de Autenticación](technical/auth-design.md)**: Onboarding en 4 fases y control por estado de cuenta.
-    * **[Stack Tecnológico](technical/tech-stack.md)**: Angular 19, Node.js/Express y MongoDB Atlas.
+    * **[Diseño de Autenticación](technical/auth-design.md)**: Proceso de onboarding y registro, y control por estado de cuenta.
+    * **[Stack Tecnológico](technical/tech-stack.md)**: Angular 22 Standalone, Node.js v24/Express y MongoDB Atlas.
     * **[Gestión del Proyecto y Git](technical/gestion-proyecto/index.md)**: Matriz de tareas y flujo de ramas.
 
     [:octicons-arrow-right-24: Ingresar al centro técnico](technical/index.md)

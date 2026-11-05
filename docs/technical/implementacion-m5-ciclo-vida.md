@@ -140,7 +140,25 @@ transición de `statusHistory`).
 - Visual: revisado por el usuario en navegador (Actividades, pestañas,
   participantes, pláticas/campañas).
 
+## Seguridad perimetral — Cloudflare (2026-11-03)
+
+Detalle completo en `cloudflare-waf-turnstile-proposal.md`. Resumen:
+
+- **Turnstile (en curso, desarrollo):** anti-bot en `/auth/login` y
+  `/auth/signup`. Site key pública `0x4AAAAAAFyFdIMaykCWh0xG`; secret en
+  `backend/.env` como `TURNSTILE_SECRET` (+ `TURNSTILE_HOSTNAMES`). Contrato
+  "gate, don't replace": el backend valida el token con `siteverify`
+  (`success`, acción, hostname) antes del handler, sin cambiar su lógica.
+  Dominios del widget: `localhost`, `127.0.0.1`, `hypercoreqro.lat`.
+- **WAF + proxy Cloudflare (diferido a producción):** oculta IP de origen,
+  rate-limiting (login 5/2min, signup 3/5min) y Bot Fight Mode. Requiere delegar
+  DNS; se hace al final, no en desarrollo.
+- `.env.example` actualizado: sincronizado con `.env` (APP_NAME, resend,
+  EMAIL_FROM/ADMIN_EMAIL de Resend) + nuevas `TURNSTILE_SECRET`,
+  `TURNSTILE_HOSTNAMES`, `BASE_URL`, `FRONTEND_URL`.
+
 ## Pendientes conocidos
 - `npm run test:backup` requiere credenciales de Atlas válidas en el entorno.
 - Submódulo `subprojects/tool-constancias`: no se incluyó en los commits (sin
   cambios intencionales en este trabajo).
+- Turnstile: pegar el `TURNSTILE_SECRET` real en `backend/.env` antes de probar.

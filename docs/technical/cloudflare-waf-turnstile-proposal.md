@@ -1,63 +1,114 @@
-# Arquitectura de Seguridad Perimetral: Cloudflare Proxy, WAF y Turnstile
+# Arquitectura de Seguridad Perimetral: Cloudflare Turnstile y WAF
 
-**Documento Técnico:** SEC-2026-CF01  
-**Sistema:** Plataforma Integral ABAQ Querétaro  
-**Módulo:** Seguridad Perimetral, Mitigación de Bots y Protección de Autenticación / Expedientes  
-**Estado:** Propuesta Técnica y Guía de Despliegue  
+**Documento Técnico:** SEC-2026-CF01
+**Sistema:** Plataforma Integral ABAQ Querétaro
+**Módulo:** Seguridad Perimetral, Mitigación de Bots y Protección de Autenticación
+**Estado:** Propuesta Técnica y Guía de Despliegue — actualizado 2026-11-03
+**Dominio objetivo:** `hypercoreqro.lat`
 
 ---
 
 ## 1. Contexto y Justificación
 
-El registro de aspirantes (onboarding de servicio social y voluntariado) y el acceso a la plataforma institucional ABAQ representan puntos críticos de exposición pública. En una arquitectura estándar sin proxy perimetral, la dirección IP del servidor de producción queda visible en los registros DNS públicos, permitiendo ataques de denegación de servicio (DDoS), escaneo de puertos, ataques de fuerza bruta de credenciales y saturación de la base de datos MongoDB mediante bots automatizados.
+El inicio de sesión (`/auth/login`) y el alta de aspirantes (`/auth/signup`,
+servicio social y voluntariado) son los puntos públicos más expuestos de ABAQ:
+ahí un bot puede crear cuentas falsas, probar contraseñas y saturar MongoDB.
 
-Para mitigar estos riesgos de forma transparente y sin fricción de usuario, se diseña una arquitectura basada en **Cloudflare Reverse Proxy**, **WAF con Rate Limiting** y **Cloudflare Turnstile**.
+Se adoptan **dos capas** de defensa, en **dos etapas**:
 
----
+1. **Turnstile (ahora, en desarrollo):** verificación humana en el navegador
+   antes de que el backend procese login/signup. Bajo esfuerzo, no requiere
+   tocar DNS.
+2. **WAF + Proxy Cloudflare (al final, antes de producción):** oculta la IP de
+   origen, aplica rate-limiting y mitiga DDoS. Requiere delegar DNS a Cloudflare.
 
-## 2. Arquitectura Perimetral
-
-1. **Proxy Inverso Edge (Nube Naranja):** Toda solicitud HTTP/HTTPS dirigida a `abaq.org.mx` o sus subdominios es interceptada por los servidores Edge de Cloudflare antes de tocar la infraestructura de ABAQ.
-2. **Ocultamiento de Origen:** La IP del servidor de producción solo acepta tráfico entrante de los rangos de IP autorizados de Cloudflare, neutralizando cualquier intento de conexión directa.
-3. **Cifrado Full (Strict):** Cifrado TLS 1.3 de extremo a extremo, utilizando certificados de origen de 15 años de Cloudflare en Nginx/Express.
-
----
-
-## 3. Integración de Cloudflare Turnstile
-
-Cloudflare Turnstile es una alternativa moderna y ética a CAPTCHA que verifica la autenticidad humana en milisegundos mediante desafíos criptográficos invisibles en el navegador.
-
-### Flujo Operativo:
-1. El usuario interactúa con la pantalla de inicio de sesión (`/auth/login`) o con la fase final de registro de expediente (`/onboarding/phase-4`).
-2. El widget de Turnstile evalúa heurísticas no invasivas y entrega un token efímero `turnstileToken`.
-3. El frontend de Angular adjunta este token en la carga útil de la petición (`POST /auth/login` o `POST /auth/signup-student`).
-4. El backend de Node.js/Express valida el token directamente contra el endpoint perimetral `https://challenges.cloudflare.com/turnstile/v0/siteverify` utilizando el `CLOUDFLARE_TURNSTILE_SECRET_KEY`.
-5. Si el token no es válido o proviene de un script de bot, el backend responde `403 Forbidden` inmediatamente sin consultar MongoDB.
+> **Las dos capas no son redundantes.** El login identifica *quién* entra;
+> Turnstile frena *bots*; el WAF filtra *tráfico malo* en el borde. Son planos
+> distintos.
 
 ---
 
-## 4. Guía de Configuración de Dominio y DNS
+## 2. Etapa 1 — Cloudflare Turnstile (implementación actual)
 
-### 4.1. Delegación de Nameservers
-1. Acceder al panel de administración del registrador donde se compró el dominio (ej. GoDaddy, Neubox, Akky, Namecheap).
-2. Localizar la sección de **DNS / Servidores de Nombres** y cambiar de los DNS por defecto a los Nameservers provistos por Cloudflare:
-   - `ns1.cloudflare.com`
-   - `ns2.cloudflare.com`
-3. Guardar cambios y aguardar la propagación DNS (5 min a 2 hrs).
+Turnstile verifica autenticidad humana con desafíos criptográficos no
+invasivos y entrega un token efímero que el backend valida con `siteverify`.
 
-### 4.2. Creación de Registros DNS Proxied
-En Cloudflare > DNS > Records:
-- Registro `A` | Nombre: `@` | Destino: `<IP_ORIGEN_ABAQ>` | Proxy: **Proxied (Naranja)**
-- Registro `A` | Nombre: `api` | Destino: `<IP_ORIGEN_ABAQ>` | Proxy: **Proxied (Naranja)**
-- Registro `CNAME` | Nombre: `www` | Destino: `abaq.org.mx` | Proxy: **Proxied (Naranja)**
+### 2.1. Datos del widget
+- **Site key (pública, frontend):** `0x4AAAAAAFyFdIMaykCWh0xG`
+- **Secret key (privada, backend):** vive en `backend/.env` como
+  `TURNSTILE_SECRET` (nunca en el repo; `.env` está en `.gitignore`).
+- **Dominios registrados en el widget:** `localhost`, `127.0.0.1` y
+  `hypercoreqro.lat`.
 
-### 4.3. Reglas de Rate Limiting en WAF
-- **Login Defense:** Máximo 5 peticiones POST a `/auth/login` por IP en ventana de 2 minutos.
-- **Signup Defense:** Máximo 3 peticiones POST a `/auth/signup*` por IP en ventana de 5 minutos.
-- **Bot Fight Mode:** Activo para mitigar scrapers y herramientas automáticas de escaneo.
+### 2.2. Superficies protegidas
+Contrato **"gate, don't replace"**: el widget se añade a la pantalla y el
+backend valida el token ANTES de su lógica actual, que no se modifica.
 
-### 4.4. Configuración en Express (`app.js`)
-Configurar `trust proxy` para que los controladores y middlewares lean correctamente la IP real mediante `cf-connecting-ip`:
+| Superficie | Ruta frontend | Acción | Handler backend |
+| --- | --- | --- | --- |
+| Inicio de sesión | `/auth/login` | `login` | `POST /auth/login` |
+| Registro | `/auth/signup` | `signup` | `POST /auth/signup` (y `signup-student`/`signup-volunteer`) |
+
+### 2.3. Flujo operativo
+1. El usuario abre `/auth/login` o `/auth/signup`; el widget de Turnstile evalúa
+   heurísticas y entrega un token `cf-turnstile-response`.
+2. El frontend Angular adjunta el token en el cuerpo del `POST`.
+3. El backend Node/Express valida el token contra
+   `https://challenges.cloudflare.com/turnstile/v0/siteverify` con
+   `TURNSTILE_SECRET`, exigiendo `success === true`, la acción esperada y un
+   hostname aprobado (`TURNSTILE_HOSTNAMES`).
+4. Si el token es inválido o de bot, responde `403` sin consultar MongoDB.
+5. Si es válido, corre el handler de login/signup sin cambios.
+
+> El `siteverify` SIEMPRE es servidor-a-servidor: navegador → backend ABAQ →
+> Cloudflare. El navegador nunca llama a `siteverify`.
+
+### 2.4. Variables de entorno (backend)
+| Variable | Uso |
+| --- | --- |
+| `TURNSTILE_SECRET` | Secret key del widget; valida el token en `siteverify`. |
+| `TURNSTILE_HOSTNAMES` | Hostnames de frontend permitidos. En dev: `localhost,127.0.0.1`. En producción: `hypercoreqro.lat` (sin localhost). |
+
+La site key es pública y puede ir en el `environment` del frontend.
+
+### 2.5. Entorno de pruebas (desarrollo)
+El widget acepta `localhost`/`127.0.0.1`, por lo que se prueba end-to-end en
+`http://localhost:4200` (frontend) contra `http://localhost:3000` (backend). La
+validación real exige: un token real exitoso aceptado una vez y su reintento
+(replay) rechazado.
+
+---
+
+## 3. Etapa 2 — WAF y Proxy Cloudflare (diferido a producción)
+
+Se implementa **al final**, cuando `hypercoreqro.lat` apunte a un servidor de
+producción. No se hace en desarrollo porque requiere delegar DNS.
+
+### 3.1. Proxy inverso y ocultamiento de origen
+- Todo el tráfico a `hypercoreqro.lat` pasa por el Edge de Cloudflare (nube
+  naranja) antes de tocar el origen.
+- El origen solo acepta rangos IP de Cloudflare.
+- TLS Full (Strict) con certificado de origen de Cloudflare.
+
+### 3.2. DNS
+1. Delegar nameservers del registrador a los de Cloudflare.
+2. Registros `A` (`@`, `api`) y `CNAME` (`www`) en modo **Proxied**.
+
+### 3.3. Rate limiting (WAF)
+- **Login:** máx. 5 `POST /auth/login` por IP cada 2 min.
+- **Signup:** máx. 3 `POST /auth/signup*` por IP cada 5 min.
+- **Bot Fight Mode** activo.
+
+### 3.4. Express tras el proxy
 ```javascript
-app.set('trust proxy', true);
+app.set('trust proxy', true); // leer IP real vía cf-connecting-ip
 ```
+
+---
+
+## 4. Orden de implementación
+
+1. **[en curso]** Turnstile en `/auth/login` y `/auth/signup` (dev).
+2. Pruebas end-to-end en localhost (token válido aceptado, replay rechazado).
+3. Despliegue a producción con dominio `hypercoreqro.lat`.
+4. **[al final]** WAF + proxy + rate limiting en Cloudflare.

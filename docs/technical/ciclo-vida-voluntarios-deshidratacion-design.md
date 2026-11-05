@@ -76,7 +76,7 @@ stateDiagram-v2
 ```
 
 ### 2.1 Estado `pending` (Default de Registro)
-- **Definición:** Estado inicial al completar el onboarding de 4 fases.
+- **Definición:** Estado inicial al completar el proceso de onboarding y registro.
 - **Acceso:** Restringido exclusivamente a la vista `/onboarding/expediente` en modo "Expediente Recibido en Validación".
 - **Restricción de Login:** Si el usuario ingresa credenciales válidas en `/login`, `AuthGuard` y `LoginComponent` lo redirigen obligatoriamente a `/onboarding/expediente`. No tiene acceso a APIs de consulta operativa ni al menú del portal.
 
@@ -1503,7 +1503,7 @@ interface StatusHistoryEntry {
    * *Re-registro tras rechazo (`re_registration`):*  
      `"Reactivación a estatus pendiente tras el reenvío de un nuevo expediente y formulario corregido por parte del colaborador."`
    * *Registro inicial (`initial_signup`):*  
-     `"Expediente digital recibido en 4 fases, pendiente de revisión y validación administrativa por la Coordinación de ABAQ."`
+     `"Expediente digital recibido en onboarding y registro, pendiente de revisión y validación administrativa por la Coordinación de ABAQ."`
 
 2. **Acciones Manuales del Administrador (Modal con Campo de Observaciones):**
    * Al **Rechazar un Expediente (`admin_rejection`)**: La UI despliega un modal con un campo de texto obligatorio para que el administrador redacte las observaciones específicas (ej. *"Falta adjuntar constancia oficial sellada por la universidad en la Fase 3"*, *"El enlace a Google Drive carece de permisos públicos de lectura"*).
