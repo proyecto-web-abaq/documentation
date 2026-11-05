@@ -307,7 +307,7 @@ flowchart TD
 2. **Autenticación del Documento**: `verifyCertificateHashToken(token)` desglosa el identificador, tipo de documento (`acceptance` o `completion`) y valida la firma HMAC con `CERT_SECRET`.
 3. **Carga en Memoria de Recursos Base64**: La función `loadSubmoduleAssets()` carga una sola vez en el ciclo de vida del servidor las fuentes (`GreatVibes`, `CrimsonText`) y gráficos oficiales (`logo_highres_trans.png`, `new_watermark_trans.png`), manteniéndolos en memoria RAM (~2.2 MB).
 4. **Composición de Plantilla**: Se reemplazan los marcadores `{{NOMBRE}}`, `{{DIA}}`, `{{MES}}`, `{{ANIO}}`, `{{LUGAR}}` y se inyecta la cabecera interactiva con el sello de validación criptográfica.
-5. **Renderizado en Cliente**: El navegador recibe el HTML y permite al usuario previsualizar la constancia en un lienzo de 1122px × 793px (A4 Horizontal), imprimirla con colores exactos (`print-color-adjust: exact`) o compilarla a archivo PDF en un clic usando `html2pdf.js`.
+5. **Renderizado en Cliente y Descarga Táctil**: El navegador recibe el HTML y permite al usuario previsualizar la constancia auto-escalada dinámicamente según el viewport (`--cert-scale`), imprimirla con colores exactos (`print-color-adjust: exact`) o compilarla a archivo de imagen PNG en un clic usando `html2canvas` a doble resolución (2x, 2244 × 1586 px).
 
 ### 2.4 Vista de Topología de Componentes (Component Topology View)
 
@@ -950,9 +950,10 @@ El subsistema de respaldos y deshidratación histórica se robustece conforme a 
   3. **Compresión Crítica de la Tarjeta de Constancias (`official-cert-card`)**: Al desplegarse en una cuadrícula multi-columna con layout flex horizontal, los botones con `white-space: nowrap` dejaban menos de 80px de ancho para el bloque de información en pantallas de tableta y móvil, colapsando el título, la descripción y los metadatos criptográficos en columnas verticales ilegibles.
   4. **Generación Pesada e Incompatible de Documentos en PDF**: El script de constancias generaba PDFs mediante Chromium y librerías cliente (`html2pdf.js`), dificultando la visualización inmediata y el guardado táctil en dispositivos móviles.
 - **Decisión**:
-  1. **Prevención Global de Auto-Zoom en iOS**:
-     - Configuración de `viewport-fit=cover` en la meta-etiqueta de viewport.
-     - En `frontend/src/styles.scss`, imposición de `font-size: 16px !important` bajo `@media screen and (max-width: 1024px)` para todos los elementos de formulario (`input`, `textarea`, `select`, `.form-control`, `.form-select`).
+  1. **Prevención Global y Definitiva de Auto-Zoom en Safari iOS / iPadOS**:
+     - Configuración estricta de `viewport-fit=cover, maximum-scale=1.0, user-scalable=no` en `<meta name="viewport">` de `frontend/src/index.html` y en la plantilla de constancias del backend.
+     - Imposición universal de `font-size: 16px !important` y `touch-action: manipulation` en `frontend/src/styles.scss` sin envoltorio `@media`, cubriendo teléfonos móviles, tabletas en orientación vertical y horizontal (iPad Pro / iPad Air / iPad Mini) y escritorio para todos los elementos interactivos (`input`, `select`, `textarea`, `button`, `.form-control`, `.form-input`, `.custom-input`, `.onboarding-input`, `.comments-textarea`, `.abaq-select-input`).
+     - Declaración de `-webkit-text-size-adjust: 100%` en `html` y `body` para anular ajustes arbitrarios del motor WebKit de Apple.
   2. **Transformación Táctil de Tablas a Tarjetas (Card Transformation)**:
      - Inyección de atributos `data-label` en cada celda `<td>` de las tablas de acreditaciones, actividades asignadas y grados académicos.
      - En pantallas `<= 900px`, ocultación de `<thead>` y conversión de filas `<tr>` en tarjetas verticales desacopladas con etiquetas institucionales destacadas (`td::before { content: attr(data-label); font-weight: 700; ... }`), garantizando legibilidad total sin scroll horizontal.
@@ -963,9 +964,11 @@ El subsistema de respaldos y deshidratación histórica se robustece conforme a 
      - Botón de acción (`btn-view-cert`) de ancho completo (`width: 100%`) con área táctil cómoda (`min-height: 44px`).
      - Despliegue horizontal amplio reservado exclusivamente para pantallas de escritorio (`min-width: 992px`).
      - Homologación del componente `.official-cert-card` en las cuatro vistas de expediente (`volunteer-profile`, `student-profile`, `volunteer-detail`, `student-detail`), soportando las variantes de Aceptación General, Aceptación Servicio Social y Término/Liberación (`.cert-completion`).
-  4. **Exportación Estricta de Constancias como Imagen PNG (Cero PDFs)**:
-     - En `backend/subprojects/tool-constancias/generate_html.js`, sustitución de `page.pdf` por `page.screenshot` con `deviceScaleFactor: 2` para generar exclusivamente archivos `.png` de alta resolución.
-     - En `backend/utils/certificates.js`, migración de `html2pdf.js` a `html2canvas`, habilitando el botón **`📥 Descargar Imagen (PNG)`** para guardado directo en la galería fotográfica del dispositivo móvil.
+  4. **Visor Web de Constancias Adaptable a Móvil/Tablet y Exportación Estricta a Imagen PNG (Cero PDFs)**:
+     - En `backend/utils/certificates.js`, implementación de un contenedor auto-escalador responsivo (`.cert-viewport-wrapper`) que calcula `--cert-scale` dinámicamente según el ancho del dispositivo (`window.innerWidth`), permitiendo que el lienzo nativo (1122 × 793 px) se ajuste con nitidez milimétrica en cualquier pantalla táctil (iPhone, iPad, Android) sin desbordamiento horizontal.
+     - Barra de herramientas flotante (`.abaq-top-bar`) con título truncado responsivo, botón directo **`📥 Descargar Imagen (PNG)`** y ocultación de impresión en pantallas ultracompactas (`<= 480px`).
+     - Captura fotográfica de alta resolución (2x, 2244 × 1586 px) vía `html2canvas` aislando temporalmente el `transform` para garantizar fidelidad cromática y tipográfica idéntica a la versión PDF original, pero exportando exclusivamente archivos `.png` a la galería local.
+     - En `backend/subprojects/tool-constancias/generate_html.js`, sustitución completa de `page.pdf` por `page.screenshot` (`deviceScaleFactor: 2`, `type: 'png'`) para la generación masiva offline.
 - **Consecuencias**:
   - *Positivas*: Interfaz 100% consumible y ergonómica en teléfonos y tabletas; tipografía de constancias legible sin compresión en todas las resoluciones; experiencia táctil sin saltos de zoom en Safari; descarga instantánea de certificados en imagen PNG nativa.
   - *Negativas*: Las tablas ocupan mayor altura vertical en móviles al expandirse como tarjetas individuales, compensado con el scroll natural del dispositivo.
