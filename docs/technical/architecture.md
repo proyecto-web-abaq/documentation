@@ -243,9 +243,10 @@ La vista lógica organiza el sistema en capas de responsabilidad única y desaco
     - Un usuario que completa el onboarding obtiene un token de autenticación para consultar su estatus en el expediente (`/auth/me`, `/auth/expediente-status`).
     - Dicho token mantiene a la cuenta en estado `pending`, impidiendo el acceso a los endpoints operativos de la plataforma (charlas, campañas, acreditaciones, actividades, pase de lista y colecciones de base de datos). El middleware de autorización rechaza cualquier solicitud no permitida con `403 Forbidden`, bloqueando a usuarios técnicos avanzados de interactuar directamente con la base de datos antes de la aprobación administrativa.
 - **Protección Perimetral y Anti-Bot con Cloudflare Turnstile Proxy**:
-  - Mitigación pasiva de bots y scripts maliciosos en `/login` y `/signup` mediante Cloudflare Turnstile.
-  - Validación del token en backend antes del procesamiento criptográfico de credenciales.
-  - Proxy inverso con DNS gestionado en Cloudflare para protección DDoS, HTTP/3, compresión Brotli y certificados SSL/TLS automáticos.
+  - Mitigación pasiva de bots y scripts maliciosos en todas las superficies públicas sin autenticación (`/auth/login`, `/auth/signup-student`, `/auth/signup-volunteer`, y las subrutas anónimas `/<recurso>/public` de adopción, campaña, identificación y charla) mediante Cloudflare Turnstile con acciones nominales por superficie.
+  - Validación canónica del token `cf-turnstile-response` en backend (`siteverify` servidor-a-servidor) antes del procesamiento criptográfico de credenciales o la persistencia de documentos, con verificación de `success`, `action` esperada y `hostname` autorizado.
+  - Gobernanza por entorno: `TURNSTILE_DISABLED=true` o ausencia de `TURNSTILE_SECRET` desactivan la exigencia para preservar la auditabilidad del sandbox de seguridad (SRS §16.3).
+  - Proxy inverso con DNS gestionado en Cloudflare para protección DDoS, HTTP/3, compresión Brotli y certificados SSL/TLS automáticos (etapa diferida; el DNS actual permanece en AWS Route 53 vía OpenTofu).
 - **Seguridad en Emisión de Constancias**:
   - Los certificados y cartas de aceptación no se acceden por ID numérico secuencial ni por nombre, sino por un hash token URL-safe: `st_[id]_[certType]_[hmac32]`.
   - La verificación utiliza `crypto.timingSafeEqual` para prevenir ataques de temporización (*timing attacks*).
@@ -1028,6 +1029,19 @@ El subsistema de respaldos y deshidratación histórica se robustece conforme a 
      - Cada pestaña cumple con un área de toque táctil mínima de 44px (`min-height: 44px`), alineación `scroll-snap-align: start`, y los badges numéricos quedan protegidos con `flex-shrink: 0`.
 - **Consecuencias**:
   - *Positivas*: Claridad semántica total entre estado de cuenta y tipo de voluntariado; vista panorámica inmediata de todos los colaboradores al abrir el módulo; navegación táctil fluida y ergonómica en móviles y tabletas; cero impacto visual en pantallas de escritorio.
+
+### ADR-22: Cobertura Integral de Turnstile en Superficies Públicas, Validación Canónica `siteverify` y Despliegue Railway sin GitHub (2026-11-06)
+- **Estado**: Aceptado — En Implementación.
+- **Contexto**: La ADR-12 protegía únicamente `/login` y `/signup`, pero el análisis de exposición identificó cinco puntos de escritura anónimos adicionales (`/adoption`, `/campaign`, `/identification`, `/talk` y los dos flujos de registro) que persisten documentos directamente en MongoDB sin autenticación. Además, el dominio `hypercoreqro.lat` es inaccesible en la red universitaria por bloqueo del TLD `.lat`, por lo que los dominios internos `*.up.railway.app` deben operar como hostnames válidos. El entorno objetivo es `development`/`testing`/`security-testing`, donde el SRS §16.3 exige que el anti-bot no interfiera con auditorías de penetración.
+- **Decisión**:
+  1. **Cobertura total de superficies públicas**: se aplica el contrato "gate, don't replace" a las 7 rutas `POST` anónimas (`/auth/login`, `/auth/signup-student`, `/auth/signup-volunteer` + fallback `/auth/signup`, y las nuevas subrutas `/<recurso>/public` de `/adoption`, `/campaign`, `/identification`, `/talk` declaradas antes de `protect`), cada una con una acción Turnstile nominal (`login`, `signup-student`, `signup-volunteer`, `public-adoption`, `public-campaign`, `public-identification`, `public-talk`).
+  2. **Middleware `requireTurnstile(action)` con validación canónica**: el backend ejecuta `siteverify` exigiendo `success === true`, `action` coincidente y `hostname` contenido en `TURNSTILE_HOSTNAMES` (`localhost`, `127.0.0.1`, `hypercoreqro.lat`, `www.hypercoreqro.lat`, `*.up.railway.app`); los tokens son de un solo uso y el frontend invoca `turnstile.reset()` tras cada intento.
+  3. **Interruptor de entorno para el sandbox**: `TURNSTILE_DISABLED=true` o la ausencia de `TURNSTILE_SECRET` desactivan la exigencia del token, reconciliando la protección anti-bot con RNF-DEP-01 (auditorías académicas sin interferencia).
+  4. **DNS preservado en Route 53**: Turnstile no requiere delegación de nameservers a Cloudflare; los registros de `hypercoreqro.lat` siguen gestionados por OpenTofu (`infrastructure/route53-railway`). La delegación a Cloudflare WAF permanece como etapa diferida de la SEC-2026-CF01.
+  5. **Publicación sin GitHub conectado**: los servicios `frontend` y `backend` se despliegan con `railway up` desde los repositorios locales, usando `.railwayignore` para subir únicamente `dist/` precompilado (frontend) y código fuente (backend), con variables de entorno administradas en Railway (`MONGO_URL` del plugin MongoDB, `TURNSTILE_SECRET`, `TURNSTILE_HOSTNAMES`, etc.).
+- **Consecuencias**:
+  - *Positivas*: Blindaje anti-bot uniforme en todos los puntos de escritura anónimos; cero fricción CAPTCHA para usuarios legítimos; operatividad en redes que bloquean `.lat` mediante dominios Railway; reversibilidad total del anti-bot por variable de entorno sin recompilar; trazabilidad de auditoría preservada.
+  - *Negativas*: Mayor superficie de widget que mantener (7 puntos de inserción); dependencia del script `api.js` de Cloudflare en el cliente; el secret del widget debe distribuirse y rotarse en cada entorno (local `.env`, Railway variables).
 
 ---
 

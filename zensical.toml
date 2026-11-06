@@ -26,6 +26,7 @@ nav = [
     { "Implementación M5 (Ciclo de Vida y Folios)" = "technical/implementacion-m5-ciclo-vida.md" },
     { "Ideas y Propuestas" = [
       "technical/ideas/index.md",
+      { "Turnstile Anti-Bot en Superficies Públicas y Despliegue Railway (2026-11-06)" = "technical/ideas/2026-11-06-turnstile-antibot-todas-las-superficies-publicas.md" },
       { "Deshidratación, Manifiesto Dual y Rehidratación (2026-11-04)" = "technical/ideas/2026-11-04-deshidratacion-respaldos-rehidratacion.md" },
       { "Paginación UI/UX y Datos Relacionales (2026-11-04)" = "technical/ideas/2026-11-04-paginacion-datos-relacionales.md" },
       { "Transiciones de Estatus, Modal y Comentarios (2026-11-04)" = "technical/ideas/2026-11-04-transiciones-estatus-inactivacion.md" },

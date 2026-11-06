@@ -624,9 +624,12 @@ abaq-backup-YYYY-MM-DD-HHmmss.zip
     - Esta protección a nivel de API garantiza que un usuario avanzado no pueda interactuar con la base de datos ni consultar datos de terceros a través de peticiones HTTP manuales antes de ser aprobado.
 
 - **RF-SEC-BOT-01 (Protección Perimetral y Anti-Bot con Cloudflare Turnstile Proxy)**:
-  - Los formularios públicos de `/login` y `/signup` se integran con Cloudflare Turnstile para verificar de forma pasiva y sin CAPTCHAs invasivos que la solicitud proviene de un ser humano.
-  - El backend valida el token `cf-turnstile-response` mediante llamada segura a `https://challenges.cloudflare.com/turnstile/v0/siteverify` antes de procesar contraseñas o generar documentos.
+  - Todas las superficies públicas sin autenticación se integran con Cloudflare Turnstile para verificar de forma pasiva y sin CAPTCHAs invasivos que la solicitud proviene de un ser humano. La cobertura mínima obligatoria comprende: `POST /auth/login`, `POST /auth/signup-student`, `POST /auth/signup-volunteer` (con fallback `/auth/signup`), `POST /adoption/public`, `POST /campaign/public`, `POST /identification/public` y `POST /talk/public`.
+  - Las subrutas `/<recurso>/public` de adopción, campaña, identificación y charla se declaran antes del middleware `protect` + `requireActiveAccount`, permaneciendo anónimas y validadas exclusivamente por Turnstile; las rutas autenticadas originales no se modifican.
+  - El backend valida el token `cf-turnstile-response` mediante llamada segura a `https://challenges.cloudflare.com/turnstile/v0/siteverify` antes de procesar contraseñas o generar documentos, exigiendo `success === true`, la acción Turnstile esperada por superficie (`login`, `signup-student`, `signup-volunteer`, `public-adoption`, `public-campaign`, `public-identification`, `public-talk`) y un hostname frontend contenido en `TURNSTILE_HOSTNAMES`.
+  - La verificación es gobernada por entorno: `TURNSTILE_DISABLED=true` o ausencia de `TURNSTILE_SECRET` desactivan la exigencia del token para no interferir con el sandbox de auditoría académica (SRS §16.3); en servicios orientados al público el secreto es obligatorio y su ausencia debe registrarse como advertencia operativa.
   - Se implementa arquitectura de Proxy Inverso Cloudflare sobre el dominio institucional con reglas de firewall WAF y limitación de tasa (*rate limiting*) para mitigar ataques DDoS y ataques de fuerza bruta.
+  - Los dominios válidos del widget y de `TURNSTILE_HOSTNAMES` comprenden `localhost`, `127.0.0.1`, `hypercoreqro.lat`, `www.hypercoreqro.lat` y los dominios internos `*.up.railway.app` de los servicios desplegados, garantizando la operatividad en redes que bloquean el TLD `.lat`.
 
 ---
 

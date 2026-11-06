@@ -11,6 +11,12 @@ Esta sección consolida las iniciativas técnicas, propuestas arquitectónicas y
 
 <div class="grid cards" markdown>
 
+-   :lucide-shield-check: **[Turnstile Anti-Bot en Todas las Superficies Públicas y Despliegue Railway (2026-11-06)](./2026-11-06-turnstile-antibot-todas-las-superficies-publicas.md)**
+
+    ---
+
+    Extensión de Cloudflare Turnstile a las 7 rutas públicas sin autenticación (login, signup estudiante/voluntario y formularios públicos de adopción, campaña, identificación y charla), validación canónica `siteverify`, ampliación de dominios del widget (`hypercoreqro.lat` + `*.up.railway.app`), DNS preservado en Route 53 y publicación con `railway up` sin GitHub conectado.
+
 -   :lucide-database-backup: **[Deshidratación, Manifiesto Dual (.zip + .txt MD) y Rehidratación (2026-11-04)](./2026-11-04-deshidratacion-respaldos-rehidratacion.md)**
 
     ---
@@ -85,6 +91,7 @@ Esta sección consolida las iniciativas técnicas, propuestas arquitectónicas y
 
 | Propuesta / Módulo | Área de Impacto | Estado | Documento de Referencia |
 | :--- | :--- | :--- | :--- |
+| **Turnstile Anti-Bot en Superficies Públicas y Despliegue Railway** | Seguridad, Anti-Bot, Frontend, Backend y Despliegue | En Implementación (6 nov 2026) | [Ver documento](./2026-11-06-turnstile-antibot-todas-las-superficies-publicas.md) |
 | **Deshidratación, Manifiesto Dual y Rehidratación** | Respaldos, Criptografía, UI y Base de Datos | Propuesta Aprobada — Fuente de Verdad (4 nov 2026) | [Ver documento](./2026-11-04-deshidratacion-respaldos-rehidratacion.md) |
 | **Transiciones de Estatus, Modal de Inactivación y Comentarios** | Ciclo de Vida, Seguridad, UI y Notificaciones | Propuesta para Autorización (4 nov 2026) | [Ver documento](./2026-11-04-transiciones-estatus-inactivacion.md) |
 | **Cloudflare Proxy & Turnstile** | Seguridad, WAF y Anti-Bot | Propuesta Técnica / Guía DNS | [Ver documento](../cloudflare-waf-turnstile-proposal.md) |
