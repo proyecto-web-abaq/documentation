@@ -1,9 +1,9 @@
 # Despliegue en la Nube con Railway, OpenTofu y AWS Route 53: Infraestructura Real y Operativa
 
 **Proyecto:** Plataforma Web ABAQ & Organizador de Tareas  
-**Versión:** 2026.11.04 (CalVer)  
-**Fecha:** 2026-11-04  
-**Estado:** **100 % Implementado y Operativo en Producción de Pruebas (Live)**  
+**Versión:** 2026.11.06 (CalVer)  
+**Fecha:** 2026-11-06  
+**Estado:** **100 % Implementado y Operativo en Railway (Live)** — servicios recreados como `frontend-github` y `backend-github` el 2026-11-06; ver §7  
 **Entorno Operativo:** `NODE_ENV=development` (Sandbox de Pruebas de Seguridad y Auditoría Académica)  
 **Dominio Base en AWS Route 53:** `hypercoreqro.lat` (Hosted Zone `Z09055831PEII3K2XVDLB`)  
 **Plataforma de Cómputo y Bases de Datos:** Railway Cloud Platform  
@@ -377,3 +377,73 @@ El sistema fue configurado de manera deliberada como **ambiente de desarrollo y 
 | **Backend REST API** | [https://backend-production-8a30d.up.railway.app](https://backend-production-8a30d.up.railway.app) | [https://api.hypercoreqro.lat](https://api.hypercoreqro.lat) | Bearer JWT / Login en `/auth/login` |
 | **ABAQ-Organizador** | [https://organizador-production-4fc3.up.railway.app](https://organizador-production-4fc3.up.railway.app) | [https://organizador.hypercoreqro.lat](https://organizador.hypercoreqro.lat) | `admin@abaq.org` / `Admin123!` |
 | **MongoDB Directo** | TCP: `crossover.proxy.rlwy.net:23648` | Interno: `mongodb.railway.internal:27017` | Usuario: `mongo` (Base: `abaqTesting--dev-rivers`) |
+
+---
+
+## 7. Re-despliegue del 2026-11-06: Servicios `*-github`, Migración del Build System y Nuevo Dominio `miabaq`
+
+El 6 de noviembre de 2026 se recrearon los servicios de aplicación del proyecto Railway `abaq-dev-app` como **`frontend-github`** y **`backend-github`**, conectados directamente a los repositorios `proyecto-web-abaq/frontend` y `proyecto-web-abaq/backend` (rama `dev`, autodisparo por *push*). Los servicios anteriores (`frontend` ID `a7e65b46`, `backend` ID `ea2b346e`) fueron eliminados. El servicio **MongoDB** (ID `8016a11e`) y su volumen persistente permanecen sin cambios.
+
+### 7.1 Migración del sistema de build de Angular (frontend)
+
+El builder `@angular-devkit/build-angular:browser-esbuild` está **deprecado** en Angular v22 (los builders de `@angular-devkit/build-angular` en general migran al paquete independiente `@angular/build`). Se ejecutó la migración oficial:
+
+```bash
+npx ng update @angular/cli --name use-application-builder
+```
+
+Cambios aplicados en `angular.json` y `package.json` (commit `1eb3c0d`):
+
+| Antes | Después |
+| :--- | :--- |
+| `@angular-devkit/build-angular:browser-esbuild` | `@angular/build:application` |
+| `@angular-devkit/build-angular:dev-server` | `@angular/build:dev-server` |
+| `@angular-devkit/build-angular:karma` | `@angular/build:karma` |
+| `@angular-devkit/build-angular:extract-i18n` | `@angular/build:extract-i18n` |
+| `outputPath: "dist/browser"` | `outputPath: { "base": "dist" }` (la salida sigue emitiéndose en `dist/browser`) |
+| `main: "src/main.ts"` | `browser: "src/main.ts"` |
+| devDependency `@angular-devkit/build-angular` | devDependency `@angular/build` |
+
+`ng serve` y `ng build --configuration development` fueron verificados localmente sin warnings de deprecación.
+
+### 7.2 Corrección del fallo de build en Railway (`environment.ts`)
+
+Los despliegues del 6 de noviembre fallaban en el paso `[build 7/7] RUN ng build --configuration development` del `Dockerfile` multi-stage. Causa raíz: **`src/environments/environment.ts` estaba ignorado por `.gitignore`** (`/src/environments/*`), por lo que no existía en el clon de GitHub dentro del contenedor. Es el archivo base de `fileReplacements` y es importado por ~16 servicios del frontend (`auth.service`, `accreditation.service`, etc.), por lo que TypeScript no podía resolver el módulo `environments/environment`.
+
+Correcciones (commit `c0c43f6`):
+
+1. `.gitignore`: se añadió la excepción `!/src/environments/environment.ts` y el archivo se versionó (solo contiene `apiUrl` y la *site key* pública de Turnstile; no contiene secretos).
+2. `Dockerfile`: la compilación ahora se ejecuta en modo no interactivo para que BuildKit registre el error completo en Railway:
+   ```dockerfile
+   RUN CI=true ./node_modules/.bin/ng build --configuration development --progress=false
+   ```
+
+### 7.3 Nuevo enrutamiento DNS y dominios (OpenTofu)
+
+Se actualizaron los registros de la zona `hypercoreqro.lat` en [`infrastructure/route53-railway/main.tf`](../../../infrastructure/route53-railway/main.tf):
+
+| Registro | Valor | Destino Railway |
+| :--- | :--- | :--- |
+| `miabaq.hypercoreqro.lat` (CNAME) | `da9jzhi1.up.railway.app` | Dominio custom del servicio `frontend-github` (puerto 8080) |
+| `_railway-verify.miabaq.hypercoreqro.lat` (TXT) | `railway-verify=3eb9fcee…089d1` | Verificación de dominio de Railway |
+| `api.hypercoreqro.lat` (CNAME) | `scm3nh79.up.railway.app` *(actualizado desde `h1hvh4t0.up.railway.app`, que pertenecía al servicio eliminado)* | Dominio custom del servicio `backend-github` |
+
+`tofu apply` reportó `2 added, 0 changed` para `miabaq` y `1 changed` para `api`. Los certificados TLS de `miabaq.hypercoreqro.lat` y `api.hypercoreqro.lat` fueron emitidos por Railway/Let's Encrypt tras la verificación.
+
+> **Nota:** `abaq.hypercoreqro.lat` sigue apuntando al CNAME `0cv17nrm.up.railway.app` del servicio `frontend` eliminado; queda pendiente decidir si se reasigna al nuevo `frontend-github` o se retira en favor de `miabaq.hypercoreqro.lat`.
+
+### 7.4 `apiUrl` del frontend
+
+Los tres archivos de entorno (`environment.ts`, `environment.development.ts`, `environment.production.ts`) apuntaban a `https://backend-production-8a30d.up.railway.app`, dominio del servicio `backend` eliminado. Se actualizaron a `https://api.hypercoreqro.lat` (commit `34f85ca`), que es el dominio estable del nuevo `backend-github`.
+
+### 7.5 Estado final verificado (2026-11-06 ~18:10 CST)
+
+| Servicio Railway | Commit | Deploy | URL |
+| :--- | :--- | :--- | :--- |
+| `frontend-github` | `34f85ca` (`dev`) | SUCCESS (`2d2273b3`) | https://miabaq.hypercoreqro.lat · https://frontend-github-production-cc64.up.railway.app |
+| `backend-github` | `b085a72` (`dev`) | SUCCESS (`04e4ae4d`) | https://api.hypercoreqro.lat · https://backend-github-production.up.railway.app |
+| `MongoDB` | — | SUCCESS | Interno: `mongodb.railway.internal:27017` · DB `abaqTesting--dev-rivers` |
+
+- **Backend → MongoDB:** `backend-github` conserva las variables `MONGODB_URI`/`MONGO_URL` con la URI interna `mongodb://mongo:***@mongodb.railway.internal:27017/abaqTesting--dev-rivers?authSource=admin`, por lo que la conexión usa la red privada de Railway (sin costo de egreso).
+- **Entorno:** todo sigue operando con `NODE_ENV=development` (sandbox de pruebas de seguridad), CORS reflexivo y Turnstile con interruptor `TURNSTILE_DISABLED`.
+- **Verificación HTTP:** `GET https://miabaq.hypercoreqro.lat/` → `200` (SPA Angular servida por `web-server.js`); `GET https://api.hypercoreqro.lat/` → `200`.
