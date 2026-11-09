@@ -21,6 +21,13 @@ nav = [
       { "Guía de entorno" = "guias/desarrollo/index.md" }
     ]}
   ]},
+  { "Organizador ABAQ" = [
+    { "Visión General" = "organizador-abaq/index.md" },
+    { "Arquitectura y Stack" = "organizador-abaq/arquitectura-y-stack.md" },
+    { "Tablero Kanban" = "organizador-abaq/kanban.md" },
+    { "Notificaciones y Resend" = "organizador-abaq/notificaciones-y-resend.md" },
+    { "Despliegue en Railway" = "organizador-abaq/despliegue-railway.md" },
+  ]},
   { "Documentación Técnica" = [
     { "Índice" = "technical/index.md" },
     { "Implementación M5 (Ciclo de Vida y Folios)" = "technical/implementacion-m5-ciclo-vida.md" },
