@@ -11,6 +11,12 @@ Esta sección consolida las iniciativas técnicas, propuestas arquitectónicas y
 
 <div class="grid cards" markdown>
 
+-   :lucide-layout-grid: **[Tablero Kanban y Notificaciones Mínimas con Resend (2026-11-09)](./2026-11-09-estrategia-kanban-notificaciones-resend.md)**
+
+    ---
+
+    Estrategia integral de flujo de tareas (corrección de bug de cancelación en Kanban, mitigación de flickering, soporte táctil/móvil) y arquitectura de notificaciones mínimas indispensables por correo vía Resend API (activación de cuenta, asignación y término) evitando fatiga de alertas.
+
 -   :lucide-shield-check: **[Turnstile Anti-Bot en Todas las Superficies Públicas y Despliegue Railway (2026-11-06)](./2026-11-06-turnstile-antibot-todas-las-superficies-publicas.md)**
 
     ---
@@ -91,6 +97,7 @@ Esta sección consolida las iniciativas técnicas, propuestas arquitectónicas y
 
 | Propuesta / Módulo | Área de Impacto | Estado | Documento de Referencia |
 | :--- | :--- | :--- | :--- |
+| **Tablero Kanban y Notificaciones Mínimas con Resend** | Gestión de Tareas, UX Móvil, Notificaciones y Correo | Implementado y Estable en Dev (9 nov 2026) | [Ver documento](./2026-11-09-estrategia-kanban-notificaciones-resend.md) |
 | **Turnstile Anti-Bot en Superficies Públicas y Despliegue Railway** | Seguridad, Anti-Bot, Frontend, Backend y Despliegue | En Implementación (6 nov 2026) | [Ver documento](./2026-11-06-turnstile-antibot-todas-las-superficies-publicas.md) |
 | **Deshidratación, Manifiesto Dual y Rehidratación** | Respaldos, Criptografía, UI y Base de Datos | Propuesta Aprobada — Fuente de Verdad (4 nov 2026) | [Ver documento](./2026-11-04-deshidratacion-respaldos-rehidratacion.md) |
 | **Transiciones de Estatus, Modal de Inactivación y Comentarios** | Ciclo de Vida, Seguridad, UI y Notificaciones | Propuesta para Autorización (4 nov 2026) | [Ver documento](./2026-11-04-transiciones-estatus-inactivacion.md) |
