@@ -1043,6 +1043,28 @@ El subsistema de respaldos y deshidratación histórica se robustece conforme a 
   - *Positivas*: Blindaje anti-bot uniforme en todos los puntos de escritura anónimos; cero fricción CAPTCHA para usuarios legítimos; operatividad en redes que bloquean `.lat` mediante dominios Railway; reversibilidad total del anti-bot por variable de entorno sin recompilar; trazabilidad de auditoría preservada.
   - *Negativas*: Mayor superficie de widget que mantener (7 puntos de inserción); dependencia del script `api.js` de Cloudflare en el cliente; el secret del widget debe distribuirse y rotarse en cada entorno (local `.env`, Railway variables).
 
+### ADR-23: Refinamiento de Usabilidad Táctil: Unificación de Tablas por Pestaña Dinámica, Píldoras Anti-Deformación, Desplazamiento Horizontal en Historial y Captura Robusta de Constancias en Imagen
+- **Estado**: Aceptado — En Registro de Diseño (2026-11-09).
+- **Contexto**:
+  1. **Tablas Duplicadas en Modo "Todos" (`/student`)**: La primera implementación de la pestaña "Todos" renderizaba secuencialmente dos tablas completas e independientes en el DOM (Servicio Social y Voluntariado General), creando una experiencia de navegación vertical confusa con doble paginación en móviles.
+  2. **Deformación Elíptica/Circular del Badge de Pendientes (`.pending-chip-btn`)**: En anchos de pantalla reducidos (`< 430px`, iPhone SE/Mini), el botón de solicitudes pendientes sufría fracturas de línea que deformaban su geometría en un círculo sobredimensionado y cortaban su texto ("⏳ 0 pendientes de...").
+  3. **Apilamiento Vertical de Pestañas en Historial (`/volunteers/history`)**: En dispositivos móviles estrechos (375px), las pestañas `.history-tabs` (`Estudiantes pasados`, `Voluntarios pasados`, `Bitácora`) se apilaban una sobre la otra debido a `flex-wrap: wrap`, consumiendo espacio vertical excesivo y rompiendo el estándar visual de la plataforma.
+  4. **Descarga de Constancias y Sellos Criptográficos en UI Web**: El botón directo de descarga de constancias en imagen PNG dependía de scripts externos vulnerables a bloqueos de red o desalineaciones en la captura del elemento raíz, mientras que las tarjetas de constancia en el frontend exponían textos técnicos ("Sello criptográfico HMAC-SHA256 · Verificable en línea con QR institucional") que recargaban visualmente la interfaz de usuario sin ser necesarios fuera del propio documento físico.
+- **Decisión**:
+  1. **Unificación Dinámica de Contenedor de Tabla (`/student`)**:
+     - Se unifica la estructura visual en un único contenedor de tabla/tarjetas controlado por pestañas.
+     - Al seleccionar "Todos", la tabla presenta el conjunto unificado de colaboradores ordenados; al alternar a "Servicio Social" o "Voluntariado General", la misma tabla se filtra contextualmente sin renderizar una segunda tabla debajo de la paginación.
+  2. **Geometría Blindada en Píldoras de Estado (`.pending-chip-btn`)**:
+     - Aplicación de `white-space: nowrap !important; max-width: 100%; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center;` con tipografía controlada, impidiendo que el badge se rompa en múltiples renglones o colapse en una forma circular desproporcionada en pantallas táctiles de cualquier resolución.
+  3. **Desplazamiento Horizontal con Scroll-Snap en Historial (`.history-tabs`)**:
+     - Se replica el patrón de diseño de `.vol-tabs`: `flex-wrap: nowrap !important; overflow-x: auto; -webkit-overflow-scrolling: touch; scroll-snap-type: x mandatory; scrollbar-width: none;`, permitiendo que en resoluciones de 375px las pestañas mantengan una sola fila horizontal táctil sin apilamientos verticales desordenados.
+  4. **Captura Fidedigna de Imagen PNG y Desacoplamiento de Sellos en UI**:
+     - El visualizador de certificados captura con precisión el lienzo `#certificateRoot` (1122 × 793 px a resolución 2x) garantizando que el archivo descargado sea el diploma institucional completo.
+     - Se retiran las leyendas redundantes de sellos criptográficos HMAC-SHA256 de las tarjetas y modales del frontend (`student-detail`, `volunteer-detail`, `volunteer-profile`, `student-profile`), preservando el sello criptográfico y el código QR de verificación de forma exclusiva en el lienzo impreso/digital de la constancia.
+- **Consecuencias**:
+  - *Positivas*: Interfaz administrativa limpia, minimalista y libre de duplicaciones; navegación táctil fluida con scroll horizontal coherente en todos los módulos (`/student`, `/volunteers/history`); componentes de estado visualmente estables sin deformación geométrica; preservación íntegra de la validez criptográfica del documento oficial.
+  - *Negativas*: Requiere mantener sincronizados los patrones SCSS de pestañas en los distintos componentes de listado.
+
 ---
 
 ## 4. Atributos de Calidad del Sistema (Quality Attributes)
