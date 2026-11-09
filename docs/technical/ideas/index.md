@@ -23,6 +23,12 @@ Esta sección consolida las iniciativas técnicas, propuestas arquitectónicas y
 
     Extensión de Cloudflare Turnstile a las 7 rutas públicas sin autenticación (login, signup estudiante/voluntario y formularios públicos de adopción, campaña, identificación y charla), validación canónica `siteverify`, ampliación de dominios del widget (`hypercoreqro.lat` + `*.up.railway.app`), DNS preservado en Route 53 y publicación con `railway up` sin GitHub conectado.
 
+-   :lucide-smartphone: **[Usabilidad Táctil en Móviles/Tabletas, Pestañas Unificadas, Píldoras Anti-Deformación y Constancias PNG (2026-11-05)](./2026-11-05-usabilidad-tactil-pestanas-tablas-constancias-png.md)**
+
+    ---
+
+    Propuesta integral de refinamiento táctil: unificación de la tabla administrativa de voluntarios en una sola vista reactiva por pestañas (sin tablas duplicadas apiladas), blindaje geométrico del badge de pendientes (`.pending-chip-btn`) para evitar deformaciones circulares en pantallas pequeñas (< 430px), scroll horizontal continuo en historial (`/volunteers/history`), descarga fidedigna del diploma en PNG y desacoplamiento de leyendas criptográficas en la UI web.
+
 -   :lucide-database-backup: **[Deshidratación, Manifiesto Dual (.zip + .txt MD) y Rehidratación (2026-11-04)](./2026-11-04-deshidratacion-respaldos-rehidratacion.md)**
 
     ---
