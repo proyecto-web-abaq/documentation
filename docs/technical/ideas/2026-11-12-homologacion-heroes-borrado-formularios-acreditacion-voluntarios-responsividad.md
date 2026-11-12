@@ -147,6 +147,17 @@ flowchart TD
 - **Respaldo en Componentes**: Se añadieron verificaciones síncronas y reactivas en `HomeComponent.ngOnInit` y `VolunteerHomeComponent.ngOnInit`, además de apagar el estado de carga (`isLoading = false`) en caso de no encontrar datos de estudiante.
 - **Enlace de Marca en Navbar**: Se actualizó el enlace del logo en `NavbarComponent` (`brand-link`) para resolver dinámicamente `homeRoute`, llevando a cada rol a su panel principal sin fricción.
 
+### 3.13 Homologación de Encabezado Hero en Plantillas de Actividades y Clarificación Institucional de "Campaña de esterilización"
+- **Homologación de Encabezado Hero en `/admin/quick-activities`**:
+  - Se transformó el antiguo encabezado plano `div.page-header` en el componente estándar institucional `<header class="admin-hero">`, compartiendo el gradiente `#24366f` a `#5ca83a`, ceja tipográfica (`.hero-eyebrow`: "GESTIÓN DE PLANTILLAS"), título H1, subtítulo descriptivo, botón de acción `.btn-create-item` ("+ Nueva plantilla" con icono `add_circle`) y píldora métrica reactiva (`.hero-stat-pill`) con el conteo de plantillas registradas.
+  - Se mantuvo y perfeccionó el enlace superior izquierdo `a.back-link` ("← Volver a actividades") reutilizando los estilos y proporciones de las páginas de detalle (`talk-detail`, `campaign-detail`, `identification-detail`).
+  - Se integraron reglas responsivas completas en `@media (max-width: 700px)` y `(max-width: 480px)` para colapso fluido de botones y tarjetas en dispositivos móviles.
+- **Clarificación de "Campaña de esterilización" en Catálogo de Acreditaciones**:
+  - En la modalidad `CAMPAIGN` de acreditaciones institucionales, la regla oficial exige $\ge 60$ animales inscritos e infraestructura médica/quirúrgica para acreditar 100 horas.
+  - Para eliminar cualquier ambigüedad frente a otras campañas generales (de recaudación, difusión o adopción), se homologó la etiqueta textual a **"Campaña de esterilización"** en:
+    - Selector desplegable y banner descriptivo de cálculo en `NewAccreditationModalComponent`.
+    - Tablas y detalles de acreditaciones en `AccreditationListComponent`, `StudentDetailComponent`, `VolunteerDetailComponent`, `MyAccreditationsComponent`, `StudentProfileComponent` y `VolunteerProfileComponent`.
+
 ---
 
 ## 4. Verificación y Resultados de Compilación
@@ -162,5 +173,5 @@ flowchart TD
    # Resultado: 0 errores de sintaxis en controladores y modelos Mongoose.
    ```
 3. **Control de Versiones y Despliegue en Railway**:
-   - Las ramas `dev` en `backend`, `frontend` y `documentation` fueron sincronizadas y etiquetadas formalmente bajo la versión CalVer `v2026.11.12.6`.
+   - Las ramas `dev` en `backend`, `frontend` y `documentation` fueron sincronizadas y etiquetadas formalmente bajo la versión CalVer `v2026.11.12.7`.
    - El push activa automáticamente los webhooks de compilación y despliegue continuo en Railway.
