@@ -1,8 +1,8 @@
 # Documento de Arquitectura de Software (SAD)
 **Estándar:** ISO/IEC/IEEE 42010:2022  
 **Proyecto:** Plataforma Web ABAQ (Servicio Social, Censo Comunitario y Documentación Pedagógica)  
-**Versión:** 2026.11.04 (CalVer)  
-**Fecha:** 2026-11-04  
+**Versión:** 2026.11.12 (CalVer)  
+**Fecha:** 2026-11-12  
 **Estado:** Aprobado e Implementado en Vivo (Railway Cloud + OpenTofu + AWS Route 53)  
 **Autores:** Equipo de Arquitectura e Ingeniería de Software ABAQ  
 
@@ -1064,6 +1064,33 @@ El subsistema de respaldos y deshidratación histórica se robustece conforme a 
 - **Consecuencias**:
   - *Positivas*: Interfaz administrativa limpia, minimalista y libre de duplicaciones; navegación táctil fluida con scroll horizontal coherente en todos los módulos (`/student`, `/volunteers/history`); componentes de estado visualmente estables sin deformación geométrica; preservación íntegra de la validez criptográfica del documento oficial.
   - *Negativas*: Requiere mantener sincronizados los patrones SCSS de pestañas en los distintos componentes de listado.
+
+### ADR-24: Homologación Visual de Encabezados (Admin Heroes), Eliminación Segura en Formularios de Servicio Social, Acreditación Desacoplada de Voluntarios Generales y Optimización en Viewports de 375px
+- **Estado**: Aceptado — Implementado en Rama `dev` (2026-11-12, CalVer `v2026.11.12`).
+- **Contexto**:
+  1. **Desbordamiento de Acciones en iPhone SE (375px)**: Los botones de acción en los formularios de Adopciones, Pláticas, Campañas y Placas forzaban un ancho mayor al viewport disponible en teléfonos compactos.
+  2. **Encabezados Desarticulados**: La experiencia administrativa mostraba cabeceras dispares en formularios de servicio social vs. el panel principal y listado de voluntarios.
+  3. **Ausencia de Borrado Seguro en Formularios Operativos**: Registros erróneos en adopciones, pláticas, campañas o identificaciones no podían eliminarse desde la interfaz administrativa ni contaban con ruta `DELETE` en la API.
+  4. **Fuga Conceptual de Horas en Voluntariado General**: El modal de acreditación solicitaba campos de horas y desplegaba avisos sobre acumulación de horas que no aplican a Voluntarios Generales.
+  5. **Concurrencia de Eventos en Combobox (`CustomSelectComponent`)**: Al interactuar con el menú desplegable teniendo un valor previo, se disparaba prematuramente el evento `blur` cerrando el menú.
+  6. **Contenedor Rígido en Actividades**: La vista `/activity-list` envolvía el contenido en `div.activities-content` con un padding estático que restaba área útil en pantallas medianas y móviles.
+- **Decisión**:
+  1. **Patrón `.admin-hero` Universal con Tarjetas de Métricas**:
+     - Se homologan los encabezados de Adopciones, Pláticas, Campañas, Placas y Acreditaciones con gradiente corporativo (`#24366f` a `#5ca83a`), cejas, subtítulos y píldoras métricas de conteo integradas.
+     - En resoluciones $\le 768$ px y $\le 380$ px, la botonera colapsa verticalmente (`flex-direction: column; width: 100%`), previniendo desbordamientos en iPhone SE (375px).
+  2. **Componente Reutilizable `DeleteConfirmModalComponent` y Endpoints REST `DELETE`**:
+     - Modal de confirmación que bloquea la acción hasta escribir textualmente `"borrar"`. Al confirmar, conmuta a estado "Borrando..." con spinner y auto-cierra tras completar la llamada HTTP.
+     - Backend Express implementa `DELETE /api/v1/adoptions/:id`, `/talks/:id`, `/campaigns/:id`, `/identifications/:id` utilizando `factory.deleteOne(Model)` bajo autenticación JWT.
+  3. **Componente Reutilizable `NewAccreditationModalComponent` Desacoplado**:
+     - Modal ampliado (`width: min(840px, 96vw)`) con selector unificado `[Folio] Nombre completo`.
+     - Si el colaborador es un Voluntario General (`isVolunteerGeneral`), se suprimen estrictamente campos de horas, notas de horas y badges informativos, asignando `hoursPerformed: 0` y `hoursAccredited: 0`.
+  4. **Blindaje de Foco en `CustomSelectComponent`**:
+     - Invocación de `(mousedown)="$event.preventDefault()"` en dropdown y opciones, cancelando el blur prematuro y auto-seleccionando el texto al recibir foco para facilitar búsqueda inmediata.
+  5. **Desacoplamiento Estructural en `/activity-list`**:
+     - Se remueve `div.activities-content`, otorgando 100% de ancho a la tabla y tarjetas de actividades, y convirtiendo su encabezado en un `.admin-hero` autónomo con botón superior izquierdo `+ Nueva actividad`.
+- **Consecuencias**:
+  - *Positivas*: Cohesión visual absoluta en toda el área de administración; eliminación protegida sin riesgo de pérdida accidental de datos; respeto al modelo de dominio que separa horas curriculares de voluntariado general; interfaz 100% responsiva y usable en iPhone SE (375px); reducción drástica de duplicación de código en modales.
+  - *Negativas*: Requiere que cualquier nueva entidad administrativa implemente el patrón de endpoints de fábrica (`deleteOne`) y el modal homologado.
 
 ---
 

@@ -2,8 +2,8 @@
 **Estándar:** ISO/IEC/IEEE 29148:2018  
 **Proyecto:** Plataforma Web ABAQ (Servicio Social, Censo Comunitario y Documentación Pedagógica)  
 **Módulos:** Autenticación, Proceso de Onboarding y Registro, Certificados Criptográficos, Respaldos y Rollback, Seguridad y Reglas de Negocio, Paridad SS/VG y Auditoría de Expediente  
-**Versión:** 2026.11.04 (CalVer)  
-**Fecha:** 2026-11-04 (Histórico CalVer: 2026.11.03 · 2026.10.31 · 2026.10.30 · 2026.10.22 · 2026.09.03)  
+**Versión:** 2026.11.12 (CalVer)  
+**Fecha:** 2026-11-12 (Histórico CalVer: 2026.11.04 · 2026.11.03 · 2026.10.31 · 2026.10.30 · 2026.10.22 · 2026.09.03)  
 **Estado:** Aprobado y Operativo en Producción de Pruebas (Railway Cloud + OpenTofu + AWS Route 53)  
 **Autores:** Equipo de Ingeniería de Requerimientos y Arquitectura ABAQ  
 
@@ -973,6 +973,50 @@ abaq-backup-YYYY-MM-DD-HHmmss.zip
   - Tanto en Railway como a nivel de proceso, los contenedores deben reiniciar su ejecución automáticamente (`restartPolicyType: ON_FAILURE`) en caso de que un payload de prueba o intento de saturación fuerce la detención del proceso (`panic` o `uncaughtException`), garantizando disponibilidad continua del entorno de pruebas.
 - **RNF-DEP-04 (Trazabilidad y Visibilidad de Errores Operacionales)**:
   - Los códigos de respuesta HTTP de error (4xx y 5xx) deben retornar la descripción textual clara del fallo en formato JSON estructurado, permitiendo a los auditores identificar si una denegación fue producto de la lógica de negocio o de un error interno del motor.
+
+---
+
+## 17. Requerimientos de Homologación de Encabezados (Admin Heroes), Borrado Validado en Formularios de Servicio Social, Acreditación Desacoplada y Usabilidad Móvil (v2.9.0 - 2026.11.12)
+
+### `[SRS 17.1 Requerimientos Funcionales - Formularios de Servicio Social y Borrado Validado]`
+
+- **RF-FORM-DEL-01 (Eliminación Segura de Registros con Guard de Tipeo "borrar")**:
+  - En los 4 formularios de servicio social (`Adopciones`, `Pláticas`, `Campañas EST` y `Placas de Identificación`), el sistema debe permitir a los administradores autenticados eliminar registros individuales mediante un botón explícito *"Borrar registro"*.
+  - Al pulsar el botón, debe desplegarse obligatoriamente un diálogo modal de seguridad (`DeleteConfirmModalComponent`) que requiera teclear explícitamente la palabra `"borrar"` (o `"BORRAR"`) para desbloquear la acción de confirmación.
+  - Al presionar el botón de confirmación desbloqueado, el botón debe mutar de inmediato a estado *"Borrando..."* con indicador visual de carga (*spinner* animado) y permanecer deshabilitado para evitar peticiones concurrentes o dobles clics accidentales.
+  - Al recibir confirmación exitosa del backend (`HTTP 204 No Content` o `HTTP 200 OK`), el modal debe auto-cerrarse y la aplicación debe redirigir reactivamente al listado correspondiente con los datos sincronizados.
+
+- **RF-FORM-EP-01 (Endpoints RESTful de Eliminación en Backend)**:
+  - El backend Express debe exponer rutas `DELETE` protegidas bajo middleware `requireActiveAccount` para las entidades del dominio de servicio social:
+    - `DELETE /api/v1/adoptions/:id`
+    - `DELETE /api/v1/talks/:id`
+    - `DELETE /api/v1/campaigns/:id`
+    - `DELETE /api/v1/identifications/:id`
+  - La eliminación debe ejecutarse mediante la función de fábrica reutilizable `factory.deleteOne(Model)` sobre los esquemas Mongoose correspondientes.
+
+### `[SRS 17.2 Requerimientos Funcionales - Acreditación Desacoplada de Voluntarios Generales y Modal Extendido]`
+
+- **RF-ACCRED-VG-01 (Acreditación Sin Cómputo de Horas para Voluntarios Generales)**:
+  - En el componente unificado de acreditación (`NewAccreditationModalComponent`), si el colaborador seleccionado es un Voluntario General (`VG`), el sistema debe omitir estrictamente todo campo numérico de horas a acreditar y ocultar todas las cajas informativas o insignias que hagan mención a acumulación de horas escolares (p. ej. periodo de prueba en adopciones, horas fijas por difusión en medios, horas escalonadas por reacciones en redes sociales o donaciones monetarias).
+  - La acreditación de un Voluntario General debe registrarse con `hoursPerformed: 0` y `hoursAccredited: 0`, vinculándose al documento del voluntario mediante `volunteerRef` sin alterar métricas curriculares.
+- **RF-ACCRED-PICK-01 (Paso Previo de Selección por Folio y Nombre)**:
+  - Al invocar la creación de acreditaciones desde la vista general (`/admin/accreditations`), el modal debe requerir como primer paso seleccionar al colaborador destinatario mediante un selector asistido (`app-custom-select`) que cargue concurrentemente estudiantes y voluntarios generales bajo la nomenclatura canónica `[Folio] Nombre completo`.
+
+### `[SRS 17.3 Requerimientos Funcionales - Homologación de Encabezados y Gestión de Actividades]`
+
+- **RF-HERO-HOM-01 (Homologación Visual de Encabezados Admin Hero)**:
+  - Todas las vistas de formularios de servicio social (`adoptions`, `talks`, `campaigns`, `identifications`) y sus respectivas pantallas de detalle deben implementar el componente visual `.admin-hero` con gradiente institucional (`#24366f` a `#5ca83a`), ceja tipográfica en mayúsculas, título de sección, subtítulo descriptivo y píldora de métrica integrada con conteo de registros en tiempo real.
+  - En las vistas de detalle, la barra `.hero-top-bar` debe anclarse en la esquina superior izquierda del hero con botones para regresar al listado y para eliminar el registro.
+- **RF-ACT-LAYOUT-01 (Desacoplamiento Estructural de Contenedores en Actividades)**:
+  - La vista `/activity-list` debe retirar el contenedor envolvente restrictivo `div.activities-content` y su padding fijo de `32px 36px 42px`, permitiendo que el encabezado `.activities-header` opere de manera autónoma como un hero institucional y que las tablas y tarjetas aprovechen el 100% del ancho útil de la pantalla.
+
+### `[SRS 17.4 Requerimientos No Funcionales - Responsividad Móvil y Usabilidad de Controles]`
+
+- **RNF-RESP-SE-01 (Tolerancia en Pantallas Ultra-Angostas / iPhone SE 375px)**:
+  - Ningún botón, tarjeta o encabezado debe desbordarse horizontalmente en pantallas con ancho de viewport $\ge 375$ px. En resoluciones $\le 768$ px y $\le 380$ px, las filas de acciones en los heroes (`.hero-actions-row`) deben colapsar verticalmente a columna completa (`width: 100%`) con centrado y espaciado táctil seguro ($\ge 44$ px de altura táctil).
+- **RNF-SELECT-BLUR-01 (Prevención de Cierre Prematuro en Selector Personalizado)**:
+  - El componente `CustomSelectComponent` debe suprimir la pérdida involuntaria de foco (`blur`) al interactuar o mover el cursor sobre las opciones del menú desplegable mediante `(mousedown)="$event.preventDefault()"`, gestionando un temporizador debounced de 250ms que se cancela al seleccionar o interactuar con el control.
+
 
 
 

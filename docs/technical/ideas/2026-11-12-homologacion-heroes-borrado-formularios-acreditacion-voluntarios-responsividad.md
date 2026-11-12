@@ -1,0 +1,129 @@
+---
+title: "Homologación Visual de Encabezados (Admin Heroes), Borrado Validado en Formularios de Servicio Social, Acreditación Desacoplada de Voluntarios Generales y Optimización Móvil (iPhone SE)"
+date: 2026-11-12
+icon: lucide/layout-template
+author: "Antigravity Coding Agent & Equipo de Ingeniería ABAQ"
+status: "Implementado y Estable en Dev"
+---
+
+# 🎨 Homologación Visual de Encabezados (Admin Heroes), Borrado Validado en Formularios de Servicio Social, Acreditación Desacoplada de Voluntarios Generales y Optimización Móvil (iPhone SE)
+
+- **Fecha:** 12 de noviembre de 2026
+- **Estado:** 🟢 **Implementado y Estable en Rama `dev`** (Versión CalVer `v2026.11.12`)
+- **Ámbito:** Frontend Angular v22 (Standalone Components / SCSS BEM / Reactive UI), Backend Node.js / Express v4 (Mongoose ORM / RESTful Endpoints)
+- **Documentos Relacionados:** [`srs.md`](../srs.md) · [`architecture.md`](../architecture.md) · [`design-system.md`](../design-system.md) · [`datos-respaldo-recuperacion-design.md`](../datos-respaldo-recuperacion-design.md)
+
+---
+
+## 1. Resumen Ejecutivo y Diagnóstico
+
+Durante la fase de validación operativa en dispositivos móviles y estaciones de trabajo administrativas, se detectaron áreas clave de optimización en la experiencia de usuario (UX), consistencia visual (UI) y robustez transaccional:
+
+1. **Desborde de Botones en Pantallas Ultra-Angostas (iPhone SE / 375px):** En las vistas de formularios de Servicio Social (Adopciones, Pláticas, Campañas EST, Placas de Identificación), el botón de acción principal (`.btn-copy-form` / `.copy-form-button`) se desbordaba horizontalmente hacia la derecha, superando el viewport visible y forzando scroll horizontal no deseado.
+2. **Disparidad Visual en Encabezados Administrativos:** Los 4 formularios de servicio social y la vista de acreditaciones utilizaban cabeceras divergentes con estilos antiguos, careciendo del gradiente institucional característico (`#24366f` a `#5ca83a`), cejas tipográficas (*eyebrows*), subtítulos descriptivos y píldoras métricas de conteo de registros.
+3. **Carencia de Eliminación Segura en Formularios Operativos:** No existía mecanismo en la interfaz ni en el backend para eliminar registros erróneos o duplicados en Adopciones, Pláticas, Campañas o Placas. Para prevenir borrados accidentales, se requería un diálogo modal validador que exigiera al administrador escribir textualmente la palabra `"borrar"`.
+4. **Mezcla Conceptual de Horas en Acreditaciones de Voluntarios Generales (`VG`):** El modal original de acreditaciones forzaba la captura de horas de servicio social y mostraba leyendas educativas sobre acumulación de horas. Los Voluntarios Generales participan comunitariamente sin fines curriculares, por lo que cualquier referencia o cómputo de horas académicas en su expediente resulta inválida.
+5. **Cierre Involuntario del Selector Desplegable (`CustomSelectComponent`):** Al tener una opción seleccionada y abrir el menú desplegable, si el usuario movía el cursor sobre la lista, el evento `blur` se disparaba de forma prematura cerrando el dropdown e impidiendo elegir otra opción cómodamente. Asimismo, el modal anterior de acreditación presentaba dimensiones excesivamente reducidas (`max-width: 600px`).
+6. **Contenedor Restrictivo en Gestión de Actividades (`div.activities-content`):** En `/activity-list`, un contenedor con padding rígido limitaba el ancho útil de la tabla y las tarjetas, restando espacio operativo en pantallas intermedias y móviles.
+
+---
+
+## 2. Arquitectura de Solución Implementada
+
+```mermaid
+flowchart TD
+    subgraph UI_Admin ["Capa de Presentación Homologada (Angular v22)"]
+        HERO["section.admin-hero<br/>• Gradiente Institucional (#24366f ➔ #5ca83a)<br/>• Eyebrow + Título + Subtítulo<br/>• Píldoras Métricas Integradas<br/>• Colapso Responsivo a Columna (375px)"]
+        
+        DEL_MODAL["DeleteConfirmModalComponent<br/>• Guard de tipeo obligatorio: 'borrar'<br/>• Estado 'Borrando...' anti doble-clic<br/>• Auto-cierre y redirección reactiva"]
+        
+        ACCRED_MODAL["NewAccreditationModalComponent<br/>• Dimensiones ampliadas (840px / 90vh)<br/>• Selector híbrido [Folio] Nombre<br/>• Detección reactiva SS vs. VG<br/>• Ocultamiento estricto de horas en VG"]
+        
+        SELECT_FIX["CustomSelectComponent Refinado<br/>• mousedown preventDefault en opciones<br/>• Temporizador de blur controlado (250ms)<br/>• Selección automática de texto en foco"]
+    end
+
+    subgraph Backend_REST ["Servicios de Persistencia Backend (Express + Mongoose)"]
+        DEL_EP["Endpoints DELETE RESTful<br/>• DELETE /api/v1/adoptions/:id<br/>• DELETE /api/v1/talks/:id<br/>• DELETE /api/v1/campaigns/:id<br/>• DELETE /api/v1/identifications/:id"]
+        FACTORY["factory.deleteOne(Model)<br/>Validación JWT y requireActiveAccount"]
+    end
+
+    HERO --> DEL_MODAL
+    HERO --> ACCRED_MODAL
+    ACCRED_MODAL --> SELECT_FIX
+    DEL_MODAL ==>|"HTTP DELETE"| DEL_EP
+    DEL_EP --> FACTORY
+```
+
+---
+
+## 3. Detalle de Cambios por Módulo
+
+### 3.1 Eliminación de Desborde y Responsividad en iPhone SE (375px)
+- **Modificación SCSS**: En `.admin-hero`, la fila de cabecera `.hero-header-row` y el bloque de acciones `.hero-actions-row` se transforman en diseño de columna con `flex-direction: column; width: 100%` en viewports $\le 768$ px y $\le 380$ px.
+- **Botón Copiar Enlace**: Pasa a ocupar el 100% del ancho del contenedor en móviles, centrado, con tipografía y espaciado ajustado para evitar roturas de línea incómodas o desbordamiento fuera de pantalla.
+
+### 3.2 Homologación de Encabezados `.admin-hero` con Tarjetas de Métricas
+- **Formularios Adaptados**:
+  - `/admin/adoptions` y su detalle `/admin/adoptions/:id`.
+  - `/admin/talks` y su detalle `/admin/talks/:id`.
+  - `/admin/campaigns` y su detalle `/admin/campaigns/:id`.
+  - `/admin/identifications` y su detalle `/admin/identifications/:id`.
+  - `/admin/accreditations` (pestañas de pendientes e historial).
+- **Consistencia Visual**:
+  - Eyebrow tipográfico en mayúsculas (`FORMULARIO DE SERVICIO SOCIAL`, `DETALLE DE ADOPCIÓN`, etc.).
+  - Píldoras de métricas translúcidas con efecto *backdrop blur* que muestran en tiempo real la cantidad de registros en base de datos.
+  - Vistas de detalle con barra superior `.hero-top-bar` anclada arriba a la izquierda, conteniendo el botón de regreso y el botón de borrado de registro.
+
+### 3.3 Componente Reusable `DeleteConfirmModalComponent`
+- **Ubicación**: `frontend/src/app/components/shared/delete-confirm-modal/`
+- **Validación Estricta**: El botón de confirmación permanece deshabilitado hasta que el usuario teclea exactamente `"borrar"` (o `"BORRAR"`).
+- **Prevención de Doble Envío**: Al pulsar el botón, entra en estado de carga con spinner (`isDeleting = true`), bloqueando el botón e informando visualmente *"Borrando..."*.
+- **Auto-cierre**: Al completarse la petición HTTP con código 204 o 200, el modal se oculta y el usuario es redirigido automáticamente al listado correspondiente con su estado actualizado.
+
+### 3.4 Backend: Rutas y Controladores `DELETE`
+- **Endpoints Habilitados**:
+  - `DELETE /api/v1/adoptions/:id` $\rightarrow$ `deleteAdoption` vía `factory.deleteOne(Adoption)`
+  - `DELETE /api/v1/talks/:id` $\rightarrow$ `deleteTalk` vía `factory.deleteOne(Talk)`
+  - `DELETE /api/v1/campaigns/:id` $\rightarrow$ `deleteCampaign` vía `factory.deleteOne(Campaign)`
+  - `DELETE /api/v1/identifications/:id` $\rightarrow$ `deleteIdentification` vía `factory.deleteOne(Identification)`
+- **Seguridad**: Todas las rutas exigen autenticación por token JWT activo mediante el middleware `requireActiveAccount`.
+
+### 3.5 Modal Reusable `NewAccreditationModalComponent` y Desacoplamiento SS / VG
+- **Ubicación**: `frontend/src/app/components/shared/new-accreditation-modal/`
+- **Dimensiones**: Ampliado a `width: min(840px, 96vw)` y `max-height: min(90vh, 880px)` con scroll interno independiente y pie de página fijo.
+- **Paso Previo en Acreditaciones Globales**: Incluye un selector desplegable unificado que carga concurrentemente estudiantes y voluntarios generales bajo la nomenclatura `[Folio] Nombre completo`.
+- **Lógica para Voluntarios Generales (`isVolunteerGeneral`)**:
+  - Muestra un banner distintivo con icono de corazón indicando: *"Voluntario General: Registro de actividad institucional (no contabiliza horas de servicio social)"*.
+  - Oculta el campo numérico de horas a acreditar en actividades administrativas.
+  - Oculta todas las cajas de ayuda que mencionen acumulación de horas (período de prueba de adopción, 30 horas de difusión, 5 horas base de redes sociales, 1 hora por cada $50 recaudados).
+  - Al enviar la acreditación, despacha `hoursPerformed: 0`, `hoursAccredited: 0` y vincula a `volunteerRef`.
+- **Integración Global**: El componente fue integrado de forma transparente en `accreditation-list`, `student-detail` y `volunteer-detail`, eliminando duplicación de código en tres vistas críticas.
+
+### 3.6 Corrección de Eventos en `CustomSelectComponent`
+- **Ubicación**: `frontend/src/app/components/ui/custom-select/custom-select.component.ts`
+- Se agregó `(mousedown)="$event.preventDefault()"` tanto en el contenedor del dropdown como en cada opción individual, previniendo que el navegador transfiera el foco al hacer clic o mover el ratón y cancelando el evento `blur`.
+- El temporizador de blur (`blurTimeout`) cuenta con un retardo de 250ms y es cancelado inmediatamente en eventos de foco, alternancia o selección.
+- Al enfocar el campo de texto, el valor actual se auto-selecciona (`input.select()`), permitiendo al usuario escribir para filtrar inmediatamente sin requerir borrar manualmente el texto preexistente.
+
+### 3.7 Desacoplamiento de Contenedores en `/activity-list`
+- Se eliminó la etiqueta restrictiva `div.activities-content` y su padding fijo de `32px 36px 42px`.
+- El encabezado `.activities-header` opera ahora de manera autónoma como un `.admin-hero` con botón `+ Nueva actividad` arriba a la izquierda.
+- La barra de búsqueda, filtros y cuadrícula de tarjetas aprovechan el 100% del ancho del viewport con espaciado fluido.
+
+---
+
+## 4. Verificación y Resultados de Compilación
+
+1. **Compilación Frontend**:
+   ```bash
+   npm --prefix frontend run build -- --configuration=development
+   # Resultado: Application bundle generation complete. 0 errores, 0 advertencias.
+   ```
+2. **Validación Sintáctica Backend**:
+   ```bash
+   node -c backend/controllers/*.js backend/routes/*.js
+   # Resultado: 0 errores de sintaxis en controladores y rutas.
+   ```
+3. **Control de Versiones y Despliegue en Railway**:
+   - Ambas ramas `dev` en `backend` y `frontend` fueron sincronizadas y etiquetadas formalmente bajo la versión CalVer `v2026.11.12`.
+   - El push activa automáticamente los webhooks de compilación y despliegue continuo en Railway.

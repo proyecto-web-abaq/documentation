@@ -11,6 +11,12 @@ Esta sección consolida las iniciativas técnicas, propuestas arquitectónicas y
 
 <div class="grid cards" markdown>
 
+-   :lucide-layout-template: **[Homologación Visual de Encabezados (Admin Heroes), Borrado Validado en Formularios, Acreditación Desacoplada de Voluntarios y Optimización Móvil (2026-11-12)](./2026-11-12-homologacion-heroes-borrado-formularios-acreditacion-voluntarios-responsividad.md)**
+
+    ---
+
+    Homologación integral de cabeceras `.admin-hero` con gradiente institucional y tarjetas de conteo de registros en los 4 formularios de servicio social; diálogo modal validador de borrado con guard de tipeo obligatorio ("borrar") y estado en progreso anti doble-clic; componente ampliado y reutilizable de nueva acreditación con selector por folio y omisión estricta de horas para voluntarios generales; resolución de conflicto de eventos de foco/blur en `CustomSelectComponent` y mitigación de desbordamiento en iPhone SE (375px).
+
 -   :lucide-layout-grid: **[Tablero Kanban y Notificaciones Mínimas con Resend (2026-11-09)](./2026-11-09-estrategia-kanban-notificaciones-resend.md)**
 
     ---
