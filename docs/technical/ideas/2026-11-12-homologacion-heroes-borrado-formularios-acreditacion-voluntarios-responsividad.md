@@ -107,8 +107,17 @@ flowchart TD
 
 ### 3.7 Desacoplamiento de Contenedores en `/activity-list`
 - Se eliminó la etiqueta restrictiva `div.activities-content` y su padding fijo de `32px 36px 42px`.
-- El encabezado `.activities-header` opera ahora de manera autónoma como un `.admin-hero` con botón `+ Nueva actividad` arriba a la izquierda.
+- El encabezado `.activities-header` opera ahora de manera autónoma como un `.admin-hero` con botón `+ Nueva actividad` ubicado en la esquina superior derecha (`.hero-actions-row`) y responsivo a pantalla completa en móviles.
 - La barra de búsqueda, filtros y cuadrícula de tarjetas aprovechan el 100% del ancho del viewport con espaciado fluido.
+
+### 3.8 Homologación de Ancho en Pláticas y Campañas, Limpieza de Navbar y Navegación de Retorno
+- **Emparejamiento de Anchos**: Se reemplazó el contenedor con `clamp(16px, 4vw, 48px)` y `max-width: 1500px` en `talk-list` y `campaign-list` por la regla uniforme `padding: 32px 24px; max-width: 1400px;` (idéntica a `adoption-list` e `identification-list`), garantizando que tanto el hero como el contenido compartan exactamente el mismo ancho visual y márgenes laterales.
+- **Limpieza de Barra de Navegación**: Se removió el enlace redundante `Nueva Actividad` del menú principal de administración (`navbar.component.html`), dado que el acceso oficial se realiza a través del botón `+ Nueva actividad` integrado en la cabecera de la sección de Actividades.
+- **Navegación Reusable `a.back-link`**: Se integró el componente de retorno `<a class="back-link" routerLink="/activity-list">← Volver a actividades</a>` en la vista de plantillas de actividad (`quick-activities`), manteniendo la experiencia de navegación consistente con el resto de vistas de detalle del sistema.
+
+### 3.9 Definición del Dominio: Horas Acreditadas vs Horas Realizadas
+- **Horas Realizadas (`hoursPerformed`)**: Representan el tiempo de reloj físico y efectivo que el alumno o voluntario dedicó en campo (p. ej. 3 horas presenciales en el refugio).
+- **Horas Acreditadas (`hoursAccredited`)**: Representan el valor curricular oficial computado bajo las reglas institucionales y factores de acreditación (p. ej. Limpieza de refugio cuenta con factor multiplicador 4×: 3 horas realizadas equivalen a 12 horas acreditadas hacia la meta de servicio social; o metas fijas por producto como 1 adopción = 100 horas acreditadas).
 
 ---
 
@@ -125,5 +134,5 @@ flowchart TD
    # Resultado: 0 errores de sintaxis en controladores y rutas.
    ```
 3. **Control de Versiones y Despliegue en Railway**:
-   - Ambas ramas `dev` en `backend` y `frontend` fueron sincronizadas y etiquetadas formalmente bajo la versión CalVer `v2026.11.12`.
+   - Ambas ramas `dev` en `backend`, `frontend` y `documentation` fueron sincronizadas y etiquetadas formalmente bajo la versión CalVer `v2026.11.12.3`.
    - El push activa automáticamente los webhooks de compilación y despliegue continuo en Railway.
