@@ -119,6 +119,11 @@ flowchart TD
 - **Horas Realizadas (`hoursPerformed`)**: Representan el tiempo de reloj físico y efectivo que el alumno o voluntario dedicó en campo (p. ej. 3 horas presenciales en el refugio).
 - **Horas Acreditadas (`hoursAccredited`)**: Representan el valor curricular oficial computado bajo las reglas institucionales y factores de acreditación (p. ej. Limpieza de refugio cuenta con factor multiplicador 4×: 3 horas realizadas equivalen a 12 horas acreditadas hacia la meta de servicio social; o metas fijas por producto como 1 adopción = 100 horas acreditadas).
 
+### 3.10 Hotfix: Eliminación de ID de Debug y Enriquecimiento de Datos de Evento en Actividades
+- **Retiro de ID de Depuración**: Se retiró el elemento visual `.activity-id` de la lista de actividades (`activity-list.component.html`), el cual mostraba el `_id` de MongoDB usado durante pruebas.
+- **Visualización Completa del Evento**: Se integró el campo `Fecha` (`startDate` con rango a `dueDate`) en las tarjetas de actividades, garantizando que el usuario visualice tanto el día de realización como el horario de inicio y fin. En la vista de detalle se agregaron además los bloques de `Cupo`, `Enlace` e `Indicaciones`.
+- **Persistencia de Indicaciones**: Se añadió el campo `comments` en el esquema Mongoose de `Activity` (`backend/models/activity.model.js`) e interfaces frontend, permitiendo preservar indicaciones y notas adicionales de la plantilla al publicarse.
+
 ---
 
 ## 4. Verificación y Resultados de Compilación
@@ -134,5 +139,5 @@ flowchart TD
    # Resultado: 0 errores de sintaxis en controladores y rutas.
    ```
 3. **Control de Versiones y Despliegue en Railway**:
-   - Ambas ramas `dev` en `backend`, `frontend` y `documentation` fueron sincronizadas y etiquetadas formalmente bajo la versión CalVer `v2026.11.12.3`.
+   - Las ramas `dev` en `backend`, `frontend` y `documentation` fueron sincronizadas y etiquetadas formalmente bajo la versión CalVer `v2026.11.12.4`.
    - El push activa automáticamente los webhooks de compilación y despliegue continuo en Railway.
