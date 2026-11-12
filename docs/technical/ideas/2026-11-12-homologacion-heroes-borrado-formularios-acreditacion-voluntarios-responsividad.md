@@ -158,6 +158,13 @@ flowchart TD
     - Selector desplegable y banner descriptivo de cálculo en `NewAccreditationModalComponent`.
     - Tablas y detalles de acreditaciones en `AccreditationListComponent`, `StudentDetailComponent`, `VolunteerDetailComponent`, `MyAccreditationsComponent`, `StudentProfileComponent` y `VolunteerProfileComponent`.
 
+### 3.14 Desacoplamiento Silencioso y Supresión Total de Menciones de Horas para Voluntarios Generales (VG) en Modales Compartidos
+- **Fallback Silencioso**: En el backend y en la lógica interna del frontend, los registros de actividades y acreditaciones de Voluntarios Generales (`VG`) preservan de forma completamente silenciosa valores nulos/cero (`hoursAccredited: 0`, `hoursWorked: 0`), garantizando que la persistencia y la asignación de folios institucionales se realicen sin fricción ni fallos de validación.
+- **Supresión Absoluta de Horas en la Interfaz de VG**:
+  - En los modales compartidos (`NewAccreditationModalComponent`, modal de aprobación en `AccreditationListComponent` y modal de validación de participantes en `ActivityDetailComponent`), se eliminó cualquier mención o referencia a horas para los Voluntarios Generales.
+  - El banner dinámico de cálculo y multiplicadores (`.accreditation-calc-banner`) se restringió de forma exclusiva para colaboradores de Servicio Social (`@if (selectedAccreditationType && !isVolunteerGeneral)`).
+  - Se eliminaron las leyendas redundantes como `(no contabiliza horas de servicio social)`, `sin conteo de horas` y `0 h curriculares`. Los distintivos y tarjetas para Voluntarios Generales ahora indican de forma limpia y profesional: *"Voluntario General: Registro de actividad institucional"* y *"Participación comunitaria institucional"*.
+
 ---
 
 ## 4. Verificación y Resultados de Compilación
@@ -173,5 +180,5 @@ flowchart TD
    # Resultado: 0 errores de sintaxis en controladores y modelos Mongoose.
    ```
 3. **Control de Versiones y Despliegue en Railway**:
-   - Las ramas `dev` en `backend`, `frontend` y `documentation` fueron sincronizadas y etiquetadas formalmente bajo la versión CalVer `v2026.11.12.7`.
+   - Las ramas `dev` en `backend`, `frontend` y `documentation` fueron sincronizadas y etiquetadas formalmente bajo la versión CalVer `v2026.11.12.8`.
    - El push activa automáticamente los webhooks de compilación y despliegue continuo en Railway.
