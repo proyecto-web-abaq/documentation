@@ -165,6 +165,35 @@ flowchart TD
   - El banner dinámico de cálculo y multiplicadores (`.accreditation-calc-banner`) se restringió de forma exclusiva para colaboradores de Servicio Social (`@if (selectedAccreditationType && !isVolunteerGeneral)`).
   - Se eliminaron las leyendas redundantes como `(no contabiliza horas de servicio social)`, `sin conteo de horas` y `0 h curriculares`. Los distintivos y tarjetas para Voluntarios Generales ahora indican de forma limpia y profesional: *"Voluntario General: Registro de actividad institucional"* y *"Participación comunitaria institucional"*.
 
+### 3.15 Homologación Exhaustiva de Encabezados (Admin Heroes) y Métricas Integradas en Todas las Vistas
+- **Padrón de Voluntarios (`/student`)**:
+  - Se homologó el encabezado principal `<header class="students-header admin-hero">` incorporando `.hero-header-row`, `.hero-actions-row` (con los botones de *Ver Voluntarios Pasados* y el dropdown de *Invitar a voluntarios*) y `.hero-stats-row`.
+  - **Métricas integradas en el Hero**:
+    - `Total`: `{{ volunteerList.length }} colaboradores registrados`.
+    - `Activos`: `{{ allActiveCount }} activos`.
+    - `Por aprobar`: `{{ allPendingCount }} por aprobar`.
+    - `Servicio Social`: `{{ ssList.length }} Servicio Social`.
+    - `Voluntariado General`: `{{ generalList.length }} Voluntariado General`.
+- **Historial de Voluntarios (`/volunteers/history`)**:
+  - Se incorporó `a.back-link` (*"← Volver a voluntarios"*) en la esquina superior izquierda.
+  - Se reemplazó el antiguo encabezado blanco por el estándar `<header class="admin-hero">` con gradiente institucional.
+  - **Métricas integradas en el Hero**:
+    - `{{ pastStudents.length }} estudiantes pasados`.
+    - `{{ pastVolunteers.length }} voluntarios pasados`.
+    - `{{ statusAudit.length }} eventos en bitácora`.
+- **Gestión de Actividades (`/activity-list`)**:
+  - Se integró `.hero-stats-row` dentro del `admin-hero`:
+    - Para **administradores**: `{{ data.length }} actividades publicadas` y conteo de coincidencias en búsqueda.
+    - Para **colaboradores** (estudiantes y voluntarios): `{{ data.length }} actividades disponibles` y `{{ registeredActivityIds.size }} actividades inscritas`.
+- **Mis Acreditaciones (`/my-accreditations`)**:
+  - Se transformó el antiguo encabezado plano `div.page-header` en `<section class="admin-hero">` con ceja (*"SERVICIO SOCIAL"*), título, subtítulo descriptivo y botón de acción `+ Nueva acreditación`.
+  - **Métricas integradas en el Hero**:
+    - `{{ accreditations.length }} acreditaciones institucionales`.
+    - `{{ activities.length }} actividades vinculadas`.
+    - `{{ combinedRecords.length }} registros en total`.
+- **Creación de Actividades (`/activity`)**:
+  - Se agregó el enlace de navegación `a.back-link` (*"← Volver a actividades"*) en la esquina superior izquierda antes de la tarjeta del formulario.
+
 ---
 
 ## 4. Verificación y Resultados de Compilación
@@ -180,5 +209,5 @@ flowchart TD
    # Resultado: 0 errores de sintaxis en controladores y modelos Mongoose.
    ```
 3. **Control de Versiones y Despliegue en Railway**:
-   - Las ramas `dev` en `backend`, `frontend` y `documentation` fueron sincronizadas y etiquetadas formalmente bajo la versión CalVer `v2026.11.12.8`.
+   - Las ramas `dev` en `backend`, `frontend` y `documentation` fueron sincronizadas y etiquetadas formalmente bajo la versión CalVer `v2026.11.12.9`.
    - El push activa automáticamente los webhooks de compilación y despliegue continuo en Railway.
