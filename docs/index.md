@@ -109,7 +109,7 @@ hide:
     Bitácora quincenal del desarrollo del proyecto, acuerdos con ABAQ y normatividad:
     
     * **[Histórico de Reportes (No. 0 al No. 8)](reports/al-cliente/index.md)**: Avance quincenal con formatos descargables en PDF y DOCX.
-    * **[Documentos de Referencia](reports/referencia/index.md)**: Reglamento de Voluntarios ABAQ (6 mayo 2026).
+    * **[Documentos de Referencia](reports/referencia/index.md)**: Reglamento de Voluntarios ABAQ (6 mayo 2026) y Formato de Adopción (5 sep 2024).
     * **[Minutas Internas](reports/internas/index.md)**: Acuerdos técnicos de coordinación.
 
     [:octicons-arrow-right-24: Ver bitácora de reportes](reports/index.md)
