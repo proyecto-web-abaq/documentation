@@ -49,6 +49,7 @@ icon: lucide/folder-git-2
     Especificación formal de las capacidades funcionales, reglas de negocio y restricciones del sistema:
     
     * **[Especificación SRS (Software Requirements)](srs.md)**: Catálogo exhaustivo de casos de uso.
+    * **[Constancias de Pláticas (Público General)](srs-constancias-platicas.md)**: Requisitos, seguridad criptográfica AES-256-GCM y arquitectura.
     * **Reglas de Servicio Social**: Meta obligatoria de 480 horas, corte por 60 días de inactividad.
     * **Voluntariado General**: Ciclo libre sin horas mínimas con constancia institucional.
     * **Requisitos no funcionales**: Seguridad JWT, tiempos de carga <1.5s y diseño responsive.
@@ -131,7 +132,7 @@ icon: lucide/folder-git-2
 | Categoría | Enfoque Principal | Documentos Clave | Estado Actual |
 | :--- | :--- | :--- | :--- |
 | **💡 Ideas y Propuestas** | Innovación, Perímetro WAF y Big Data | [Cloudflare WAF](cloudflare-waf-turnstile-proposal.md) · [Big Data](data-analysis-expedientes.md) · [Azure Cloud](cloud-deployment.md) · [CI/CD](cicd-pipelines-design.md) | Propuestas en Evaluación |
-| **📋 Requisitos** | Alcance formal bajo norma ISO | [SRS Completo](srs.md) | Línea Base Aprobada |
+| **📋 Requisitos** | Alcance formal bajo norma ISO | [SRS Completo](srs.md) · [Constancias Pláticas](srs-constancias-platicas.md) | Línea Base Aprobada |
 | **📐 Arquitectura** | Modelo C4 y Flujos de Identidad | [C4 Architecture](architecture.md) · [Auth & Onboarding](auth-design.md) | En Producción |
 | **⚙️ Operación** | Infraestructura y Despliegue | [Tech Stack](tech-stack.md) · [Cloud Deployment](cloud-deployment.md) | Documentado |
 | **📊 Gestión** | Sprint Planning y Control de Versiones | [Tareas (Tasks)](tasks.md) · [Estrategia Git](gestion-proyecto/estrategia-ramas.md) | Seguimiento Activo |

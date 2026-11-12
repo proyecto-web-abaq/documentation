@@ -51,6 +51,7 @@ nav = [
     { "Requisitos" = [
       "technical/requisitos/index.md",
       { "Requisitos (SRS)" = "technical/srs.md" },
+      { "SRS: Constancias de Plática (Público General)" = "technical/srs-constancias-platicas.md" },
     ]},
     { "Arquitectura y Diseño" = [
       "technical/arquitectura-y-diseno/index.md",
