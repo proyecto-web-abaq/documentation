@@ -124,20 +124,34 @@ flowchart TD
 - **Visualización Completa del Evento**: Se integró el campo `Fecha` (`startDate` con rango a `dueDate`) en las tarjetas de actividades, garantizando que el usuario visualice tanto el día de realización como el horario de inicio y fin. En la vista de detalle se agregaron además los bloques de `Cupo`, `Enlace` e `Indicaciones`.
 - **Persistencia de Indicaciones**: Se añadió el campo `comments` en el esquema Mongoose de `Activity` (`backend/models/activity.model.js`) e interfaces frontend, permitiendo preservar indicaciones y notas adicionales de la plantilla al publicarse.
 
+### 3.11 Homologación del Sistema de Desempeño y Cálculo en Tiempo Real en Acreditaciones y Actividades
+- **Homologación de Calificadores de Desempeño**:
+  - Se unificó el sistema de evaluación cualitativa en acreditaciones y actividades utilizando los calificadores: `very_bad` (Muy malo / deficiente), `bad` (Malo), `good` (Bueno), `very_good` (Muy bueno) y `excellent` (Excelente), acompañados de un campo opcional de retroalimentación textual (`performanceComment`).
+  - **Voluntarios Generales (`VG`)**: Por diseño institucional no acumulan horas curriculares (conteo y multiplicadores fijos en `0 h`), pero cuentan con evaluación completa de desempeño y comentarios para su expediente de colaboración.
+  - **Estudiantes de Servicio Social (`SS`)**: Mantienen el cómputo de horas con multiplicadores oficiales y reciben la evaluación cualitativa de desempeño correspondiente.
+- **Cálculo y Multiplicador en Tiempo Real en Modal de Acreditación**:
+  - En `new-accreditation-modal`, al seleccionar la modalidad y parámetros de la acreditación, se muestra dinámicamente un banner institucional con la regla / multiplicador oficial (ej. Limpieza 4×, Placas 5×, Esterilización 10×, Adopción 100 h, Redes 5 h + reacciones/5, Donaciones 1 h/$50) y el cálculo de horas estimadas resultantes en tiempo real.
+  - Para Voluntarios Generales, el banner muestra automáticamente el distintivo de régimen especial: `0 h curriculares · Registro con evaluación de desempeño`.
+- **Modal de Aprobación y Evaluación al Validar Acreditaciones**:
+  - Al hacer clic en "Aprobar acreditación" en `accreditation-list` y `student-detail`, se despliega un diálogo institucional donde el administrador selecciona el nivel de desempeño y puede capturar observaciones o retroalimentación antes de formalizar la aprobación.
+  - En el historial y detalle de acreditaciones de estudiantes y voluntarios, se integraron chips visuales de desempeño (`performance-pill`) con código de colores según la calificación obtenida.
+- **Validación de Desempeño para Voluntarios Generales en Actividades**:
+  - En `activity-detail`, se habilitó el flujo de validación para participantes de tipo Voluntario General que hayan asistido a la actividad (`attended`), permitiendo al administrador registrar su desempeño y comentarios con `0 h`, homologando las capacidades entre ambos tipos de colaboradores.
+
 ---
 
 ## 4. Verificación y Resultados de Compilación
 
 1. **Compilación Frontend**:
    ```bash
-   npm --prefix frontend run build -- --configuration=development
-   # Resultado: Application bundle generation complete. 0 errores, 0 advertencias.
+   npm --prefix frontend run build
+   # Resultado: Application bundle generation complete. 0 errores.
    ```
 2. **Validación Sintáctica Backend**:
    ```bash
-   node -c backend/controllers/*.js backend/routes/*.js
-   # Resultado: 0 errores de sintaxis en controladores y rutas.
+   node -c backend/controllers/*.js backend/models/*.js
+   # Resultado: 0 errores de sintaxis en controladores y modelos Mongoose.
    ```
 3. **Control de Versiones y Despliegue en Railway**:
-   - Las ramas `dev` en `backend`, `frontend` y `documentation` fueron sincronizadas y etiquetadas formalmente bajo la versión CalVer `v2026.11.12.4`.
+   - Las ramas `dev` en `backend`, `frontend` y `documentation` fueron sincronizadas y etiquetadas formalmente bajo la versión CalVer `v2026.11.12.5`.
    - El push activa automáticamente los webhooks de compilación y despliegue continuo en Railway.
