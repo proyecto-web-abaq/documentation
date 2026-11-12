@@ -72,7 +72,7 @@ flowchart TD
 - **Consistencia Visual**:
   - Eyebrow tipográfico en mayúsculas (`FORMULARIO DE SERVICIO SOCIAL`, `DETALLE DE ADOPCIÓN`, etc.).
   - Píldoras de métricas translúcidas con efecto *backdrop blur* que muestran en tiempo real la cantidad de registros en base de datos.
-  - Vistas de detalle con barra superior `.hero-top-bar` anclada arriba a la izquierda, conteniendo el botón de regreso y el botón de borrado de registro.
+  - Vistas de detalle con enlace superior externo `a.back-link` (`← Volver a ...`) posicionado fuera del hero, y botón de acción de borrado (`.btn-hero-delete`) situado en la esquina superior derecha dentro de `.hero-actions-row`.
 
 ### 3.3 Componente Reusable `DeleteConfirmModalComponent`
 - **Ubicación**: `frontend/src/app/components/shared/delete-confirm-modal/`
