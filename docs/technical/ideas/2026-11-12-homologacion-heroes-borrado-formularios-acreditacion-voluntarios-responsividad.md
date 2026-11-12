@@ -138,6 +138,15 @@ flowchart TD
 - **Validación de Desempeño para Voluntarios Generales en Actividades**:
   - En `activity-detail`, se habilitó el flujo de validación para participantes de tipo Voluntario General que hayan asistido a la actividad (`attended`), permitiendo al administrador registrar su desempeño y comentarios con `0 h`, homologando las capacidades entre ambos tipos de colaboradores.
 
+### 3.12 Corrección de Enrutamiento y Redirección por Rol en `/home` y Brand Link
+- **Problema Detectado**: Al ingresar directamente a `/home` o al hacer clic en el logotipo de ABAQ en el navbar con una sesión de administrador activa, la pantalla se quedaba congelada indefinidamente en el spinner *"Cargando información del estudiante..."*. Esto ocurría porque `HomeComponent` intentaba consultar datos de estudiante para el ID del usuario administrador, recibiendo `null` y permaneciendo en `isLoading = true`.
+- **Guards de Redirección Automática por Rol**: Se crearon `HomeRoleGuard` y `VolunteerHomeGuard` en `auth.guard.ts` e integrados en `app.routes.ts`:
+  - Si un **administrador** navega a `/home` o a `/volunteer-home`, es redirigido inmediatamente a su panel administrativo oficial (`/admin/home`).
+  - Si un **voluntario general** navega a `/home`, es redirigido a `/volunteer-home`.
+  - Si un **estudiante** navega a `/volunteer-home`, es redirigido a `/home`.
+- **Respaldo en Componentes**: Se añadieron verificaciones síncronas y reactivas en `HomeComponent.ngOnInit` y `VolunteerHomeComponent.ngOnInit`, además de apagar el estado de carga (`isLoading = false`) en caso de no encontrar datos de estudiante.
+- **Enlace de Marca en Navbar**: Se actualizó el enlace del logo en `NavbarComponent` (`brand-link`) para resolver dinámicamente `homeRoute`, llevando a cada rol a su panel principal sin fricción.
+
 ---
 
 ## 4. Verificación y Resultados de Compilación
@@ -153,5 +162,5 @@ flowchart TD
    # Resultado: 0 errores de sintaxis en controladores y modelos Mongoose.
    ```
 3. **Control de Versiones y Despliegue en Railway**:
-   - Las ramas `dev` en `backend`, `frontend` y `documentation` fueron sincronizadas y etiquetadas formalmente bajo la versión CalVer `v2026.11.12.5`.
+   - Las ramas `dev` en `backend`, `frontend` y `documentation` fueron sincronizadas y etiquetadas formalmente bajo la versión CalVer `v2026.11.12.6`.
    - El push activa automáticamente los webhooks de compilación y despliegue continuo en Railway.
