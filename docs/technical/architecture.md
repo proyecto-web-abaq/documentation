@@ -1,8 +1,8 @@
 # Documento de Arquitectura de Software (SAD)
 **Estándar:** ISO/IEC/IEEE 42010:2022  
 **Proyecto:** Plataforma Web ABAQ (Servicio Social, Censo Comunitario y Documentación Pedagógica)  
-**Versión:** 2026.11.12 (CalVer)  
-**Fecha:** 2026-11-12  
+**Versión:** 2026.11.13 (CalVer)  
+**Fecha:** 2026-11-13  
 **Estado:** Aprobado e Implementado en Vivo (Railway Cloud + OpenTofu + AWS Route 53)  
 **Autores:** Equipo de Arquitectura e Ingeniería de Software ABAQ  
 
@@ -1091,6 +1091,35 @@ El subsistema de respaldos y deshidratación histórica se robustece conforme a 
 - **Consecuencias**:
   - *Positivas*: Cohesión visual absoluta en toda el área de administración; eliminación protegida sin riesgo de pérdida accidental de datos; respeto al modelo de dominio que separa horas curriculares de voluntariado general; interfaz 100% responsiva y usable en iPhone SE (375px); reducción drástica de duplicación de código en modales.
   - *Negativas*: Requiere que cualquier nueva entidad administrativa implemente el patrón de endpoints de fábrica (`deleteOne`) y el modal homologado.
+
+### ADR-25: Arquitectura de Vista Unificada de Participación y Acreditaciones mediante Arnés de Reutilización de Componentes (Harness), Agenda Compacta de 2 Semanas, Máquina de Estados de 3 Fases (`.step-pipeline`) sin Mutación de Esquemas Backend y Partición Temporal de 7 Días
+- **Estado**: Aceptado — Especificado y Validado en Mockup Interactivo (`2026-11-13`, CalVer `v2026.11.13`).
+- **Contexto**:
+  1. **Fragmentación Operativa entre `/activity-list` y `/my-accreditations`**: Los colaboradores (`student` y `volunteer`) y administradores (`admin`) debían alternar entre pantallas separadas para consultar actividades institucionales (`AC`) y solicitudes de acreditación autogestionadas (`OP`).
+  2. **Restricción de Arnés Arquitectónico (*Component Reuse Harness*) y Cero Cambios de Backend**: Se estableció como restricción arquitectónica no crear componentes Angular adicionales ni añadir campos nuevos a los modelos Mongoose (`Activity`, `Accreditation`, `Student`, `Volunteer`).
+  3. **Inviabilidad de una Barra de 4 Pasos sin Nuevo Campo en Base de Datos**: Un pipeline de 4 etapas (`Inscrito → Asistencia → Revisión → Acreditada`) no podía comprobarse de forma determinista con los enums existentes en MongoDB sin inventar un estado adicional.
+  4. **Sobrecarga Visual en Tarjetas de Registro**: Renderizar todos los metadatos específicos de cada modalidad (`quantity`, `participantsCount`, `animalsEnrolled`, `infrastructureAvailable`, `reactionsCount`, `donationAmount`, `trialStartDate`, `trialEndDate`, `evidenceUrl`, `activity.url`, `performanceComment`) en la vista principal saturaba la tarjeta, y un bloque estático de recomendaciones (`QUÉ TENER LISTO PARA TU ASISTENCIA`) carecía de respaldo en la base de datos.
+- **Decisión**:
+  1. **Lienzo Único de 1 Columna (`max-width: 1500px`) bajo Arnés de Reutilización Estricta y Lenguaje Humano Centrado en «Mi participación»**:
+     - Se elimina la segunda columna lateral (`aside#sideColumn`) y se reutilizan directamente `header.activities-header.admin-hero` (con acciones rápidas arriba a la derecha y la 1ª píldora de izquierda a derecha en `.hero-stats-row` mostrando el total de `participaciones en total`), `<app-folio-pill>`, `<app-pagination>`, `<app-new-accreditation-modal>` y `manual-hours-modal`.
+     - La capa de presentación traduce los modelos técnicos a lenguaje humano libre de jerga críptica: las entidades `Activity` (`AC`) se presentan como **`Actividad grupal`** (correspondiente a la opción grupal de Eventos ABAQ / Limpieza de refugio, 1 de las 11 opciones) y las entidades `Accreditation` (`OP`) se presentan como **`Participación individual`** (forma granular en que el colaborador avisa a administración lo que realizó por su cuenta entre las 11 opciones). Ninguna etiqueta visible expone nombres de campos de base de datos ni siglas internas.
+  2. **Agenda Abierta de 2 Semanas (`div.agenda-open-wrapper`) y `section.next-activity-spotlight` Compacto**:
+     - Se retira el contenedor envolvente `section.agenda-two-weeks-section` para que las secciones **Semana 1 (Esta semana)** y **Semana 2 (Próxima semana)** aprovechen todo el ancho de `1500px`.
+     - La tarjeta `section.next-activity-spotlight` fusiona `div.ticket-stub-left` (sin borde punteado ni muescas circulares, distribuyéndose horizontalmente a todo lo ancho en móvil $\le 768\text{px}$) + `div.ticket-center` + `div.split-prep-box`, eliminando definitivamente `QUÉ TENER LISTO PARA TU ASISTENCIA`.
+  3. **Máquina de Estados de 3 Fases (`.step-pipeline`) Validada 100% con Enums Actuales y Sin Píldoras Duplicadas**:
+     - **Actividades (`AC` — `activities[].status`)**: `1. Inscrito` (`registered` | `attended` | `validated` | `absent`) → `2. Asistencia` (`attended` | `validated`, o `.failed` `2. No asistió` si `absent`) → `3. Acreditada` (`.done-green` si `validated`).
+     - **Acreditaciones (`OP` — `Accreditation.status`)**: `1. Solicitud enviada` (`pending` | `approved` | `rejected`) → `2. En revisión` (`.active` ámbar si `pending`, `.done` si `approved` | `rejected`) → `3. Acreditada` (`.done-green` si `approved`, o `.failed` `3. Rechazada` si `rejected`).
+     - Se suprime toda píldora de estado redundante dondequiera que se renderice `.step-pipeline`.
+  4. **Separación entre Superficie Vital y Cajón Desplegable `Ver detalles` (`.record-details-drawer`) con Carga/Descarga de Documentos en Bucket y Fallback Anti-Abuso**:
+     - La tarjeta muestra en primer plano solo información vital y distingue semánticamente entre **`Indicaciones:`** (`activity.comments` del administrador en `AC`) y **`Comentario de solicitud:`** (`accreditation.comments` del participante en `OP`).
+     - El botón `Ver evidencia` es reemplazado por **`Ver detalles`**, donde se despliegan todos los datos específicos de la acreditación/actividad y el botón **`Descargar documento (.PDF)`** conectado al bucket institucional (`BucketService`), mientras que en `<app-new-accreditation-modal>` se sustituye la captura de liga externa por subida directa de documento `.PDF` reutilizando el campo `evidenceUrl` (0 cambios de esquema en MongoDB).
+     - Para prevenir costos de *egress* y carga en el servidor ante descargas repetidas del mismo documento, el frontend implementa **caché de `Blob` en memoria de sesión** (entregando el 2.º y 3.er clic con 0 tráfico de red) y un **fallback de enfriamiento (*cooldown*)** a partir del 3.er intento que bloquea temporalmente nuevas descargas y notifica al usuario, complementado con rate-limiting (`HTTP 429`) por sesión/archivo en el backend.
+  5. **Partición Temporal de 7 Días en 2 Vistas (`nav.vol-tabs`)**:
+     - **Pestaña 1 (`Disponibles y recientes — Últimos 7 días`)**: Actividades abiertas para inscripción + registros `AC` y `OP` hasta 7 días después de su fecha, en tarjetas `article.activity-card`.
+     - **Pestaña 2 (`Historial — > 1 semana`)**: Registros `AC` y `OP` con más de 7 días desde su fecha, consolidados en `table.sd-combined-table` con `.step-pipeline`.
+- **Consecuencias**:
+  - *Positivas*: Cero impacto en esquemas de MongoDB ni endpoints REST existentes; cero creación de componentes Angular superfluos; lectura limpia con revelación progresiva (`Ver detalles`); trazabilidad visual clara en 3 pasos sin duplicar etiquetas de estado.
+  - *Negativas*: Requiere un selector computado en el componente contenedor para proyectar y ordenar `Activity` y `Accreditation` según la ventana de 14 días (Agenda) y el corte de 7 días post-evento (Pestaña 1 vs. Pestaña 2).
 
 ---
 

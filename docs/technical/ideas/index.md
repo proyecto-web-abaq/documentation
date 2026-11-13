@@ -11,6 +11,12 @@ Esta sección consolida las iniciativas técnicas, propuestas arquitectónicas y
 
 <div class="grid cards" markdown>
 
+-   :lucide-calendar-check-2: **[Vista Unificada de Participación y Acreditaciones, Agenda de 2 Semanas y Pipeline de 3 Fases sin Mutación de Backend (2026-11-13)](./2026-11-13-vista-unificada-participacion-agenda-dos-semanas-pipeline-tres-fases.md)**
+
+    ---
+
+    Unificación de `/activity-list` y `/my-accreditations` en un lienzo de 1 columna (`1500px`) bajo un arnés de reutilización estricta de componentes reales sin cambios de esquema en MongoDB; Agenda abierta de las próximas 2 semanas con tarjeta compacta `section.next-activity-spotlight`; barra de progreso de 3 fases (`.step-pipeline`) sin píldoras duplicadas; separación de información vital vs. cajón desplegable `Ver detalles` (`Indicaciones:` vs `Comentario de solicitud:`); y partición en 2 vistas por corte temporal de 7 días.
+
 -   :lucide-layout-template: **[Homologación Visual de Encabezados (Admin Heroes), Borrado Validado en Formularios, Acreditación Desacoplada de Voluntarios y Optimización Móvil (2026-11-12)](./2026-11-12-homologacion-heroes-borrado-formularios-acreditacion-voluntarios-responsividad.md)**
 
     ---

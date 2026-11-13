@@ -2,8 +2,8 @@
 **Estándar:** ISO/IEC/IEEE 29148:2018  
 **Proyecto:** Plataforma Web ABAQ (Servicio Social, Censo Comunitario y Documentación Pedagógica)  
 **Módulos:** Autenticación, Proceso de Onboarding y Registro, Certificados Criptográficos, Respaldos y Rollback, Seguridad y Reglas de Negocio, Paridad SS/VG y Auditoría de Expediente  
-**Versión:** 2026.11.12 (CalVer)  
-**Fecha:** 2026-11-12 (Histórico CalVer: 2026.11.04 · 2026.11.03 · 2026.10.31 · 2026.10.30 · 2026.10.22 · 2026.09.03)  
+**Versión:** 2026.11.13 (CalVer)  
+**Fecha:** 2026-11-13 (Histórico CalVer: 2026.11.12 · 2026.11.04 · 2026.11.03 · 2026.10.31 · 2026.10.30 · 2026.10.22 · 2026.09.03)  
 **Estado:** Aprobado y Operativo en Producción de Pruebas (Railway Cloud + OpenTofu + AWS Route 53)  
 **Autores:** Equipo de Ingeniería de Requerimientos y Arquitectura ABAQ  
 
@@ -1016,6 +1016,52 @@ abaq-backup-YYYY-MM-DD-HHmmss.zip
   - Ningún botón, tarjeta o encabezado debe desbordarse horizontalmente en pantallas con ancho de viewport $\ge 375$ px. En resoluciones $\le 768$ px y $\le 380$ px, las filas de acciones en los heroes (`.hero-actions-row`) deben colapsar verticalmente a columna completa (`width: 100%`) con centrado y espaciado táctil seguro ($\ge 44$ px de altura táctil).
 - **RNF-SELECT-BLUR-01 (Prevención de Cierre Prematuro en Selector Personalizado)**:
   - El componente `CustomSelectComponent` debe suprimir la pérdida involuntaria de foco (`blur`) al interactuar o mover el cursor sobre las opciones del menú desplegable mediante `(mousedown)="$event.preventDefault()"`, gestionando un temporizador debounced de 250ms que se cancela al seleccionar o interactuar con el control.
+
+---
+
+## 18. Requerimientos de Vista Unificada de Participación y Acreditaciones, Agenda de 2 Semanas, Barra de Progreso de 3 Fases sin Cambios de Backend y División Temporal de 7 Días (v2.10.0 - 2026.11.13)
+
+### `[SRS 18.1 Requerimientos Funcionales - Vista Unificada, Arnés de Componentes, Agenda y Pipeline de 3 Fases]`
+
+- **RF-PART-LANG-01 (Lenguaje Simple Centrado en «Mi participación» y Distinción Humana entre Actividad Grupal y Participación Individual)**:
+  - Toda la interfaz de usuario debe expresarse en lenguaje natural y directo centrado en el concepto de **Participación** (`Mi participación`, `participaciones en total`, `Registrar participación individual`, `Ver actividades para inscribirme`), evitando exponer en etiquetas visibles acrónimos internos (`AC`, `OP`, `STE`, `TLK`, `IDE`, `ADO`), nombres de propiedades del esquema (`quantity`, `participantsCount`, `evidenceUrl`) o reglas de corte temporal (`> 7 días`, `[TEST-CICLO]`).
+  - La interfaz debe diferenciar con claridad conceptual:
+    - **`Actividad grupal`** (`AC`): Eventos o jornadas convocadas por ABAQ con cupo y pase de lista grupal (que representan la opción 1 de *Eventos ABAQ / Limpieza de refugio* dentro del catálogo de 11 opciones).
+    - **`Participación individual`** (`OP`): Solicitud granular mediante la cual el colaborador avisa a administración que realizó por su cuenta alguna de las **11 opciones de participación** para su revisión y validación.
+  - Los pasos de `.step-pipeline` deben utilizar etiquetas simples: `1. Inscrito → 2. Asistencia → 3. Validada` (en actividades grupales) y `1. Enviada → 2. En revisión → 3. Validada` (en participaciones individuales), y las dos pestañas inferiores deben nombrarse **`Para inscribirme y recientes`** y **`Mi historial`**.
+
+- **RF-PART-HARNESS-01 (Arnés de Reutilización Estricta de Componentes y Cero Cambios de Esquema en Backend)**:
+  - La unificación debe construirse reutilizando y adaptando exclusivamente los componentes existentes del proyecto (`activity-list`, `my-accreditations`, `<app-folio-pill>`, `<app-pagination>`, `<app-new-accreditation-modal>`, `manual-hours-modal` y `table.sd-combined-table`), sin crear nuevos componentes Angular redundantes ni agregar nuevos campos a los esquemas Mongoose (`Activity`, `Accreditation`, `Student`, `Volunteer`) en el backend.
+
+- **RF-PART-AGENDA-01 (Agenda de las Próximas 2 Semanas Sin Contenedor Envolvente y Tarjeta Compacta)**:
+  - La sección superior de Agenda (`div.agenda-open-wrapper`) debe listar los registros confirmados o solicitados (`AC` y `OP`) comprendidos en los próximos 14 días naturales, seccionados en dos bloques explícitos (**Semana 1: Esta semana** y **Semana 2: Próxima semana** con sus respectivos rangos de fechas) y paginados con `<app-pagination>`, sin encapsularse dentro de un contenedor blanco envolvente (`section.agenda-two-weeks-section` suprimido).
+  - Cada registro de la Agenda debe representarse mediante una variante compacta de `section.next-activity-spotlight` (fusión de `div.ticket-stub-left` + `div.ticket-center` + `div.split-prep-box`), suprimiendo bordes punteados de boleto, recortes semicirculares y cualquier checklist de preparación no existente en base de datos (`QUÉ TENER LISTO PARA TU ASISTENCIA` eliminado).
+
+- **RF-PART-PIPE-01 (Barra de Progreso de 3 Fases `.step-pipeline` Sin Píldoras de Estado Duplicadas)**:
+  - El estado de avance de cada registro debe visualizarse mediante una barra de progreso segmentada de 3 fases (`.step-pipeline`) evaluada al 100% con el campo `status` actual en MongoDB:
+    - **Flujo Actividad (`AC` — `activities[].status`)**: `1. Inscrito` (`registered` | `attended` | `validated` | `absent`) → `2. Asistencia` (`attended` | `validated`, o `2. No asistió` en estado `.failed` si `absent`) → `3. Acreditada` (`.done-green` si `validated`).
+    - **Flujo Acreditación (`OP` — `Accreditation.status`)**: `1. Solicitud enviada` (`pending` | `approved` | `rejected`) → `2. En revisión` (`.active` ámbar si `pending`, `.done` si `approved` | `rejected`) → `3. Acreditada` (`.done-green` si `approved`, o `3. Rechazada` en estado `.failed` si `rejected`).
+  - En todos los componentes donde se muestre `.step-pipeline` (Agenda, tarjetas de Pestaña 1 y tabla de Pestaña 2), queda prohibido renderizar una píldora de estado adicional (`✓ Registrado`, `Pendiente`, `✓ Horas validadas`) que duplique la misma información.
+
+- **RF-PART-SPLIT-01 (Partición Temporal de 7 Días en 2 Vistas Inferiores `nav.vol-tabs`)**:
+  - Debajo de la Agenda de 2 semanas, las secciones inferiores deben unificarse en dos pestañas gobernadas por el umbral de 7 días naturales posteriores a la fecha del evento:
+    1. **Pestaña 1 — `Disponibles y recientes (Últimos 7 días)`**: Agrupa las actividades abiertas para inscripción (`AC`) y las actividades o acreditaciones (`AC` y `OP`) cuya fecha de realización sea futura o tenga **hasta 7 días naturales de antigüedad** ($\text{hoy} - \text{fecha} \le 7\text{ días}$), renderizadas como tarjetas `article.activity-card`.
+    2. **Pestaña 2 — `Historial (> 1 semana)`**: Agrupa todas las actividades y acreditaciones (`AC` y `OP`) cuya fecha de realización haya superado **más de 7 días naturales** ($\text{hoy} - \text{fecha} > 7\text{ días}$), renderizadas en la tabla histórica `table.sd-combined-table` con `.step-pipeline` integrado y `<app-pagination>`.
+
+- **RF-PART-DET-01 (Superficie Vital, Distinción de Comentarios y Cajón Desplegable `Ver detalles` con Descarga de Documentos)**:
+  - La superficie principal de cada tarjeta (`section.next-activity-spotlight` y `article.activity-card`) debe exhibir únicamente la información vital (folio, tipo, categoría, fecha/horario, sede, cupo/horas para `SS`, título, descripción breve y nota contextual), diferenciando explícitamente entre **`Indicaciones:`** (`activity.comments` del administrador en `AC`) y **`Comentario de solicitud:`** (`accreditation.comments` del colaborador en `OP`).
+  - La acción `Ver evidencia` se unifica dentro de **`Ver detalles`** (`.record-details-drawer`), donde el usuario consulta todos los datos de su acreditación (`quantity`, `participantsCount`, `animalsEnrolled`, `infrastructureAvailable`, `reactionsCount`, `donationAmount`, `trialStartDate`, `trialEndDate`, `activity.url`, `performance` y `performanceComment`) y descarga el documento `.PDF` subido al bucket institucional (reemplazando el campo de liga externa en `<app-new-accreditation-modal>` y persistiendo la referencia del documento en el campo existente `evidenceUrl`).
+
+- **RF-PART-DOC-01 (Fallback Anti-Abuso, Caché de `Blob` y Prevención de Costo/Carga en Descarga de Documentos)**:
+  - Cuando un usuario descargue un documento de evidencia desde `Ver detalles`, el cliente debe conservar el `Blob` en caché de memoria durante la sesión activa para servir el 2.º y 3.er intento sin emitir nuevas peticiones HTTP al servidor/bucket.
+  - Si el usuario intenta descargar el mismo documento más de 3 veces consecutivas dentro de la ventana de control, la interfaz debe activar un **fallback de enfriamiento (*cooldown*)** que deshabilite temporalmente el botón y muestre un aviso indicando revisar su carpeta local de descargas, respaldado en el backend por control de tasa (`HTTP 429 Too Many Requests`) por sesión y documento para proteger el costo de transferencia (*egress*) y la carga del servidor.
+
+### `[SRS 18.2 Requerimientos No Funcionales - Responsividad en Móvil y Segregación de Horas]`
+
+- **RNF-PART-MOB-01 (Distribución Horizontal a Todo lo Ancho en Móvil para `div.ticket-stub-left`)**:
+  - En resoluciones móviles ($\le 768\text{px}$), el bloque lateral de fecha de la tarjeta de Agenda (`div.ticket-stub-left`) debe distribuir su contenido horizontalmente a lo ancho del dispositivo (`flex-direction: row; justify-content: space-between; width: 100%`), ubicando día y mes a la izquierda y horario/horas a la derecha.
+- **RNF-PART-VG-01 (Omisión Estricta de Métricas de Horas en Voluntariado General)**:
+  - Para usuarios con rol `volunteer` (`Voluntario General`), la vista unificada debe ocultar toda píldora, contador o columna de horas en el hero, en la Agenda, en las tarjetas de la Pestaña 1 y en la tabla de historial de la Pestaña 2.
 
 
 

@@ -33,6 +33,7 @@ nav = [
     { "Implementación M5 (Ciclo de Vida y Folios)" = "technical/implementacion-m5-ciclo-vida.md" },
     { "Ideas y Propuestas" = [
       "technical/ideas/index.md",
+      { "Vista Unificada de Participación, Agenda 2 Semanas y Pipeline 3 Fases (2026-11-13)" = "technical/ideas/2026-11-13-vista-unificada-participacion-agenda-dos-semanas-pipeline-tres-fases.md" },
       { "Homologación Visual de Encabezados, Borrado Validado y Acreditación de Voluntarios (2026-11-12)" = "technical/ideas/2026-11-12-homologacion-heroes-borrado-formularios-acreditacion-voluntarios-responsividad.md" },
       { "Tablero Kanban y Notificaciones Mínimas con Resend (2026-11-09)" = "technical/ideas/2026-11-09-estrategia-kanban-notificaciones-resend.md" },
       { "Turnstile Anti-Bot en Superficies Públicas y Despliegue Railway (2026-11-06)" = "technical/ideas/2026-11-06-turnstile-antibot-todas-las-superficies-publicas.md" },
