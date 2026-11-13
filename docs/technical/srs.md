@@ -1,7 +1,7 @@
 # Especificación de Requerimientos de Software (SRS)
 **Estándar:** ISO/IEC/IEEE 29148:2018  
 **Proyecto:** Plataforma Web ABAQ (Servicio Social, Censo Comunitario y Documentación Pedagógica)  
-**Módulos:** Autenticación, Proceso de Onboarding y Registro, Certificados Criptográficos, Respaldos y Rollback, Seguridad y Reglas de Negocio, Paridad SS/VG y Auditoría de Expediente  
+**Módulos:** Autenticación, Proceso de Onboarding y Registro, Certificados Criptográficos, Respaldos y Rollback, Seguridad y Reglas de Negocio, Paridad SS/VG, Auditoría de Expediente y Gestión de Documentos en Bucket  
 **Versión:** 2026.11.13 (CalVer)  
 **Fecha:** 2026-11-13 (Histórico CalVer: 2026.11.12 · 2026.11.04 · 2026.11.03 · 2026.10.31 · 2026.10.30 · 2026.10.22 · 2026.09.03)  
 **Estado:** Aprobado y Operativo en Producción de Pruebas (Railway Cloud + OpenTofu + AWS Route 53)  
@@ -974,6 +974,25 @@ abaq-backup-YYYY-MM-DD-HHmmss.zip
 - **RNF-DEP-04 (Trazabilidad y Visibilidad de Errores Operacionales)**:
   - Los códigos de respuesta HTTP de error (4xx y 5xx) deben retornar la descripción textual clara del fallo en formato JSON estructurado, permitiendo a los auditores identificar si una denegación fue producto de la lógica de negocio o de un error interno del motor.
 
+### `[SRS 16.4 Requerimientos Funcionales y No Funcionales - Turnstile en Superficies Públicas, Constancias en PNG 2x, Pestaña «Todos» Unificada, Garantía Anti-Zoom iOS y Build Multi-Stage (v2026.11.05 a v2026.11.09)]`
+
+- **RF-SEC-BOT-01 (Cobertura Integral de Cloudflare Turnstile en las 7 Superficies Públicas de Escritura)**:
+  - Las 7 rutas `POST` anónimas (`/auth/login`, `/auth/signup-student`, `/auth/signup-volunteer` + `/auth/signup`, y las subrutas `/adoptions/public`, `/campaigns/public`, `/identifications/public`, `/talks/public`) deben estar protegidas por el middleware `requireTurnstile(action)` que valida el token contra `siteverify` verificando `success === true`, coincidencia de `action` y pertenencia de `hostname` a `TURNSTILE_HOSTNAMES` (incluyendo `localhost`, `hypercoreqro.lat` y comodín `*.up.railway.app`), con interruptor de entorno `TURNSTILE_DISABLED=true` para auditorías académicas.
+
+- **RF-CERT-PNG-01 (Exportación Directa de Constancias en Imagen PNG de Alta Resolución `2x` y Propiedad Estricta)**:
+  - El motor de constancias web y `tool-constancias` deben generar y descargar directamente imágenes **PNG en alta resolución (`2x` sobre lienzo `1122 × 793 px`)** con escalador 2D responsivo en móvil y tableta, retirando las leyendas redundantes de sellos criptográficos HMAC-SHA256 de las tarjetas de interfaz web y restringiendo la consulta de constancias individuales exclusivamente al propietario autenticado de la cuenta o al rol `admin`.
+
+- **RF-VOL-ALLTAB-01 (Pestaña «Todos» Predeterminada, Tabla Única Dinámica y `fechaConclusion` Condicional)**:
+  - En `/student`, la pestaña **`Todos`** debe ser la opción activa por defecto (`activeTab = 'all'`) sobre un único contenedor de tabla/tarjetas dinámico precedido por la etiqueta contextual `Estatus:`.
+  - Los expedientes y perfiles de estudiantes y voluntarios deben registrar y mostrar condicionalmente `fechaConclusion` / `fechaTermino` cuando el colaborador concluya su ciclo o cause baja, y el paginador `<app-pagination>` debe ofrecer navegación rápida con desplazamiento horizontal táctil.
+
+- **RNF-IOS-ZOOM-01 (Garantía Universal Anti-Zoom en Safari iOS y Transformación de Tablas a Tarjetas Táctiles)**:
+  - Todos los controles de entrada (`input`, `select`, `textarea`) deben mantener un tamaño tipográfico mínimo de `16px` en dispositivos móviles para impedir el auto-zoom forzado de Safari iOS, y las pestañas horizontales (`.vol-tabs`, `.sd-tabs`, `.history-tabs`) deben operar en una sola fila con `overflow-x: auto; flex-wrap: nowrap; scroll-snap-type: x mandatory; min-height: 44px`, mientras que las tablas operativas se transforman en tarjetas etiquetadas (`td::before { content: attr(data-label); }`) en anchos $\le 900\text{px}$.
+
+- **RNF-BUILD-DOCKER-01 (Compilación Multi-Stage sobre `node:22-slim` con `@angular/build` y `apiUrl` Dinámico)**:
+  - El contenedor del frontend debe compilarse con `@angular/build:application` sobre una etapa `node:22-slim` (glibc para binarios nativos) y resolver dinámicamente `apiUrl` según el hostname de ejecución (soportando simultáneamente dominios `.up.railway.app`, `hypercoreqro.lat` y `localhost`).
+
+
 ---
 
 ## 17. Requerimientos de Homologación de Encabezados (Admin Heroes), Borrado Validado en Formularios de Servicio Social, Acreditación Desacoplada y Usabilidad Móvil (v2.9.0 - 2026.11.12)
@@ -1016,6 +1035,36 @@ abaq-backup-YYYY-MM-DD-HHmmss.zip
   - Ningún botón, tarjeta o encabezado debe desbordarse horizontalmente en pantallas con ancho de viewport $\ge 375$ px. En resoluciones $\le 768$ px y $\le 380$ px, las filas de acciones en los heroes (`.hero-actions-row`) deben colapsar verticalmente a columna completa (`width: 100%`) con centrado y espaciado táctil seguro ($\ge 44$ px de altura táctil).
 - **RNF-SELECT-BLUR-01 (Prevención de Cierre Prematuro en Selector Personalizado)**:
   - El componente `CustomSelectComponent` debe suprimir la pérdida involuntaria de foco (`blur`) al interactuar o mover el cursor sobre las opciones del menú desplegable mediante `(mousedown)="$event.preventDefault()"`, gestionando un temporizador debounced de 250ms que se cancela al seleccionar o interactuar con el control.
+
+### `[SRS 17.5 Requerimientos Funcionales - Sistema de Evaluación de Desempeño, Cálculo en Tiempo Real, Folios Canónicos y Constancias de Pláticas (v2026.11.12.1 a v2026.11.12.19)]`
+
+- **RF-PERF-EVAL-01 (Sistema Homologado de Evaluación de Desempeño en Actividades y Acreditaciones)**:
+  - Al aprobar acreditaciones o validar asistencias en actividades grupales (incluyendo en el modal de asignación manual de horas `manual-hours-modal`), el administrador debe registrar el nivel de desempeño cualitativo del colaborador mediante 5 niveles estandarizados (`very_bad` — Muy malo, `bad` — Malo, `good` — Bueno, `very_good` — Muy bueno, `excellent` — Excelente) y un comentario opcional de retroalimentación (`performanceComment`), mostrando la calificación en el expediente como insignia con código de color (`.performance-pill`).
+  - Los Voluntarios Generales (`VG`) reciben evaluación completa de desempeño y retroalimentación cualitativa con `0 h` curriculares en fallback silencioso (`hoursAccredited: 0`, `hoursPerformed: 0`).
+
+- **RF-ACCRED-CALC-01 (Banner de Cálculo de Horas en Tiempo Real y Clarificación de «Campaña de esterilización»)**:
+  - En `NewAccreditationModalComponent`, al seleccionar la modalidad y parámetros para un Estudiante de Servicio Social (`SS`), debe mostrarse en tiempo real el banner `.accreditation-calc-banner` con la regla oficial del reglamento (Limpieza `4×`, Placas `5×`, Campaña de esterilización `10×` o `100 h` con $\ge 60$ animales e infraestructura quirúrgica, Adopción `100 h`, Redes `5 h + reacciones/5`, Donaciones `1 h / $50 MXN`) y las horas acreditadas estimadas; para Voluntarios Generales (`VG`), dicho banner de horas se suprime por completo.
+  - La modalidad `CAMPAIGN` debe denominarse explícitamente **`Campaña de esterilización`** en todos los selectores, tablas y detalles del sistema.
+
+- **RF-CERT-TALK-01 (Constancias Públicas de Participación en Pláticas con Cifrado AES-256-GCM)**:
+  - El sistema debe emitir y verificar constancias públicas de participación en pláticas (`TALK_PARTICIPATION`) mediante tokens URL-safe autocontenidos (`tp1.[iv].[ciphertext].[authTag]`) cifrados con **AES-256-GCM** (`CERT_SIGNING_SECRET`), expuestos bajo `/api/v1/certificates/talk-token` y `/api/v1/certificates/public/:token` con control de tasa (`20 req / 15 min` por IP) y escalado 2D responsivo del lienzo (`1122 × 793 px`, punto de quiebre móvil $\le 768\text{px}$).
+
+- **RF-LEGAL-DOCS-01 (Digitalización de Documentos Legales, Rutas Raíz y Formato de Adopción)**:
+  - El componente `LegalDocViewComponent` debe servir de forma plana y accesible los documentos normativos en rutas raíz (`/privacidad`, `/terminos`, `/reglamento`, `/formato-adopcion` y `/legal/:docKey`), integrando el Formato Oficial de Solicitud de Adopción digitalizado y su carga firmada al bucket (`upload-adoption-format`).
+
+- **RF-FOLIO-CANON-01 (Persistencia de Folios Canónicos `AC-YYMMDD-XXXX` y `<app-folio-pill>` Universal)**:
+  - Toda actividad grupal (`Activity`) debe persistir en base de datos su folio determinista canónico (`AC-YYMMDD-XXXX`) para garantizar que administradores, estudiantes y voluntarios visualicen exactamente el mismo identificador mediante el componente reutilizable `<app-folio-pill>` con copiado en un clic, ampliando el índice de búsqueda para filtrar por folio, título, categoría o colaborador.
+
+- **RF-HOME-GUARD-01 (Guards de Redirección por Rol en `/home`, Enlace de Marca Dinámico y Estadísticas en Hero)**:
+  - Los guards `HomeRoleGuard` y `VolunteerHomeGuard` deben redirigir automáticamente a cada rol a su panel correspondiente (`admin` $\to$ `/admin/home`, `volunteer` $\to$ `/volunteer-home`, `student` $\to$ `/home`), actualizando dinámicamente el enlace del logotipo en `NavbarComponent` (`homeRoute`).
+  - Los paneles de inicio de estudiante (`/home`) y voluntario (`/volunteer-home`), así como `/student`, `/volunteers/history`, `/activity-list`, `/admin/quick-activities` y `/admin/backups`, deben integrar sus píldoras de estadísticas rápidas directamente dentro del encabezado `.admin-hero`, ubicando siempre el conteo total en la primera posición de izquierda a derecha.
+
+- **RF-UI-NORM-01 (Normalización de Lienzo a `1500px`, Enlaces Externos `a.back-link`, Retiro de Avatares de Letras y URLs Parametrizadas)**:
+  - Todas las vistas principales del sistema deben estandarizar su contenedor de página a `max-width: 1500px` con `padding: 32px 24px 80px`, ubicar el enlace de retorno `a.back-link` fuera del `.admin-hero` en la esquina superior izquierda, suprimir todos los avatares circulares con iniciales de texto en todos los roles, y centralizar las URLs públicas de frontend/backend (`PUBLIC_FRONTEND_URL`, `PUBLIC_API_URL`) en correos electrónicos y modelos de constancias.
+
+- **RF-BACKUP-DROP-01 (Dropzone Unificado de Respaldos, Verificación de Salud de BD en Vivo y Corte Directo)**:
+  - El módulo `/admin/backups` debe proveer una zona de carga unificada con soporte *drag-and-drop*, detección automática de paquete por manifiesto (`manifest.json`), protección anti-sobrescritura, ejecución directa de corte de deshidratación y verificación en vivo de conectividad a MongoDB (`/api/v1/backups/health` y ping en tiempo real).
+
 
 ---
 
@@ -1062,6 +1111,145 @@ abaq-backup-YYYY-MM-DD-HHmmss.zip
   - En resoluciones móviles ($\le 768\text{px}$), el bloque lateral de fecha de la tarjeta de Agenda (`div.ticket-stub-left`) debe distribuir su contenido horizontalmente a lo ancho del dispositivo (`flex-direction: row; justify-content: space-between; width: 100%`), ubicando día y mes a la izquierda y horario/horas a la derecha.
 - **RNF-PART-VG-01 (Omisión Estricta de Métricas de Horas en Voluntariado General)**:
   - Para usuarios con rol `volunteer` (`Voluntario General`), la vista unificada debe ocultar toda píldora, contador o columna de horas en el hero, en la Agenda, en las tarjetas de la Pestaña 1 y en la tabla de historial de la Pestaña 2.
+
+---
+
+## 19. Requerimientos de Migración de Documentos a Bucket Railway, Seguridad de Endpoints y Rate Limiting Silencioso (v2.11.0 - 2026.11.13)
+
+### `[SRS 19.1 Requerimientos Funcionales - Gestión Centralizada de Documentos PDF en Bucket]`
+
+- **RF-BUCKET-01 (Centralización de Documentos PDF en Bucket Institucional Railway S3)**:
+  - Todos los documentos PDF del sistema (reglamento firmado, INE, CV, formato de adopción firmado, comprobante de domicilio y evidencias de acreditación) deben almacenarse exclusivamente en el bucket institucional de Railway (S3), eliminando la dependencia de enlaces externos en Google Drive, OneDrive u otros servicios de terceros.
+  - El sistema debe mantener la estructura de subdocumento embebido con los campos: `fileName`, `storedName`, `mimeType`, `fileSize`, `uploadedAt` y `uploadedBy`.
+
+- **RF-BUCKET-02 (Validación Estricta de Formato PDF)**:
+  - El backend debe validar que todo archivo subido sea un documento PDF válido mediante verificación de *magic bytes* (`%PDF-` en los primeros 5 bytes del buffer).
+  - El frontend debe restringir la selección de archivos mediante `accept=".pdf,application/pdf"` y validar la extensión `.pdf` antes de enviar.
+  - Tamaño máximo permitido: **15 MB** por documento.
+
+- **RF-BUCKET-03 (Documentos Requeridos según Reglamento ABAQ §8 — Estudiantes y Voluntarios)**:
+  - **INE vigente** (`cloudUrls.ine` → migrar a bucket con upload).
+  - **Curriculum Vitae** (`cloudUrls.cv` → migrar a bucket con upload).
+  - **Reglamento ABAQ firmado a mano** (`signedRulesDocument` — ya implementado en bucket).
+  - Los campos `cloudUrls.comprobante` y `cloudUrls.reglamento` quedan **eliminados** de los modelos `Student` y `Volunteer` por no corresponder al reglamento oficial.
+
+- **RF-BUCKET-04 (Documentos Requeridos según Formato de Adopción §4.2 — Adoptantes)**:
+  - **INE del adoptante** (`ineDocument`): Subdocumento embebido en modelo `Adoption`.
+  - **Comprobante de domicilio** (`comprobanteDomicilioDocument`): No mayor a 3 meses de antigüedad.
+  - **Formato de adopción firmado** (`signedFormatDocument`): Migrado desde `formatUrl` (enlace) a estructura de bucket.
+
+- **RF-BUCKET-05 (Evidencias de Participación Individual — Acreditaciones)**:
+  - El campo `evidenceUrl` (input de texto libre) debe migrarse a un componente de carga de archivos (`FileUploadModalComponent`) que suba el PDF de evidencia al bucket institucional.
+  - La referencia al documento subido debe persistirse en el campo existente `evidenceUrl` como `storedName` del bucket.
+
+- **RF-BUCKET-06 (Flujo de Descarga → Firma → Carga de Plantillas Oficiales)**:
+  - El sistema debe ofrecer descarga de plantillas oficiales en formato **PDF exclusivamente**:
+    - `/documents/reglamento-voluntarios-abaq.pdf` — Reglamento de Voluntarios ABAQ.
+    - `/documents/formato-adopcion-abaq.pdf` — Formato de Solicitud de Adopción.
+  - El usuario descarga la plantilla, la llena y firma, y la sube de vuelta al sistema mediante el componente de carga.
+
+### `[SRS 19.2 Requerimientos Funcionales - Seguridad de Endpoints de Bucket]`
+
+- **RF-BUCKET-SEC-01 (Autenticación Obligatoria en Endpoints de Carga)**:
+  - Los endpoints `POST /api/bucket/upload-signed-rules` y `POST /api/bucket/upload-adoption-format` deben requerir middleware `protect` (JWT válido) para prevenir cargas anónimas no autorizadas.
+
+- **RF-BUCKET-SEC-02 (Verificación de Ownership en Cargas con entityId)**:
+  - Cuando se proporcione `entityId` en la carga, el sistema debe verificar que el usuario autenticado sea el propietario del expediente (`req.user.linkedDoc._id === entityId`) o tenga rol `admin`.
+  - Intentos de subir documentos a expedientes ajenos deben rechazarse con `HTTP 403 Forbidden`.
+
+- **RF-BUCKET-SEC-03 (Token de Descarga Cifrado y Vinculado a Sesión)**:
+  - La descarga de documentos firmados (`signedRulesDocument`) debe requerir un token de un solo uso generado mediante `createRulesDownloadToken()` con cifrado AES-256-GCM y HMAC.
+  - El token debe validar: (a) expiración temporal, (b) coincidencia de usuario (`user_mismatch`), (c) coincidencia de sesión (`session_mismatch`).
+
+- **RF-BUCKET-SEC-04 (Prevención de Path Traversal)**:
+  - El endpoint `GET /api/bucket/documents/:fileName` debe rechazar nombres de archivo que contengan `..`, `/` o `\` para prevenir ataques de *path traversal*.
+
+### `[SRS 19.3 Requerimientos No Funcionales - Rate Limiting Silencioso y Protección de Costos]`
+
+- **RNF-BUCKET-RATE-01 (Rate Limiting Silencioso de 8 Horas)**:
+  - El sistema debe limitar a **3 descargas por documento por usuario** dentro de una ventana de **8 horas**.
+  - Al alcanzar el límite, el sistema debe responder con `HTTP 204 No Content` de forma **silenciosa**, sin mostrar mensajes de error al usuario.
+  - La ventana de control debe resetearse automáticamente cada 8 horas.
+
+- **RNF-BUCKET-RATE-02 (Anti-Spam de Clicks Rápidos)**:
+  - Clicks consecutivos con intervalo menor a **2 segundos** deben ignorarse silenciosamente (`HTTP 204 No Content`), procesando únicamente el primer click.
+  - Esta protección previene descargas duplicadas por clicks accidentales o spam.
+
+- **RNF-BUCKET-RATE-03 (Protección de Costos de Egress Railway)**:
+  - El rate limiting silencioso tiene como objetivo proteger los costos de transferencia (*egress*) del bucket S3 de Railway, sin exponer al usuario información sobre los límites del sistema.
+
+- **RNF-BUCKET-HEADERS-01 (Headers de Seguridad en Descargas)**:
+  - Todas las respuestas de descarga de documentos deben incluir:
+    - `X-Content-Type-Options: nosniff`
+    - `Cache-Control: private, no-cache, no-store, must-revalidate`
+    - `Content-Disposition: attachment; filename="[nomenclatura]"`
+
+### `[SRS 19.4 Requerimientos de Interfaz - Migración de Vistas]`
+
+- **RF-BUCKET-UI-01 (Reemplazo de Modales de Edición de Link por Upload)**:
+  - Las vistas `student-detail` y `volunteer-detail` deben reemplazar los modales de edición de enlace (INE, CV) por instancias de `FileUploadModalComponent`.
+  - El botón de acción debe cambiar de "Editar enlace" a "Subir documento".
+
+- **RF-BUCKET-UI-02 (Integración de File Picker en Modal de Acreditación)**:
+  - El componente `<app-new-accreditation-modal>` debe reemplazar el input de texto `evidenceUrl` por un file picker que permita seleccionar y subir el documento de evidencia en formato PDF.
+
+- **RF-BUCKET-UI-03 (Eliminación de Referencias a Campos Obsoletos)**:
+  - Los mappers del frontend (`student.mapper.ts`, `volunteer.mapper.ts`) deben eliminar referencias a `cloudUrls.comprobante` y `cloudUrls.reglamento`.
+  - Las interfaces TypeScript deben actualizarse para reflejar la estructura de `cloudUrls` reducida a `{ ine, cv }`.
+
+---
+
+## 20. Requerimientos de Flujo de Plantillas de Actividades, Archivo de Vistas de Acreditación, Ordenamiento Canónico, Limpieza de IDs de Depuración, Pulsación Larga en Formularios y Responsividad de Botones en Resoluciones Compactas (v2.12.0 - 2026.11.13)
+
+### `[SRS 20.1 Requerimientos Funcionales - Flujo de Plantillas, Archivo de Acreditaciones y Ordenamiento de Participaciones]`
+
+- **RF-ACT-TPL-FLOW-01 (Enrutamiento de Nueva Actividad Grupal hacia Gestión de Plantillas y `a.back-link` Contextual)**:
+  - En la vista unificada de participación (`/activity-list`), el botón administrativo **`Nueva actividad grupal`** debe dirigir directamente a la vista de gestión de plantillas (`/admin/quick-activities`).
+  - La vista de creación manual de actividad (`/activity`) debe incorporar en la parte superior el componente `a.back-link` con la leyenda **`← Volver a plantillas`** apuntando a `/admin/quick-activities`.
+
+- **RF-ACCRED-ARCH-01 (Absorción de Acreditaciones en «Participación» y Archivo de Vistas Legadas en el Proyecto)**:
+  - Dado que la sección **`Participación`** (`/activity-list`) absorbe tanto actividades grupales (`AC`) como participaciones individuales (`OP`), el sistema debe retirar el enlace `Acreditaciones` de la barra de navegación administrativa (`navbar.component.html`) y redirigir la ruta `/admin/accreditations` hacia `/activity-list`.
+  - Los componentes legados `accreditation-list` y `my-accreditations` deben conservarse archivados dentro del propio árbol del proyecto en `frontend/src/app/archive/` con sus importaciones ajustadas para no romper la compilación del bundle.
+
+- **RF-PART-SORT-01 (Ordenamiento de Registros de Reciente a Antiguo y Desempate por Estado)**:
+  - Tanto en la pestaña **`Para inscribirme y recientes`** como en **`Mi historial`** de `/activity-list`, los registros unificados (`UnifiedParticipationItem`) deben ordenarse primariamente por fecha descendente (**del más reciente al más antiguo**, `b.date.getTime() - a.date.getTime()`) y secundariamente por jerarquía de estado (`statusRank`: `0` abierta para inscribirse $\to$ `1` pendiente/abierta $\to$ `2` inscrito $\to$ `3` asistió $\to$ `4` validada/aprobada $\to$ `5` otros).
+
+### `[SRS 20.2 Requerimientos Funcionales - Formulario de Plantillas, Fechas Escritas, Formato 24h y Limpieza de Interfaz]`
+
+- **RF-TPL-FORM-01 (Campo de Horas Limpio y Tipos de Actividad Explicativos en Español)**:
+  - En los formularios administrativos de plantillas (`/admin/quick-activities`) y creación de actividad (`/activity`), el campo **`Valor en horas`** (`valueInHours`) debe inicializarse vacío (`null`, sin `0` por defecto), con placeholder orientativo (`Ej. 4`) y validación mínima de `0.5` horas.
+  - El selector **`Tipo de actividad`** debe mostrar etiquetas descriptivas en español que expliquen de forma simple la regla operativa de cada opción (conservando los valores internos del esquema):
+    - `mandatory` $\to$ **`Obligatoria · todos los participantes deben asistir`**
+    - `optional` $\to$ **`Voluntaria · se inscribe quien quiera participar`**
+    - `specific` $\to$ **`Por convocatoria · solo personas elegidas por administración`**
+
+- **RF-TPL-DATE24-01 (Captura Escrita con Autoformato para Fechas `DD/MM/AAAA` y Horas `24h` al Publicar Plantilla)**:
+  - En el formulario de publicación de plantillas (`/admin/quick-activities`), los campos **`Fecha de inicio`** y **`Fecha de finalización`** deben ser entradas de texto numéricas (`type="text" inputmode="numeric" maxlength="10"`) que inserten automáticamente las diagonales bajo el formato `DD/MM/AAAA` conforme el administrador escribe los dígitos (`ej. 25122026 = 25/12/2026`).
+  - Al completar los 10 caracteres de `Fecha de inicio`, si `Fecha de finalización` se encuentra vacía, el sistema debe autorrellenarla automáticamente con la misma fecha de inicio; antes de enviar al backend, ambas fechas deben validarse como fechas calendario reales y transformarse a formato ISO (`AAAA-MM-DD`), manteniendo los campos de horario en formato **24 horas** con autoformato (`autoFormat24h`).
+
+- **RF-UI-CLEAN-01 (Supresión de IDs Internos de Depuración, Etiquetas en Español y Sección «Base de datos»)**:
+  - En el panel de inicio del estudiante (`/home`) y en las vistas operativas de todos los roles (`contact`, perfiles y listados), queda prohibido mostrar en la interfaz identificadores internos de base de datos o autenticación (`ID`, `Auth ID`, `ID de estudiante`).
+  - Todos los títulos de campo del resumen de perfil en `/home` deben presentarse en español (`Nombre completo`, `Correo personal`, `Correo institucional`, `Teléfono`, `Fecha de nacimiento`, `Escuela`, `Carrera`, `Semestre`, `Auditor asignado`), y en `/contact` el encabezado `Status` debe mostrarse como `Estado`.
+  - En la barra de navegación del administrador (`navbar.component.html`), el menú desplegable de gestión de registros pasa de nombrarse `Servicio Social` a **`Base de datos`**.
+
+- **RF-COPY-LONGPRESS-01 (Apertura en Nueva Pestaña al Mantener Presionado el Botón de Copiar Formulario)**:
+  - En todos los botones de copiar enlace de formulario público (`.btn-copy-form` en Campañas `/formularios/campanas`, Pláticas `/formularios/platicas`, Adopciones `/formularios/adopciones` y Placas `/formularios/placas`), mantener presionado el botón durante **600 ms** mediante clic sostenido o *tap* táctil (`[appLongPressOpen]`) debe abrir el formulario público correspondiente en una nueva pestaña del navegador (`window.open(url, '_blank', 'noopener')`) en cualquier resolución, cancelando el disparo subsiguiente del evento `(click)` de copiado. Un clic o *tap* corto debe conservar intacto el copiado del enlace al portapapeles.
+
+- **RF-PART-INACTIVE-01 (Modo Solo Lectura de Participaciones Propia y Pendientes para Colaboradores Inactivos)**:
+  - Cuando un estudiante o voluntario tiene su cuenta en estado inactivo (`accountStatus === 'inactive'`), en `/activity-list` (`Mi participación`) únicamente debe visualizar las actividades grupales y participaciones individuales que él mismo realizó, inscribió o envió (`isEnrolledOrSubmitted`), excluyendo por completo las nuevas actividades grupales abiertas (`isOpenForEnrollment`).
+  - Si el colaborador inactivo tiene registros pendientes de revisión o validación (`registered`, `attended`, `pending`), estos se mantienen visibles en su agenda y pestaña reciente; la administración conserva todas las acciones para validarlos, asignarles horas, rechazarlos o cancelarlos (y el estado se actualiza en la vista del usuario), pero el colaborador inactivo solo puede consultar detalles y comprobantes en modo lectura (con los botones `Ver actividades para inscribirme`, `Registrar participación individual`, `Inscribirme`, `Cancelar asistencia` y `Cancelar envío` deshabilitados u ocultos).
+
+- **RF-PROFILE-HIST-01 (Simplificación de «Mi perfil» con Tabla Única «Historial»)**:
+  - En las vistas de perfil del estudiante (`/student-profile`) y del voluntario (`/volunteer-profile`), se elimina la sección redundante de tres pestañas (`Todas / Acreditaciones / Actividades` de `PARTICIPACIÓN`), ya que la gestión operativa reside en `/activity-list` (`Mi participación`).
+  - En su lugar, permanece en el perfil únicamente la tabla de trazabilidad institucional bajo el título **`Historial`** (con paginación `<app-pagination>`), consolidando todos los folios institucionales (`SN-`, `VN-`, `AC-`, `OP-`) del expediente.
+
+### `[SRS 20.3 Requerimientos No Funcionales - Responsividad de Botones y Altura Natural en Resoluciones de 327px a 1024px]`
+
+- **RNF-RESP-BTN-01 (Adaptación Proporcional de Botones en Tableta y Apilamiento sin Estiramiento Vertical en Móvil)**:
+  - En resoluciones de tableta ($\le 1024\text{px}$ y $\le 900\text{px}$), las filas de botones de encabezado (`.hero-actions-row`, `.hero-actions`, `.edit-btn-group`) deben permitir salto de línea (`flex-wrap: wrap; white-space: normal`) y distribuir sus botones equitativamente lado a lado (`flex: 1 1 220px; max-width: 100%; box-sizing: border-box`).
+  - En resoluciones móviles ($\le 768\text{px}$, $\le 540\text{px}$ y viewports ultra-estrechos como $327 \times 2751\text{px}$), todos los botones de encabezado y de tarjetas (`.btn-create-item`, `.btn-hero-action`, `.btn-copy-form`, `.btn-act`, `.btn-doc-download`) deben ocupar el 100% del ancho útil (`width: 100%; max-width: 100%`) con altura natural determinada por su contenido (`flex: 0 0 auto; height: auto; min-height: 42px–44px`), impidiendo que un `flex-basis` heredado en contenedores con `flex-direction: column` infle la altura de los botones (p. ej. a $160\text{px}$).
+  - Dentro de las píldoras de métricas del hero (`.hero-stat-pill`), la cifra y su unidad (`.stat-number`, como `200 h`) deben mantenerse indivisibles en una sola línea (`white-space: nowrap; flex-shrink: 0`).
+
 
 
 

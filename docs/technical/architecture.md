@@ -1088,6 +1088,14 @@ El subsistema de respaldos y deshidratación histórica se robustece conforme a 
      - Invocación de `(mousedown)="$event.preventDefault()"` en dropdown y opciones, cancelando el blur prematuro y auto-seleccionando el texto al recibir foco para facilitar búsqueda inmediata.
   5. **Desacoplamiento Estructural en `/activity-list`**:
      - Se remueve `div.activities-content`, otorgando 100% de ancho a la tabla y tarjetas de actividades, y convirtiendo su encabezado en un `.admin-hero` autónomo con botón superior izquierdo `+ Nueva actividad`.
+  6. **Sistema Homologado de Evaluación de Desempeño (`5 niveles` + Comentario) y Vista Previa de Cálculo en Tiempo Real (`v2026.11.12.5` – `v2026.11.12.15`)**:
+     - Se unifica la evaluación cualitativa (`very_bad`, `bad`, `good`, `very_good`, `excellent` + `performanceComment`) en aprobación de acreditaciones, validación de asistencia en actividades (incluyendo Voluntarios Generales con `0 h` en fallback silencioso) y asignación manual de horas (`manual-hours-modal`).
+     - `NewAccreditationModalComponent` incorpora el banner reactivo `.accreditation-calc-banner` con reglas y multiplicadores oficiales para `SS` (oculto para `VG`) y renombra la categoría `CAMPAIGN` a **`Campaña de esterilización`**.
+  7. **Guards de Enrutamiento por Rol en `/home`, Enlace `a.back-link` Externo, `<app-folio-pill>` con Folios Canónicos `AC` y Normalización de Layout `1500px` (`v2026.11.12.2` – `v2026.11.12.19`)**:
+     - `HomeRoleGuard` y `VolunteerHomeGuard` redirigen determinísticamente a `/admin/home`, `/volunteer-home` o `/home` según el rol activo.
+     - Todas las vistas de detalle y sub-vistas adoptan el enlace superior externo `a.back-link`, las páginas se normalizan a `max-width: 1500px` (`padding: 32px 24px 80px`), se eliminan los avatares de iniciales en todos los roles, se persiste el folio canónico `AC-YYMMDD-XXXX` en el modelo `Activity` renderizado con `<app-folio-pill>`, y se integran las píldoras de resumen en `.hero-stats-row` con el total general como primera métrica a la izquierda.
+  8. **Constancias Públicas de Pláticas (`AES-256-GCM`), Rutas Legales Raíz y Dropzone Unificado de Respaldos con Health Check en Vivo (`v2026.11.12.10` – `v2026.11.12.18`)**:
+     - Emisión stateless de constancias de pláticas (`tp1.[iv].[ciphertext].[authTag]`) con escalado 2D responsivo y rate-limiting público; exposición de documentos legales en rutas raíz (`/privacidad`, `/terminos`, `/reglamento`, `/formato-adopcion`); parametrización centralizada de URLs (`PUBLIC_FRONTEND_URL`, `PUBLIC_API_URL`) en correos y certificados; y dropzone unificado con *drag-and-drop*, detección por manifiesto y health check en vivo de MongoDB en `/admin/backups`.
 - **Consecuencias**:
   - *Positivas*: Cohesión visual absoluta en toda el área de administración; eliminación protegida sin riesgo de pérdida accidental de datos; respeto al modelo de dominio que separa horas curriculares de voluntariado general; interfaz 100% responsiva y usable en iPhone SE (375px); reducción drástica de duplicación de código en modales.
   - *Negativas*: Requiere que cualquier nueva entidad administrativa implemente el patrón de endpoints de fábrica (`deleteOne`) y el modal homologado.
@@ -1120,6 +1128,75 @@ El subsistema de respaldos y deshidratación histórica se robustece conforme a 
 - **Consecuencias**:
   - *Positivas*: Cero impacto en esquemas de MongoDB ni endpoints REST existentes; cero creación de componentes Angular superfluos; lectura limpia con revelación progresiva (`Ver detalles`); trazabilidad visual clara en 3 pasos sin duplicar etiquetas de estado.
   - *Negativas*: Requiere un selector computado en el componente contenedor para proyectar y ordenar `Activity` y `Accreditation` según la ventana de 14 días (Agenda) y el corte de 7 días post-evento (Pestaña 1 vs. Pestaña 2).
+
+### ADR-14: Migración de Documentos PDF a Bucket Institucional Railway S3 con Rate Limiting Silencioso
+- **Estado**: Aceptado y Parcialmente Implementado.
+- **Contexto**: El sistema ABAQ manejaba documentos de forma inconsistente: (1) archivos PDF al bucket solo para reglamento firmado, (2) enlaces externos en `cloudUrls` para INE/CV/comprobante dependientes de Google Drive/OneDrive, y (3) inputs de texto libre para evidencias de acreditación sin validación. Esta fragmentación generaba enlaces rotos, falta de control de formato y vulnerabilidades de seguridad en endpoints de carga sin autenticación.
+- **Decisión**: Se centraliza **todo documento PDF** en el bucket institucional de Railway (S3) con las siguientes medidas:
+  1. **Eliminación de campos obsoletos**: `cloudUrls.comprobante` y `cloudUrls.reglamento` removidos de modelos `Student` y `Volunteer` por no corresponder al Reglamento ABAQ §8 (que solo exige INE, CV y reglamento firmado).
+  2. **Nuevos campos en modelo `Adoption`**: `ineDocument`, `comprobanteDomicilioDocument` y `signedFormatDocument` con estructura embebida estándar (`fileName`, `storedName`, `mimeType`, `fileSize`, `uploadedAt`, `uploadedBy`).
+  3. **Seguridad de endpoints**: Middleware `protect` obligatorio en `/upload-signed-rules` y `/upload-adoption-format`; verificación de ownership (`entityId === user.linkedDoc._id || role === admin`).
+  4. **Validación de PDF**: Magic bytes `%PDF-` en backend (`isValidPdfBuffer()`), extensión y MIME type en frontend, límite de 15 MB.
+  5. **Rate limiting silencioso**: Máximo 3 descargas por documento/usuario en ventana de 8 horas; respuesta `204 No Content` sin mensaje de error; anti-spam de clicks < 2 segundos; protección de costos de egress Railway.
+  6. **Plantillas solo PDF**: Reglamento y formato de adopción descargables exclusivamente como `.pdf` (eliminación de `.docx`).
+- **Consecuencias**:
+  - *Positivas*: Control total de documentos sin dependencia de servicios externos; validación uniforme de formato PDF; protección de costos de API Railway; seguridad reforzada en endpoints de carga; alineación con Reglamento ABAQ §8 y Formato de Adopción §4.2.
+  - *Negativas*: Requiere migración de enlaces existentes en `cloudUrls` a documentos en bucket; actualización de vistas frontend para reemplazar inputs de texto por file pickers.
+
+```mermaid
+flowchart TD
+    subgraph Frontend["Capa de Cliente (Angular 22)"]
+        UPLOAD["FileUploadModalComponent<br/>accept='.pdf' · 15MB max"]
+        DOWNLOAD["BucketService.downloadSignedRules()<br/>Token cifrado AES-256-GCM"]
+    end
+
+    subgraph Backend["Capa de Backend (Express.js)"]
+        ROUTE["bucket.route.js<br/>protect + uploadMiddleware"]
+        CTRL["bucket.controller.js<br/>isValidPdfBuffer() · ownership check"]
+        SVC["bucket.service.js<br/>saveSignedRulesPdf() · Railway S3"]
+        RATE["Rate Limiting Silencioso<br/>3 descargas / 8h · 204 No Content"]
+    end
+
+    subgraph Storage["Almacenamiento (Railway)"]
+        BUCKET[("Railway Storage Bucket<br/>S3 Compatible · Egress Metered")]
+    end
+
+    UPLOAD -->|"POST /upload-signed-rules"| ROUTE
+    ROUTE --> CTRL
+    CTRL -->|"Validación PDF + Ownership"| SVC
+    SVC -->|"PutObject"| BUCKET
+    
+    DOWNLOAD -->|"POST /rules-download-token"| CTRL
+    CTRL -->|"Token AES-256-GCM"| DOWNLOAD
+    DOWNLOAD -->|"GET /download-signed-rules/:token"| RATE
+    RATE -->|"GetObject"| BUCKET
+```
+
+### ADR-26: Flujo de Plantillas de Actividades, Archivo de Vistas Legadas de Acreditación, Ordenamiento Canónico Reciente-Primero, Fechas Escritas `DD/MM/AAAA` + 24h, Limpieza de IDs de Depuración, Directiva `LongPressOpenDirective` y Corrección de `flex-basis` Vertical en Móvil
+- **Estado**: Aceptado e Implementado en Rama `dev` (`2026-11-13`, commit `1d76cbd`).
+- **Contexto**:
+  1. **Desbordamiento y Estiramiento Vertical de Botones en Viewports Móviles (`327px` y `376px`)**: En teléfonos estrechos (`376px`), el botón `.btn-create-item` (`Ver actividades para inscribirme`) tenía `white-space: nowrap` y desbordaba el borde izquierdo de `.admin-hero`, mientras que la píldora `200 h` partía la unidad `h` en una segunda línea. Adicionalmente, en resoluciones de `327 × 2751 px`, los botones `.btn-act` (`Inscribirme`, `Ver asistentes`) en las tarjetas de actividades heredaban `flex: 1 1 160px` de la regla de tableta (`<= 900px`) cuando `.activity-actions` cambiaba a `flex-direction: column` en móvil (`<= 540px`), provocando que los botones midieran `160px` de alto.
+  2. **Flujo de Creación de Actividades y Duplicidad con Vistas Antiguas de Acreditación**: El botón de nueva actividad grupal en `/activity-list` llevaba al formulario aislado `/activity` en vez del catálogo de plantillas (`/admin/quick-activities`), y el menú administrativo seguía mostrando la sección separada `Acreditaciones` (`/admin/accreditations`) ya absorbida por la vista unificada `Participación`.
+  3. **Fricción en Formulario de Plantillas y Exposición de IDs de Depuración**: El formulario de plantillas iniciaba `valueInHours` en `0`, mostraba valores crudos en inglés (`mandatory`, `optional`, `specific`) en el selector de tipo, y dependía del selector nativo `type="date"` en lugar de captura escrita rápida con autorrelleno igual que los campos de hora 24h. Asimismo, `/home` exponía `ID`, `Auth ID` y etiquetas en inglés (`Full Name`, `School Mail`), y `/contact` mostraba `ID de estudiante` y `Status`.
+  4. **Acceso Rápido a Formularios Públicos desde Botones de Copiado**: Los administradores requerían abrir rápidamente en una pestaña nueva cualquiera de los 4 formularios públicos (`campañas`, `pláticas`, `adopciones`, `placas`) manteniendo presionado el mismo botón `.btn-copy-form` tanto en escritorio (clic sostenido) como en dispositivos táctiles (*tap* largo).
+- **Decisión**:
+  1. **Sistema Responsivo Global y Local para Botones y Píldoras de Hero (`styles.scss`, `activity-list.component.scss`)**:
+     - En tableta ($\le 1024\text{px}$ / $\le 900\text{px}$), `.hero-actions-row`, `.hero-actions` y `.edit-btn-group` aplican `flex-wrap: wrap` con botones `flex: 1 1 220px; white-space: normal; justify-content: center`.
+     - En móvil ($\le 768\text{px}$ / $\le 540\text{px}$), las filas de botones se apilan verticalmente (`flex-direction: column; width: 100%`) y tanto `.activity-actions` como `.btn-act` y `.prep-actions-row .btn-act` fijan `flex: 0 0 auto; height: auto; min-height: 42px–44px`, eliminando cualquier estiramiento vertical en anchos de `327px`. Las píldoras `.hero-stat-pill .stat-number` fijan `white-space: nowrap; flex-shrink: 0`.
+  2. **Navegación hacia Plantillas (`/admin/quick-activities`), Archivo en `src/app/archive/` y Ordenamiento Canónico (`compareRecentFirstThenStatus`)**:
+     - El botón `Nueva actividad grupal` en `/activity-list` enlaza a `/admin/quick-activities`, y `/activity` incluye `a.back-link` (`← Volver a plantillas`) de retorno a `/admin/quick-activities`.
+     - Se elimina el ítem `Acreditaciones` del navbar administrativo, `/admin/accreditations` redirige a `activity-list`, y los directorios `accreditation-list` y `my-accreditations` se reubican mediante `git mv` en `frontend/src/app/archive/` como respaldo compilable.
+     - En `activity-list.component.ts`, ambas pestañas (`upcomingAndRecentItems` y `historyItems`) ordenan con `compareRecentFirstThenStatus(a, b)`: primero por fecha descendente (`b.date.getTime() - a.date.getTime()`) y, a igual fecha, por `statusRank` (`abierta para inscripción` $\to$ `pending/open` $\to$ `registered` $\to$ `attended` $\to$ `validated/approved`).
+  3. **UX de Plantillas (Horas Limpias, Tipos Explicativos, Fechas Escritas `DD/MM/AAAA` con Autorrelleno) y Limpieza de Datos de Depuración**:
+     - `valueInHours` inicia en `null` (`placeholder="Ej. 4"`, `min="0.5"`), y `activityTypeOptions` mapea `mandatory`, `optional` y `specific` a etiquetas explicativas en español (`Obligatoria · todos los participantes deben asistir`, `Voluntaria · se inscribe quien quiera participar`, `Por convocatoria · solo personas elegidas por administración`).
+     - Al publicar plantillas (`quick-activities`), `publishStartDate` y `publishDueDate` operan como inputs numéricos escritos que formatean `DD/MM/AAAA` al vuelo (`formatDateText`), autorrellenan `dueDate` cuando `startDate` completa 10 caracteres y validan/convierten a ISO `AAAA-MM-DD` (`dateTextToIso`), acompañados de los inputs de hora 24h (`autoFormat24h`).
+     - Se eliminan `id` y `authId` de `displayFields` en `home.component.ts` traduciendo todas las etiquetas al español, se remueve la columna `ID de estudiante` en `contact.component.html`, y el menú administrativo `Servicio Social` en `navbar.component.html` se renombra a **`Base de datos`**.
+  4. **Directiva Standalone `LongPressOpenDirective` (`frontend/src/app/directives/long-press-open.directive.ts`)**:
+     - Basada en Pointer Events (`pointerdown`, `pointermove`, `pointerup`, `pointerleave`, `pointercancel`), inicia un temporizador de `600 ms` al presionar cualquier `.btn-copy-form` con `[appLongPressOpen]="'/formularios/...'"`.
+     - Si el usuario mantiene la presión sin desplazar el puntero más de `10 px`, abre la URL en una pestaña nueva (`window.open(url, '_blank', 'noopener')`) e intercepta el evento `click` posterior (`stopImmediatePropagation() + preventDefault()`) y `contextmenu` para no disparar la alerta de copiado ni el menú contextual móvil.
+- **Consecuencias**:
+  - *Positivas*: Botones con proporción ergonómica exacta en cualquier ancho (`327px`, `376px`, `680px`, desktop); navegación unificada en torno a `Participación` y `Base de datos` sin perder el código legado (archivado en `src/app/archive/`); captura rápida por teclado de fechas y horas 24h; cero exposición de IDs técnicos al usuario final; doble acción intuitiva (clic corto = copiar, mantener presionado = abrir pestaña) en los 4 formularios públicos.
+  - *Negativas*: En navegadores móviles con bloqueadores estrictos de ventanas emergentes asíncronas (como ciertos modos de Safari iOS), `window.open` disparado desde `setTimeout` puede requerir confirmación del navegador.
 
 ---
 
