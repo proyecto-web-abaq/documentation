@@ -11,6 +11,12 @@ Esta sección consolida las iniciativas técnicas, propuestas arquitectónicas y
 
 <div class="grid cards" markdown>
 
+-   :lucide-file-up: **[Migración de Documentos a Bucket Railway y Seguridad de Endpoints (2026-11-13)](./2026-11-13-migracion-documentos-bucket-railway.md)**
+
+    ---
+
+    Centralización integral de los documentos PDF del sistema (reglamentos, documentos personales INE/CV, adopciones y evidencias) en el bucket S3 de Railway con validación por *magic bytes*, eliminación de campos redundantes de enlaces externos (`cloudUrls`), autenticación obligatoria en endpoints de carga, tokens cifrados ligados a sesión y *rate limiting* silencioso de 8 horas.
+
 -   :lucide-calendar-check-2: **[Vista Unificada de Participación y Acreditaciones, Agenda de 2 Semanas y Pipeline de 3 Fases sin Mutación de Backend (2026-11-13)](./2026-11-13-vista-unificada-participacion-agenda-dos-semanas-pipeline-tres-fases.md)**
 
     ---
