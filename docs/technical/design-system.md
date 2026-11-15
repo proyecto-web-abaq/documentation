@@ -709,4 +709,22 @@ Todos los estados del widget de perfil reutilizan de forma estricta el patrón c
 | **● Pendiente** | `#fde047` (Amarillo cálido de alta luminosidad) | `.status-pending` | **12.1:1** | WCAG AAA |
 | **● Concluido** | `#67e8f9` (Cian brillante) | `.status-completed` | **11.2:1** | WCAG AAA |
 
+---
+
+## 17. Retroalimentación Transitoria In-Situ en Botones (`ActionFeedbackDirective`) y Selectores Nativos del Sistema Operativo
+
+### 17.1 Erradicación Total de Banners Estáticos y `alert()` en Favor de Estados Transitorios del Botón (`CLS = 0`)
+
+Todas las acciones disparadas por botones en la plataforma (guardar, actualizar, copiar enlace/folio, descargar constancia/PDF, inscribirse, aprobar/rechazar/inactivar cuentas, crear registros y restaurar respaldos) notifican su progreso y resultado **exclusivamente dentro del propio botón** mediante `ActionFeedbackDirective` (`button[appActionFeedback]`):
+- **Estados Transitorios**: `idle` → `loading` (spinner + texto contextual, ej. *"Actualizando..."*) → `success` (`✓ ¡Actualizado!` / `✓ ¡Listo!` durante `2.5s`) o `error` (`✕ Error` durante `3.5s`) → retorno automático a `idle`.
+- **Cero Desplazamiento de Layout (`CLS = 0`)**: Antes de entrar en estado transitorio, la directiva congela `width` y `height` exactos en píxeles (`getBoundingClientRect()`) y oculta temporalmente los nodos hijos originales sin destruir las anclas DOM de Angular (`@if` / `@for`), restaurándolos íntegramente al volver a `idle`.
+- **Cero Banners Estáticos ni `window.alert()`**: Se erradicaron todos los banners estáticos residuales (`.status-feedback-alert`, `.participation-feedback-banner`, `.doc-fallback-alert`, `.document-success-alert`, `.document-error`, `.table-action-feedback`, `.alert-error-box`, `.alert-error-banner`, `.upload-alert-danger`, `.unified-success-banner`, `.feedback-toast`, `.success-toast`, `.auth-alert-error`, `.profile-message`) y las 19 llamadas bloqueantes a `alert()` / `window.alert()`.
+
+### 17.2 Selectores Nativos del Sistema Operativo con Escritura Manual (Excepto Registro y Expediente)
+
+Para maximizar la velocidad de captura por teclado y aprovechar los selectores nativos de fecha, hora y listas desplegables de cada sistema operativo (iOS, Android, macOS, Windows):
+- **Excepción Protegida**: Únicamente el flujo de **Registro / Onboarding** (`onboarding-phase`) y la vista de **Expediente** (`student-detail`) conservan los componentes personalizados `CustomDatepickerComponent` (`<app-custom-datepicker>`) y `CustomSelectComponent` (`<app-custom-select>`).
+- **Estándar Nativo en el Resto del Sistema**: Todas las demás vistas y modales (`NewAccreditationModalComponent`, `activity`, `activity-list`, `quick-activities`, `campaign-list`, `talk-list`, `adoption-detail`, `identification-list`, `backup`) utilizan controles nativos `<input type="date">`, `<input type="time">` y `<select>` estilizados con `.custom-form-control`, permitiendo tanto la escritura manual directa con teclado como la apertura del selector nativo del sistema operativo.
+
+
 
