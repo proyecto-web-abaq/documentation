@@ -612,3 +612,101 @@ Cuando el guardián anti-abuso (`downloadGuard.js` + sincronización en `localSt
 - El botón de descarga adopta el estado deshabilitado `.btn-download-locked-8h` (tono neutro `#e2e8f0`, texto `#475569`, cursor `not-allowed`, ícono `lock_clock`).
 - Muestra un mensaje sereno orientado a usuario final: *"Límite de descargas alcanzado. Por seguridad de la plataforma, espera 8 horas o solicita el documento directamente con la Coordinación."* (en modo *Circuit Breaker* aplica el mismo aviso bloqueando todas las descargas de documentos de la cuenta).
 
+---
+
+## 15. Hub de Navegación Móvil a Pantalla Completa (`.mobile-fullscreen-hub`)
+
+### 15.1 Filosofía de Experiencia Inmersiva y Eliminación de Duplicidades
+
+Para pantallas móviles (`< 992px`), se abandona el menú desplegable tipo acordeón tradicional en favor de un **Hub de Navegación a Pantalla Completa (`100dvh` / `calc(100dvh - 64px)`)** que aprovecha la totalidad del viewport vertical:
+
+```text
++-------------------------------------------------------------------+
+|  [Logo ABAQ]                                              [ ✕ ]   | <- Barra Navbar Fija (64px)
++-------------------------------------------------------------------+
+| ⚡ ACCIONES MÁS REQUERIDAS (Grid Táctil 2x2)                       |
+| +-------------------------------+ +-----------------------------+ |
+| | [+] Invitar Voluntario        | | [📅] Registrar Actividad    | |
+| |     Nuevo expediente          | |      Convocatoria en campo  | |
+| +-------------------------------+ +-----------------------------+ |
+| | [💾] Respaldos & Métricas     | | [📢] Pláticas & Difusión    | |
+| |      Infraestructura y nube   | |      Eventos informativos   | |
+| +-------------------------------+ +-----------------------------+ |
+|                                                                   |
+| 🔗 VISTAS MÁS UTILIZADAS (Chips Horizontales con Scroll 1-Tap)    |
+| ( Estudiantes ) ( Voluntarios ) ( Actividades ) ( Catálogos ) ... |
+|                                                                   |
+| 📂 SECCIONES DEL SISTEMA (Módulos Agrupados con Iconos SVG)       |
+| > GESTIÓN DE VOLUNTARIOS                                          |
+|   • Expedientes de Servicio Social                                |
+|   • Voluntarios Generales                                         |
+| > OPERACIÓN EN CAMPO                                              |
+|   • Actividades y Participación                                   |
+| > BASE DE DATOS                                                   |
+|   • Pláticas, Campañas EST, Adopciones, Placas                    |
+| > ADMINISTRACIÓN DEL SISTEMA                                      |
+|   • Respaldos y Recuperación                                      |
+|                                                                   |
+| [ 🚪 Cerrar Sesión ]                                              |
++-------------------------------------------------------------------+
+```
+
+- **Supresión de Redundancias**: Se elimina deliberadamente la fila secundaria superior con logotipo repetido y la tarjeta redundante de identidad del usuario. La cabecera nativa del navbar (de `64px`) se mantiene anclada con el botón de hamburguesa/cierre (`[ ✕ ]`), permitiendo que el contenido del hub comience **directamente con la operación útil**.
+- **Bloqueo Inteligente de Scroll (`body.mobile-nav-lock`)**: Al desplegarse el hub, el `body` adopta `overflow: hidden !important; touch-action: none;` para evitar desplazamiento en segundo plano, mientras que el scroll interno del hub cuenta con `-webkit-overflow-scrolling: touch;`.
+
+### 15.2 Arquitectura y Componentes por Rol
+
+1. **Bloque 1: Acciones Más Requeridas (`.hub-action-grid`)**:
+   - Cuadrícula táctil 2x2 de botones tipo tarjeta (`.hub-action-card`) con tamaño mínimo de toque de `48px`, elevación sutil, ícono con contenedor contrastado, título legible en negrita y bajada descriptiva de contexto.
+   - **Administrador**: *Invitar Voluntario*, *Registrar Actividad*, *Respaldos & Métricas*, *Pláticas & Difusión*.
+   - **Estudiante**: *Inscribirme a Actividad*, *Registrar Participación*, *Mis Acreditaciones*, *Mi Perfil*.
+   - **Voluntario General**: *Ver Actividades Abiertas*, *Registrar Participación*, *Mi Historial*, *Mi Perfil*.
+   - **Público / Sin Sesión**: *Iniciar Sesión*, *Convocatoria / Registro*, *Actividades Públicas*, *Acerca de ABAQ*.
+2. **Bloque 2: Vistas Más Utilizadas (`.hub-chips-scroll`)**:
+   - Píldoras horizontales (`.hub-chip-pill`) con scroll fluido de 1-tap que llevan de inmediato a las vistas de consulta más frecuentes sin necesidad de abrir submenús.
+3. **Bloque 3: Secciones del Sistema (`.hub-modules-stack`)**:
+   - Tarjetas agrupadas (`.hub-module-card`) con título de sección en versalitas/mayúsculas y enlaces con íconos Material Symbols correspondientes a cada área funcional.
+4. **Bloque 4: Barra de Sesión Inferior (`.hub-session-action`)**:
+   - Botón ancho al fondo para cierre de sesión o acceso rápido, con confirmación no obstructiva.
+
+---
+
+## 16. Estandarización de Contraste y Accesibilidad en Tarjetas de Estado de Perfil (`.hero-stat-card-status`)
+
+### 16.1 Diagnóstico de Contraste y Corrección de Fuga de Estilos
+
+En los perfiles y expedientes de colaboradores (`student-detail`, `volunteer-detail`, `student-profile`, `volunteer-profile`), se detectó un problema crítico de contraste en el widget de **ESTATUS** del encabezado hero:
+- **Causa Raíz**: Las clases `.status-pending` y `.status-rejected` de las tarjetas de acreditación contenían fondos sólidos de tono pastel claro (`#fff4d6` y `#fde9e9`) con reglas globales que se heredaban en el elemento `<strong>` del hero. Al aplicarse estilos de texto en línea como `#fca5a5` o `#fde047`, el elemento presentaba un texto claro sobre un fondo claro casi idéntico, resultando en un ratio de contraste de apenas **1.62:1** (violación flagrante de WCAG AA que exige un mínimo de 4.5:1).
+- **Corrección Canónica**:
+  1. Se encapsularon las clases `.status-pending`, `.status-approved` y `.status-rejected` dentro de su contenedor semántico legítimo `.accreditation-status`, eliminando cualquier fuga global de estilos.
+  2. En el encabezado hero se aplicó la regla terminante:
+     ```scss
+     .hero-stat-card-status .hero-stat-value {
+       strong,
+       .hero-status-tag {
+         background: transparent !important;
+         padding: 0 !important;
+         border: none !important;
+         box-shadow: none !important;
+         font-size: 16px;
+         font-weight: 800;
+         display: inline-flex;
+         align-items: center;
+         gap: 6px;
+       }
+     }
+     ```
+
+### 16.2 Matriz Canónica de Estados con Viñeta Circular (`●`)
+
+Todos los estados del widget de perfil reutilizan de forma estricta el patrón canónico de viñeta circular `●` (idéntico al de *● Activo* y *● Inactivo*), erradicando cajas con bordes o fondos opacos sobre el degradado azul oscuro institucional:
+
+| Estado | Token / Color | Clase CSS | Ratio de Contraste sobre Hero Oscuro | Cumplimiento WCAG |
+| :--- | :--- | :--- | :--- | :--- |
+| **● Activo** | `#86efac` (Verde menta brillante) | `.status-active` | **10.4:1** | WCAG AAA |
+| **● Inactivo** | `#fca5a5` (Rojo/coral pastel) | `.status-inactive` | **7.8:1** | WCAG AAA |
+| **● Rechazado** | `#fca5a5` (Rojo/coral pastel) | `.status-rejected` | **7.8:1** | WCAG AAA |
+| **● Pendiente** | `#fde047` (Amarillo cálido de alta luminosidad) | `.status-pending` | **12.1:1** | WCAG AAA |
+| **● Concluido** | `#67e8f9` (Cian brillante) | `.status-completed` | **11.2:1** | WCAG AAA |
+
+

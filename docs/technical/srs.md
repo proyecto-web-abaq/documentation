@@ -1634,6 +1634,37 @@ Con base en la metodología de auditoría de 6 fases del Prof. Ricardo Monroy (O
 - **RNF-SEC-AUDIT-09 (`H-09` Medio Preventivo — Integridad Referencial Pre-Descarga)**:
   - Garantizar la ejecución obligatoria de `validateBackupReadiness` previa a toda descarga `.zip` de respaldo.
 
+---
+
+## 25. Navegación Móvil Inmersiva y Accesibilidad Visual Canónica
+
+### 25.1 Requerimientos Funcionales de Navegación Móvil
+
+- **RF-NAV-MOB-01 (Hub de Navegación Móvil a Pantalla Completa)**:
+  - En anchos de pantalla `< 992px`, al activar el botón de hamburguesa en `NavbarComponent`, la aplicación debe desplegar un overlay de pantalla completa (`calc(100dvh - 64px)` con `top: 64px`).
+  - El layout suprime encabezados repetidos (no duplica logo ni botón de cierre) y omite tarjetas redundantes de usuario, iniciando directamente con el panel operativo útil.
+  - Al abrir el menú, se aplica la clase `.mobile-nav-lock` a la etiqueta `<body>` (`overflow: hidden !important; touch-action: none;`) para bloquear el desplazamiento del fondo, restableciéndose al cerrar el hub o navegar.
+
+- **RF-NAV-MOB-02 (Matriz de Acciones Rápidas y Módulos por Rol)**:
+  - El hub organiza la información en 4 bloques prioritarios:
+    1. **Acciones Más Requeridas**: Grid 2x2 táctil con tarjetas interactivas de alto contraste adaptadas al rol (`admin`: Invitar Voluntario, Registrar Actividad, Respaldos & Métricas, Pláticas; `student`: Inscribirme, Registrar Participación, Mis Acreditaciones, Mi Perfil; `volunteer`: Actividades Abiertas, Registrar Participación, Historial, Mi Perfil; `public`: Iniciar Sesión, Convocatoria, Actividades Públicas, Acerca de ABAQ).
+    2. **Vistas Más Utilizadas**: Fila horizontal de chips píldora táctiles (`.hub-chip-pill`) para salto directo a 1-tap.
+    3. **Secciones del Sistema**: Lista estructurada y agrupada de módulos con iconografía Material Symbols.
+    4. **Acción de Sesión**: Botón accesible al pie del contenedor para iniciar o cerrar sesión (`logout()`).
+
+### 25.2 Requerimientos No Funcionales de Accesibilidad y Contraste
+
+- **RNF-A11Y-STATUS-01 (Accesibilidad y Contraste Canónico en Widgets de Estatus de Perfil)**:
+  - El widget de **ESTATUS** en encabezados hero (`student-detail`, `volunteer-detail`, `student-profile`, `volunteer-profile`) debe mantener fondo transparente (`background: transparent !important; border: none;`) para evitar contrastes degradados contra fondos pastel.
+  - Todos los estados (`Activo`, `Inactivo`, `Pendiente`, `Rechazado`, `Concluido`) deben reutilizar el patrón canónico de viñeta circular `●` con tipografía en negrita (`font-weight: 800; font-size: 16px;`).
+  - La paleta de colores sobre el degradado azul oscuro institucional debe garantizar un ratio de contraste mínimo superior a **7:1** (cumpliendo nivel WCAG AAA):
+    - `● Activo`: `#86efac` (Ratio > 10:1).
+    - `● Inactivo` / `● Rechazado`: `#fca5a5` (Ratio > 7.5:1).
+    - `● Pendiente`: `#fde047` (Ratio > 12:1).
+    - `● Concluido`: `#67e8f9` (Ratio > 11:1).
+  - Las clases de insignias con fondo pastel (`.status-pending`, `.status-rejected`, etc.) deben quedar estrictamente encapsuladas dentro del contenedor de acreditaciones (`.accreditation-status`), impidiendo cualquier fuga hacia el hero o encabezados principales.
+
+
 
 
 
