@@ -11,6 +11,24 @@ Esta sección consolida las iniciativas técnicas, propuestas arquitectónicas y
 
 <div class="grid cards" markdown>
 
+-   :lucide-shield-check: **[Estadísticas Duales con Costos Oficiales Railway, Respaldo y Rollback Integral (BD + Bucket S3), Guard Anti-Abuso de 8h y Auditoría OWASP WSTG (2026-11-15)](./2026-11-15-estadisticas-costos-railway-respaldo-dual-bd-bucket-s3-seguridad.md)**
+
+    ---
+
+    Propuesta integral (arquitectura, costos, UX ciudadana y seguridad web) para `/admin/backups` y toda la plataforma: división del encabezado en dos contenedores gemelos reutilizando `.hero-stats-grid` y `.hero-stat-card` (Base de datos y Almacenamiento de archivos en Bucket S3) con cálculo mensual oficial de Railway + diferencial de crecimiento ($\Delta$) sin exponer fórmulas en pantalla, caché de 5 min, cooldown de 60 s y *hint* de fecha única (`Última actualización: DD/MM/AAAA`); respaldo tri-modal en lenguaje llano (**"archivos"** / **"documentos guardados"**, sin jerga técnica), manifiesto `v3.0.0`, validación pre-descarga `validateBackupReadiness`, rollback con soporte S3 reutilizando el modal de vista previa bajo política estricta *Zero-Overwrite*, guardián universal de descargas (`downloadGuard.js` + `localStorage` 8h + *Circuit Breaker* anti-egreso) y auditoría integral OWASP WSTG / Top 10:2021 (`H-01`–`H-09`).
+
+-   :lucide-users: **[Gobernanza Narrativa: Separación Conceptual entre Actividades Colectivas (1 de 11 opciones) y Participación Individual 1:1, Trilogía de Roles y Flujo de Verificación (2026-11-15)](./2026-11-15-narrativa-participacion-vs-actividades-roles.md)**
+
+    ---
+
+    Refactorización integral de la narrativa y arquitectura de información institucional en toda la plataforma: erradicación de la etiqueta confusa "Nueva acreditación" a favor de "Registrar participación" / "Registrar participación a colaborador"; distinción formal entre actividades grupales institucionales (eventos convocados por ABAQ) y participaciones individuales con evidencia (.PDF) sujetas a revisión; unificación estricta de los 3 roles (Estudiante de Servicio Social, Voluntario General y Coordinación de Voluntariado); y rediseño pedagógico de `<app-new-accreditation-modal>` con banner informativo de verificación institucional que aclara que el registro no es automático sino auditado por la Coordinación.
+
+-   :lucide-award: **[Carta Oficial (DOCX y PDF), Constancias Individuales y Notificaciones Asíncronas por Correo en Pláticas (2026-11-15)](./2026-11-15-carta-oficial-constancias-notificaciones-platicas.md)**
+
+    ---
+
+    Generación automatizada de la Carta Oficial de Realización y Reporte de Impacto Social en Microsoft Word (`.docx`) y PDF/HTML imprimible para rendición de cuentas institucional de ABAQ (ONG donataria) ante dependencias de gobierno y autoridades educativas; emisión de constancias digitales individuales con folios de trazabilidad (`CP-AAMMDD-XXXX-NN`) y tokens seguros AES-256-GCM; vista de éxito post-envío de formulario y detalle administrativo con métricas de impacto y copiado rápido de enlaces; y despacho de notificaciones de correo en segundo plano vía Resend API con arquitectura Zero-Puppeteer de ultra bajo consumo de recursos (RAM ~2MB).
+
 -   :lucide-upload-cloud: **[Carga de Archivos Drag & Drop, Nueva Acreditación Contextual, Borrado Seguro en Tarjetas y Actualización Reactiva de Datos (2026-11-15)](./2026-11-15-reutilizacion-carga-archivos-drag-drop-acreditacion-borrado-formularios.md)**
 
     ---
@@ -133,6 +151,7 @@ Esta sección consolida las iniciativas técnicas, propuestas arquitectónicas y
 
 | Propuesta / Módulo | Área de Impacto | Estado | Documento de Referencia |
 | :--- | :--- | :--- | :--- |
+| **Estadísticas Duales con Costos Railway, Respaldo/Rollback (BD + Bucket S3), Guard 8h y Auditoría OWASP WSTG** | Respaldos, Finanzas Railway, Almacenamiento S3, UX y Seguridad Web | En Validación Documental (15 nov 2026) | [Ver documento](./2026-11-15-estadisticas-costos-railway-respaldo-dual-bd-bucket-s3-seguridad.md) |
 | **Tablero Kanban y Notificaciones Mínimas con Resend** | Gestión de Tareas, UX Móvil, Notificaciones y Correo | Implementado y Estable en Dev (9 nov 2026) | [Ver documento](./2026-11-09-estrategia-kanban-notificaciones-resend.md) |
 | **Turnstile Anti-Bot en Superficies Públicas y Despliegue Railway** | Seguridad, Anti-Bot, Frontend, Backend y Despliegue | En Implementación (6 nov 2026) | [Ver documento](./2026-11-06-turnstile-antibot-todas-las-superficies-publicas.md) |
 | **Deshidratación, Manifiesto Dual y Rehidratación** | Respaldos, Criptografía, UI y Base de Datos | Propuesta Aprobada — Fuente de Verdad (4 nov 2026) | [Ver documento](./2026-11-04-deshidratacion-respaldos-rehidratacion.md) |

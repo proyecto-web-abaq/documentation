@@ -84,6 +84,7 @@ icon: lucide/folder-git-2
 
     Inventario técnico de producción, entornos y aprovisionamiento:
     
+    * **[Tutorial: Despliegue Railway miabaq-abaq (Development)](tutorial-despliegue-railway-miabaq-development.md)**: Guía paso a paso interactiva de aprovisionamiento en Railway, Railpack CI/CD, sembrado de BD con `seed.sh` y validación de correos Resend.
     * **[Despliegue Real Railway & OpenTofu (Live)](despliegue-real-railway-opentofu.md)**: Topología multi-proyecto real, contenedores, Route 53 y sandbox de pruebas.
     * **[Stack Tecnológico Completo](tech-stack.md)**: Angular 19, Node.js 20+, Express y MongoDB Atlas.
     * **[Despliegue en la Nube](cloud-deployment.md)**: Opciones de hosting sobre grant Azure de \$2,000 USD.

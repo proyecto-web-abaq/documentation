@@ -111,6 +111,16 @@ Para publicar las 28 cuentas de prueba y el catálogo de 8 a 12 modelos operativ
 ./seed.sh --publish --direct
 ```
 
+### 3.6 Sembrado en la Nube (Railway Project `miabaq-abaq` / Entorno `development`)
+Para sembrar directamente en la base de datos MongoDB alojada en Railway desde tu terminal local utilizando el TCP Proxy:
+```bash
+# Inyectar la cadena de conexión del TCP Proxy en MONGODB_URI:
+MONGODB_URI="mongodb://mongo:MSdHEcFmFlchPrsmxXGMFqMXNeOzMmtl@trolley.proxy.rlwy.net:58138/abaqTesting--dev-rivers?authSource=admin" \
+  ./seed.sh --all
+```
+> [!TIP]
+> Consulta el [Tutorial de Despliegue en Railway (miabaq-abaq)](../technical/tutorial-despliegue-railway-miabaq-development.md) para más detalles sobre la arquitectura de red y el aprovisionamiento de variables.
+
 ---
 
 ## 4. Manifiesto Sincronizado (`cuentas-ciclo-vida.json`)

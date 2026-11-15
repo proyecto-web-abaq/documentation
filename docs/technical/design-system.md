@@ -231,6 +231,10 @@ Toda evolución visual o funcional de la plataforma opera bajo un **Arnés de Re
 | **Zona de Carga con Arrastrar y Soltar (Drag & Drop)** | `<app-file-dropzone>` (`FileDropzoneComponent`) | `frontend/src/app/components/ui/file-dropzone/` | Componente standalone para carga directa, validación .PDF <= 15MB, estados de arrastre (.is-dragover), vista previa y sustitución/eliminación. Reutilizado en `public-adoption-form`. |
 | **Registro de Participación Individual / Acreditación** | `<app-new-accreditation-modal>` (`NewAccreditationModalComponent`) | `frontend/src/app/components/shared/new-accreditation-modal/` | Reutilizado en `Mi participación`, `Participación`, `student-detail`, `volunteer-detail` y en los 4 módulos de Base de Datos (`adopciones`, `campañas`, `placas`, `pláticas`) con `[initialAccreditationType]`. |
 | **Confirmación Segura de Eliminación (`"borrar"`)** | `<app-delete-confirm-modal>` (`DeleteConfirmModalComponent`) | `frontend/src/app/components/shared/delete-confirm-modal/` | Reutilizado tanto en expedientes de detalle como directamente en las tarjetas de los 4 módulos de Base de Datos (`adoptions`, `campaigns`, `identifications`, `talks`). |
+| **Tarjeta Super Brief Base de Datos** | `<app-db-record-brief-card>` (`DbRecordBriefCardComponent`) | `frontend/src/app/components/shared/db-record-brief-card/` | Base reutilizable para los 4 módulos de Base de Datos (`talks`, `adoptions`, `campaigns`, `identifications`), con métricas clave, folios y botonera de acciones dentro/fuera. |
+| **Confirmación Escrita de Actualización (`"yes"`)** | `<app-update-confirm-modal>` (`UpdateConfirmModalComponent`) | `frontend/src/app/components/shared/update-confirm-modal/` | Modal reutilizable para autorizar la actualización de registros institucionales mediante el tipeo obligatorio de la palabra `"yes"`. |
+| **Carta Oficial y Reporte de Impacto Social (Pláticas)** | Endpoints binario DOCX y visor PDF | `backend/utils/talkLetterDocx.js`, `backend/utils/talkLetterPdf.js` | Carta formal para rendición de cuentas ante gobierno en Word (.docx) y visor PDF con barra flotante de herramientas. |
+| **Constancia Individual de Pláticas** | Endpoint `/certificate/talk/:hashToken` | `backend/utils/certificates.js` | Constancia digital única por asistente con folio (`CP-AAMMDD-XXXX-NN`), token AES-256-GCM y botones de PDF/PNG. |
 | **Aprobación / Rechazo de Aspirantes** | `<app-decision-volunteer-modal>` (`DecisionVolunteerModalComponent`) | `frontend/src/app/components/shared/decision-volunteer-modal/` | Reutilizado en `/student`, `/student/:id` y `/volunteer-detail/:id`. |
 | **Baja / Inactivación de Colaboradores** | `<app-inactivate-volunteer-modal>` (`InactivateVolunteerModalComponent`) | `frontend/src/app/components/shared/inactivate-volunteer-modal/` | Reutilizado para registrar motivo y comentarios en bitácora de estatus. |
 | **Verificación Anti-Bot en Formularios Públicos** | `<app-turnstile-widget>` (`TurnstileWidgetComponent`) | `frontend/src/app/components/shared/turnstile-widget/` | Reutilizado en las 7 superficies públicas (`login`, `signup`, `adoptions`, `campaigns`, `identifications`, `talks`). |
@@ -466,4 +470,145 @@ Cada tarjeta de registro incorpora una botonera agrupada (`.card-action-buttons`
 
 
 
+
+---
+
+## 11. Patrones de UI para Pláticas: Carta Oficial de Impacto Social, Padrón de Constancias y Métricas
+
+### 11.1 Tarjeta Institucional de Carta Oficial (`.official-letter-card`)
+En la vista de éxito del formulario público (`public-talk-form`) y en el detalle administrativo (`talk-detail`), la Carta Oficial se presenta en una tarjeta destacada con gradiente tenue y acento izquierdo en azul marino institucional (`#1d3d69`):
+- **Encabezado con Badges:**
+  - Badge institucional: `.letter-badge` (`background: #1d3d69; color: #fff; font-size: 11.5px; border-radius: 9999px;`).
+  - Folio institucional: `.letter-folio-tag` (`background: #fef3c7; color: #92400e; border: 1px solid #fde68a; font-family: monospace;`).
+- **Cuerpo Descriptivo:** Ícono temático `📜`, título `H3` y párrafo explicativo del valor probatorio ante gobierno y autoridades educativas.
+- **Botonera de Acciones Duales:**
+  - Botón primario PDF: `.btn-letter.btn-letter-pdf` (`background: #0284c7; color: #fff;`) con ícono de visor/impresión.
+  - Botón secundario DOCX: `.btn-letter.btn-letter-docx` (`background: #1d3d69; color: #fff;`) con atributo `download`.
+  - Botón de enlace: `.btn-letter.btn-letter-copy` con retroalimentación in-situ (`✓ ¡Enlace copiado!`).
+
+### 11.2 Padrón de Constancias y Filas de Participantes
+- Cada fila (`.cert-participant-row`) organiza:
+  - Número progresivo en avatar circular (`.cert-num` con fondo `#e0e7ff` y color `#3730a3`).
+  - Nombre completo del asistente con elipsis en móviles.
+  - Fila de micro-etiquetas (`.cert-tags-row`): Folio de constancia (`.cert-folio-tag`), insignia de correo (`.cert-email-badge.sent` en verde `#dcfce7` o `.cert-email-badge.none` en rojo `#fef2f2`), y metadatos (sexo y edad).
+  - Zona de acciones (`.cert-actions-cell`): Botón para abrir la constancia (`.cert-download-btn` en azul `#4662ad`) y botón para copiar enlace individual (`.cert-copy-btn`).
+
+### 11.3 Métricas de Impacto Social (`.impact-metrics-bar`)
+- Barra superior de métricas con 4 píldoras compactas (`.metric-pill`): Total de asistentes, participantes mujeres, hombres y total notificados por correo (destacada en azul celeste `#eff6ff`).
+- En móviles (`<= 640px`), las píldoras se distribuyen en una cuadrícula de 2 columnas o se apilan verticalmente garantizando legibilidad inmediata.
+
+---
+
+## 12. Sistema de Vistas de Detalle: Hero Header Canónico, Super Brief Card y Modal con Tipeo "yes"
+
+### 12.1 Hero Header Canónico en Detalle (`.admin-hero.detail-hero`)
+Estructura unificada que gobierna todas las vistas de detalle de Base de Datos:
+1. **Fila Superior (`.hero-header-row`)**:
+   - Bloque de texto con fila de insignias (`.hero-eyebrow-row`), título institucional (`.hero-title`) y subtítulo (`.hero-subtitle`).
+   - Botón interactivo de folio (`.hero-folio-btn`): fondo ámbar `#fef3c7`, borde `#fde68a`, texto `#92400e`, que al presionarse copia el código al portapapeles y activa el micro-toast `¡Copiado!`.
+2. **Layout Estandarizado de Botones de Acción (`.hero-actions-row`)**:
+   - `btn-hero-update`: Actualizar datos (`background: #0284c7; color: #fff;` con ícono `sync` animado en carga).
+   - `btn-hero-accreditation`: Nueva acreditación (`background: #1d3d69; color: #fff;` con ícono `assignment_turned_in`).
+   - `btn-hero-pdf` y `btn-hero-docx`: Enlaces translúcidos a documentos oficiales en PDF y Word.
+   - `btn-hero-delete`: Acción destructiva de borrado (`background: #dc2626; color: #fff;`).
+3. **Fila de Métricas Integradas en el Gradiente (`.hero-stats-row`)**:
+   - Tarjetas translúcidas con desenfoque (`backdrop-filter: blur(8px)`) que resumen fecha, participantes, género y estatus en una sola composición visual armónica.
+
+### 12.2 Componente Base `DbRecordBriefCardComponent` (`<app-db-record-brief-card>`)
+- Ubicado en `src/app/components/shared/db-record-brief-card/`.
+- Provee un resumen ejecutivo de alta densidad (*Super Brief*) estructurado en:
+  - Fila de insignias con categoría, estatus y botón de folio copiable.
+  - Título y subtítulo descriptivo del registro.
+  - Clúster de acciones reflejadas directamente en la tarjeta (actualizar, acreditar, documentos, borrar).
+  - Cuadrícula de métricas clave (`.brief-metrics-panel`).
+  - Etiquetas temáticas (`.brief-tags-row`) y caja de notas oficiales (`.brief-notes-box`).
+
+### 12.3 Modal Validador con Confirmación Escrita `"yes"` (`<app-update-confirm-modal>`)
+- Ubicado en `src/app/components/shared/update-confirm-modal/`.
+- Mecanismo de seguridad deliberado para autorizar actualizaciones de expedientes:
+  - Muestra la tarjeta Super Brief del registro dentro del cuerpo del modal.
+  - Exige al usuario escribir de forma manual la palabra **`yes`** para habilitar el botón primario de confirmación.
+  - Muestra indicador de carga `isUpdating` y previene clics concurrentes.
+
+---
+
+## 13. Gobernanza de Narrativa, Roles y Micro-copy Pedagógico (Actividades vs. Participación Individual)
+
+### 13.1 Vocabulario Oficial y Micro-copy de Botones de Acción
+- **Prohibición de "Nueva acreditación"**: Se prohíbe el uso de la etiqueta "Nueva acreditación" en botones porque sugiere falsamente una resolución inmediata sin auditoría.
+- **Prohibición de Jerga Técnica en UI (p. ej. "1:1")**: Las relaciones arquitectónicas o ratios técnicos (como "1:1") no deben exponerse al usuario final. La interfaz debe usar terminología humana y transparente: *"Registrar participación individual"* o *"Registrar participación"*.
+- **Botón Canónico para Colaboradores**: `Registrar participación` (ícono `assignment_turned_in` o `add_circle`).
+- **Botón Canónico para Coordinación**: `Registrar participación a colaborador` o `Registrar participación` (ícono `assignment_turned_in` o `verified`).
+- **Navegación Canónica**: La pestaña `/activity-list` se titula en el Navbar como `Actividades y Participación`, englobando ambos componentes de forma transparente.
+
+### 13.2 Banner Informativo de Verificación Institucional (`.accreditation-audit-banner`)
+Componente pedagógico insertado en el cuerpo de `<app-new-accreditation-modal>`:
+- **Estructura Visual**:
+  - `background: #f8fafc; border: 1px solid #e2e8f0; border-left: 4px solid #0284c7; border-radius: 12px; padding: 12px 16px;`.
+  - Ícono frontal: `.audit-icon` (`info` en `#0284c7`, `font-size: 22px`).
+  - Bloque tipográfico: `strong` en `#0f172a` ("Proceso de verificación institucional:") y descripción clara en `#475569` explicando que la solicitud está respaldada por un comprobante `.PDF` y sujeta a revisión formal.
+
+### 13.3 Badges Diferenciadores de Rol y Píldora de Folio Universal
+- **Píldora de Folio Canónica (`<app-folio-pill>`)**: Reutilización estricta del componente en perfiles de colaboradores, cabeceras hero administrativas (`student-detail`, `volunteer-detail`) y tablas maestras (`student.component.html`). Fondo `#E0F2FE`, borde `#BAE6FD`, tipografía monoespaciada en `#0369A1` con botón de copiado reactivo.
+- **Estudiante de Servicio Social**: Badge con ícono `school`, fondo azul tenue `#eff6ff`, borde `#bfdbfe`, texto `#1e40af`. Mensaje: *"La participación aprobada sumará horas a tu avance oficial (meta de 480 h)"*.
+- **Voluntario General**: Badge con ícono `favorite`, fondo verde tenue `#f0fdf4`, borde `#bbf7d0`, texto `#166534`. Mensaje: *"Registro de labor social comunitaria (no requiere horas curriculares obligatorias)"*.
+- **Coordinación**: Eyebrow `Coordinación de Voluntariado` (`#1d3d69`).
+
+### 13.4 Cuadrícula de Métricas de Progreso Desduplicada (`.hero-stats-grid`)
+- En el panel de control del estudiante (`home`), el layout se reconfigura de 6 a 5 tarjetas compactas adaptables (`repeat(5, minmax(0, 1fr))` en pantallas grandes, `repeat(3, ...)` en tabletas y `repeat(1, ...)` en móviles):
+  1. `Participaciones validadas`
+  2. `Participaciones en revisión`
+  3. `Horas acreditadas` (con subtexto descriptivo de la meta de 480 h)
+  4. `Horas pendientes`
+  5. `Progreso` (%)
+- Se erradica la tarjeta redundante de *"Horas requeridas"* que provocaba la duplicación del valor `480` en alumnos de nuevo ingreso.
+
+---
+
+## 14. Patrones Visuales de Estadísticas Duales en Respaldos (BD + Bucket S3), Selector de 3 Opciones en Lenguaje Ciudadano, Modal Reutilizado de Vista Previa y Estado Bloqueado de Descarga por 8 Horas
+
+### 14.1 Contenedores Gemelos en `.admin-hero` (Reutilización de `.hero-stats-grid` y `.hero-stat-card`)
+
+Para presentar de forma equilibrada y sin duplicar código visual las métricas de infraestructura en `/admin/backups`, el encabezado `.admin-hero` aloja dos bloques hermanos construidos íntegramente con las clases existentes `.hero-stats-grid` y `.hero-stat-card` definidas en `backup.component.scss`:
+
+```text
++---------------------------------------------------------------------------------------------------+
+| CONTENEDOR 1: BASE DE DATOS (Información del sistema)                                             |
+| [Estado Conexión / Latencia] [Módulos Activos] [Documentos + Peso] [Costo Mensual + Badge Δ]      |
++---------------------------------------------------------------------------------------------------+
+| CONTENEDOR 2: ALMACENAMIENTO DE ARCHIVOS (Documentos guardados — Bucket S3)                       |
+| [Estado del Almacén]         [Carpetas: 4 / 4] [Archivos + Peso]   [Costo Mensual + Badge Δ]      |
++---------------------------------------------------------------------------------------------------+
+  Última actualización: 15/11/2026
+```
+
+- **Reglas de Contenido en Tarjeta de Costo**:
+  - Muestra exclusivamente el peso consumido (MB/GB), la cifra estimada mensual en USD (ej. `$X.XX USD / mes`) y una píldora compacta de diferencial y aceleración de crecimiento ($\Delta$, indicando si el consumo sube, baja o se acelera frente al corte previo).
+  - **Prohibición estricta en UI**: Nunca renderizar fórmulas matemáticas, precios unitarios por GB/vCPU ni parámetros técnicos internos dentro del widget.
+- **Hint Minimalista de Actualización**:
+  - Se ubica inmediatamente debajo del segundo contenedor con tipografía sutil secundaria y contiene **únicamente la fecha**: `Última actualización: DD/MM/AAAA`. No debe existir cronómetro ni refresco automático continuo.
+
+### 14.2 Selector Ciudadano de 3 Opciones de Respaldo (Prohibido mencionar "PDF") y Validación Pre-Descarga
+
+En la tarjeta principal de generación y descarga `.zip` de `backup.component.html`, el administrador selecciona entre tres opciones de lenguaje claro orientadas a usuario final. **Regla editorial obligatoria**: queda prohibido utilizar la palabra `"PDF"` en etiquetas, descripciones o ayudas de esta vista; siempre debe decirse **"archivos"** o **"documentos guardados"**:
+
+1. **`Respaldo completo (Base de datos y archivos)`** (`scope: 'full'`) — *Guarda todos los registros del sistema junto con los archivos respaldados en una sola descarga.*
+2. **`Solo base de datos (Registros del sistema)`** (`scope: 'db_only'`) — *Incluye únicamente expedientes, actividades, bitácoras y catálogos.*
+3. **`Solo archivos (Documentos guardados)`** (`scope: 'bucket_only'`) — *Descarga únicamente los documentos guardados en las carpetas de respaldo.*
+
+- **Feedback de Validación Pre-Descarga (`validateBackupReadiness`)**:
+  - Antes de iniciar la descarga del `.zip`, un indicador de estado verifica salud en registros, integridad de archivos y referencias cruzadas sanas. Si detecta algún documento o referencia dañada, bloquea el botón de descarga con un banner informativo claro explicando la causa sin exponer trazas de servidor.
+
+### 14.3 Modal Reutilizado de Vista Previa en Rollback (`.review-table-wrap` / `.review-mobile-card-list`) con Bucket S3 y Zero-Overwrite
+
+Los modales existentes `showRollbackReviewModal` y `showPackageReviewModal` se reutilizan para presentar tanto las colecciones de base de datos como las 4 carpetas del Bucket S3 (`reglamentos`, `adopciones`, `evidencias`, `documentos`):
+- **Escritorio (`d-none d-md-block`)**: Tabla `.review-table-wrap` dividida en sección *Registros del sistema* y sección *Archivos guardados (Bucket S3)* con columnas: Carpeta, En paquete, Ya guardados (Omitidos sin sobrescribir), Nuevos a restaurar y Estado.
+- **Móvil (`d-md-none`)**: Tarjetas apiladas `.review-mobile-card` dentro de `.review-mobile-card-list` conservando `.card-metrics-grid` y `.contrast-badge` verde (`+N nuevos`) o gris (`Omitido — Protegido contra sobrescritura`).
+- **Distintivo Zero-Overwrite**: Aviso fijo en la cabecera del modal aclarando explícitamente al usuario que ningún registro ni archivo existente en el sistema será sobrescrito ni reemplazado.
+
+### 14.4 Estado Bloqueado por 8 Horas en Acciones de Descarga (`.btn-download-locked-8h`)
+
+Cuando el guardián anti-abuso (`downloadGuard.js` + sincronización en `localStorage`) activa el bloqueo de **8 horas** tras alcanzar 3 descargas de un documento o disparar el *Circuit Breaker* global por comportamiento anormal:
+- El botón de descarga adopta el estado deshabilitado `.btn-download-locked-8h` (tono neutro `#e2e8f0`, texto `#475569`, cursor `not-allowed`, ícono `lock_clock`).
+- Muestra un mensaje sereno orientado a usuario final: *"Límite de descargas alcanzado. Por seguridad de la plataforma, espera 8 horas o solicita el documento directamente con la Coordinación."* (en modo *Circuit Breaker* aplica el mismo aviso bloqueando todas las descargas de documentos de la cuenta).
 

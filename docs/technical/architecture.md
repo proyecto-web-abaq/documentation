@@ -744,6 +744,56 @@ El subsistema de respaldos y deshidratación histórica se robustece conforme a 
    - **Retícula de Métricas Embebida:** Cada tarjeta presenta una retícula de cuatro celdas métricas (`card-metrics-grid`: En BD Actual / En Respaldo / Variación / Acción, y En Paquete / Restaurables / Conflictos / Ya en BD) con fondos semánticos (`highlight-green`, `highlight-red`) que colapsa a una retícula de dos por fila en pantallas `<= 360px` para preservar la legibilidad de cada cifra.
    - **Barra de Filtrado Segmentada por Colección:** Ambos modales incorporan una barra segmentada (`review-filter-bar` con botones tipo *pill*) que permite conmutar entre la totalidad de colecciones y únicamente aquéllas con cambios (Rollback: `Con cambios (N)`) o con registros por rehidratar (Rehidratación: `Con registros a rehidratar (N)`), acompañadas de píldoras KPI consolidadas en el encabezado del modal (En Respaldo, En BD Actual, Variación Neta con signo, Colecciones / Total en Paquete, Restaurables, Ya en BD, Conflictos) que se tiñen de esmeralda o rojo cuando la variación neta o los conflictos difieren de cero.
 
+### 2.12 Subsistema de Estadísticas Duales (BD + Bucket S3), Empaquetado Tri-Modal con Validación Pre-Descarga y Guard Anti-Abuso Universal
+
+Este subsistema amplía `/admin/backups` (`frontend/src/app/components/backup/backup.component.ts` / `.html` / `.scss`, `backend/controllers/backup.controller.js`, `backend/services/backup.service.js` y `backend/services/railwayBucket.service.js`) con observabilidad financiera oficial de Railway, respaldo/restauración unificada BD + Bucket S3 y blindaje universal contra abuso de egreso y vulnerabilidades web auditadas bajo OWASP WSTG.
+
+1. **Observabilidad Dual Reutilizando Primitivas del Hero (`.hero-stats-grid` y `.hero-stat-card`)**:
+   - El encabezado `.admin-hero` se divide en dos contenedores gemelos estandarizados:
+     - **Base de datos (Información del sistema)**: estado de conexión/latencia, módulos activos (`activeCollections / totalCollections`), conteo documental + peso físico (MB/GB) y costo mensual estimado en Railway con insignia de variación y aceleración ($\Delta$).
+     - **Almacenamiento de archivos (Documentos guardados — Bucket S3)**: estado del almacén, carpetas activas (`4 / 4`: `reglamentos`, `adopciones`, `evidencias`, `documentos`), total de archivos + peso acumulado (MB/GB) y costo mensual estimado del Bucket S3 en Railway con insignia de variación y aceleración ($\Delta$).
+   - **Eficiencia y Privacidad Matemática**: La consulta dual opera bajo caché en memoria de servidor con TTL de **5 minutos** y **cooldown de 60 segundos** para recargas manuales (sin *polling* automático). La UI recibe únicamente peso, costo USD estimado y tendencia simplificada, sin mostrar fórmulas ni tarifas crudas, cerrando con un *hint* discreto que únicamente indica la fecha (`Última actualización: DD/MM/AAAA`).
+
+2. **Modelo Matemático Oficial de Costos Railway (Exclusivo Backend & Documentación)**:
+   - Conforme a la documentación oficial vigente de Railway:
+     - Servicio/Base de datos: $\text{RAM} = \$10/\text{GB-mes}$, $\text{CPU} = \$20/\text{vCPU-mes}$, $\text{Volumen} = \$0.15/\text{GB-mes}$, $\text{Service Egress} = \$0.05/\text{GB}$.
+     - Storage Bucket S3: $\text{Almacenamiento} = \$0.015/\text{GB-mes}$, con llamadas de API (`PUT`/`GET`/`LIST`) y Bucket Egress internos ilimitados a costo $\$0.00$, contabilizando únicamente el **Service Egress ($\text{Service Egress} = \$0.05/\text{GB}$)** cuando el backend entrega archivos hacia el navegador del usuario por red pública.
+   - El diferencial y aceleración de crecimiento ($\Delta$) se calcula comparando el peso y costo actual frente al último corte histórico persistido en servidor para informar si el consumo crece, se acelera o se desacelera.
+
+3. **Arquitectura de Flujo Tri-Modal, Validador `validateBackupReadiness`, Rollback S3 Zero-Overwrite y `downloadGuard.js`**:
+
+```mermaid
+flowchart TD
+    A["Administrador en /admin/backups"] -->|"1. Vista Dual (Cache 5m / Cooldown 60s)"| B["Endpoint Estadísticas BD + Bucket S3"]
+    B -->|"dbStats + ListObjectsV2 SigV4"| C["Cálculo Costo Railway y Delta (Sin Fórmulas en UI)"]
+    A -->|"2. Selección de Alcance ('full' | 'db_only' | 'bucket_only')"| D["Pre-Flight: validateBackupReadiness"]
+    D -->|"Checa _id/folio BD + size>0/%PDF-/SHA256 + Ref Cruzadas"| E{"¿Integridad Sana?"}
+    E -->|"No"| F["Bloquea descarga y reporta anomalía"]
+    E -->|"Sí"| G["downloadGuard.js (Anti-2s / 3 max -> 8h / Circuit Breaker)"]
+    G -->|"Permitido"| H["streamJsonZipBackup (Manifest v3.0.0)"]
+    A -->|"3. Ingesta Rollback .zip"| I["Inspección Anti Zip-Slip/Bomb + Modal Reutilizado"]
+    I -->|"Confirmación Admin"| J["Zero-Overwrite: $setOnInsert (BD) + HeadObject Skip (S3)"]
+```
+
+4. **Empaquetado Tri-Modal (`manifest.json` `v3.0.0`), Validación Pre-Descarga y Lenguaje Ciudadano**:
+   - El administrador escoge entre tres opciones redactadas en lenguaje simple sin mencionar "PDF" (usando exclusivamente **"archivos"** / **"documentos guardados"**): `Respaldo completo (Base de datos y archivos)` (`full`), `Solo base de datos (Registros del sistema)` (`db_only`) y `Solo archivos (Documentos guardados)` (`bucket_only`).
+   - Previo al *streaming* `.zip`, `validateBackupReadiness` verifica salud estructural en MongoDB, integridad binaria (`size > 0`, firma `%PDF-`, SHA-256) en el Bucket S3 y sanidad referencial cruzada en los campos `signedRulesDocument`, `ineDocument`, `comprobanteDomicilioDocument`, `signedFormatDocument`, `cloudUrls`, `evidenceUrl` y `authId`.
+
+5. **Rollback S3 con Reutilización del Modal de Vista Previa y Política Estricta Zero-Overwrite**:
+   - La restauración acepta manifiestos `v3.0.0`, inspecciona colecciones y carpetas S3 (`reglamentos`, `adopciones`, `evidencias`, `documentos`) dentro de los modales reutilizados `showRollbackReviewModal` / `showPackageReviewModal` (`.review-table-wrap` y `.review-mobile-card-list`), rechaza rutas transversales (*Zip-Slip*, `CWE-22`) y explosiones de descompresión (*Zip-Bomb*, `CWE-409`), y aplica inserción no destructiva (`$setOnInsert` en MongoDB; verificación previa por `ListObjectsV2`/`HeadObject` con omisión estricta de claves existentes en Bucket S3).
+   - Incluye la corrección arquitectónica crítica en `backend/services/railwayBucket.service.js` (línea 113), reemplazando `const canonicalQuery = "";` por canonicalización real ordenada alfabéticamente para soportar `ListObjectsV2` con `prefix` y `continuation-token`.
+
+6. **Guardián Universal de Descargas (`downloadGuard.js` + `localStorage` 8h + Circuit Breaker)**:
+   - Reemplaza protecciones parciales (como `COOLDOWN_MS = 45 * 1000` en RAM de `frontend/src/app/services/bucket.service.ts` o el límite aislado únicamente en `downloadOfficialDocument`) unificando todas las superficies (`bucket.controller.js`, `downloadSignedRules`, `talk.controller.js`, `backup.controller.js`):
+     - Debounce anti-clikeo rápido `< 2 segundos`.
+     - Cuota de **3 descargas por archivo** $\rightarrow$ bloqueo de **8 horas** en backend y `localStorage`.
+     - **Circuit Breaker global por comportamiento anormal** (`> 8` archivos distintos en `< 60 segundos` o `>= 5` intentos bloqueados en 10 minutos) $\rightarrow$ bloqueo completo de todas las acciones de descarga para el usuario/IP durante **8 horas**, protegiendo el presupuesto de Service Egress (`$0.05/GB`) y redirigiendo cualquier urgencia a la Coordinación.
+
+7. **Optimización de Procesamiento y Memoria en Contenedor Railway (Compresión Híbrida `ZIP_STORE`, Streaming `64 KB` y Rollback en `/tmp`)**:
+   - **No zipear archivos en reposo en Bucket S3:** Al costar `$0.015/GB-mes` y contener compresión interna (`FlateDecode`/JPEG), comprimirlos en reposo apenas ahorra 1 %–3 % de almacenamiento pero encarecería drásticamente CPU (`$20/vCPU-mes`) y RAM (`$10/GB-mes`) en cada lectura ordinaria.
+   - **Compresión Híbrida en descarga (`archiver`):** En `streamJsonZipBackup` (`backend/services/backup.service.js`), se reemplaza `zlib: { level: 9 }` uniforme (línea `279`) por **`zlib: { level: 6 }`** para `collections/*.json` y `manifest.json` (~85 % de ahorro de peso con ~60 % menos CPU) combinado con **`store: true` (`ZIP_STORE`)** para `bucket/*/*`, empaquetando archivos del Bucket vía `ReadableStream` secuencial 1 a 1 en bloques de `64 KB` (pico constante de `+15 MB a +25 MB` de RAM extra y uso de CPU de `3 %–8 %`).
+   - **Rollback en `/tmp` sin saturación de RAM:** En `backend/routes/backup.route.js`, `multer.memoryStorage()` (línea `27`) migra a `diskStorage` efímero sobre `os.tmpdir()` (`/tmp`) eliminado inmediatamente en `finally { fs.unlink }`. En `processRollback`, los archivos ya presentes en Bucket S3 no se descomprimen ni cargan en memoria; solo se extraen secuencialmente (máximo 2 concurrentes) los archivos nuevos faltantes (`+20 MB a +35 MB` extra de RAM).
+
 ---
 
 ## 3. Registros de Decisiones Arquitectónicas (Architectural Decision Records - ADRs)
@@ -1258,6 +1308,112 @@ flowchart TD
 - **Consecuencias**:
   - *Positivas*: Reutilización estricta de componentes de UI; experiencia de arrastrar y soltar moderna y accesible en adopción; capacidad de acreditar y eliminar registros directamente desde las vistas de listado sin desplazamientos innecesarios; adaptación perfecta en teléfonos móviles, tabletas y computadoras de escritorio.
   - *Negativas*: El modal de acreditación inicializa el catálogo contextual, requiriendo que si el administrador desea cambiar de tipo dentro del modal deba usar el selector de opciones.
+
+### ADR-29: Arquitectura Zero-Puppeteer para Cartas Oficiales (DOCX y PDF), Constancias Individuales y Despacho Asíncrono de Notificaciones en Pláticas
+- **Estado**: Aceptado e Implementado en Rama `dev` (`2026-11-15`).
+- **Contexto**:
+  1. **Rendición de Cuentas Gubernamental de la ONG (ABAQ)**: La Asociación de Amor y Bienestar Animal en Querétaro A.C. requiere acreditar y reportar formalmente sus pláticas de concientización ante dependencias gubernamentales y educativas. Se requería generar una **Carta Oficial de Realización y Reporte de Impacto Social** en dos formatos: Microsoft Word (`.docx`) y PDF imprimible.
+  2. **Emisión Masiva de Constancias Individuales**: Cada asistente debe recibir una constancia digital oficial con folio de autenticidad y token criptográfico único.
+  3. **Restricciones Severas de Recursos en Contenedores Railway (Zero-Puppeteer)**: El backend opera en contenedores Railway con memoria RAM restringida (~16 MB – 36 MB en reposo). Levantar un navegador headless (Chromium / Puppeteer) provocaría caídas fatales por falta de memoria (Out-Of-Memory / SIGKILL) y latencias inaceptables (> 5-10 segundos por documento).
+  4. **Latencia en Respuestas HTTP del Formulario**: El envío de correos electrónicos a decenas de participantes no puede bloquear la respuesta del formulario (`POST /talk/public`).
+- **Decisión**:
+  1. **Generación Binaria Nativa de Microsoft Word (.docx)**:
+     - Implementación con la librería `docx` en `backend/utils/talkLetterDocx.js`.
+     - Construcción en memoria de tablas sombreadas `#1d3d69`, encabezados institucionales con logo embebido, metadatos y pies de página dinámicos (`PageNumber.CURRENT` / `PageNumber.TOTAL_PAGES`).
+     - Transmisión en stream binario (`Packer.toBuffer`) en < 15 ms y con menos de 2 MB de memoria RAM.
+  2. **Renderizado HTML/PDF Imprimible de Alta Fidelidad (Zero-Puppeteer)**:
+     - En `backend/utils/talkLetterPdf.js`, plantilla HTML5/CSS3 autocontenida con logotipo y marca de agua en Base64.
+     - Definición de estilos de impresión `@page { size: letter portrait; margin: 15mm; }` y `@media print`, delegando la rasterización al cliente vía `window.print()` nativo.
+     - Barra de herramientas superior flotante con botones para imprimir a PDF, descargar en Word (.DOCX) y copiar enlace permanente.
+  3. **Despacho Asíncrono No Bloqueante de Correos con Resend**:
+     - En `backend/controllers/talk.controller.js`, tras persistir la plática, se detona un ciclo en segundo plano con `Promise.allSettled` invocando `sendTalkCertificateEmail`.
+     - La respuesta HTTP 201 retorna inmediatamente al usuario (< 120 ms).
+     - Al resolverse las promesas de correo, se actualiza en MongoDB el estatus (`emailStatus`: `sent`, `failed`, `no_email`) y `emailSentAt`.
+  4. **Seguridad Criptográfica AES-256-GCM y Mitigación de Abuso**:
+     - Constancias individuales vinculadas a tokens opacos `v2.xxx` cifrados con AES-256-GCM.
+     - Rate limiter `talkCertificateLimiter` y Cloudflare Turnstile protegiendo los endpoints públicos.
+  5. **Dashboard de Éxito en Formulario (`PublicTalkForm`)**:
+     - Presenta tarjeta de Carta Oficial, métricas de impacto (total asistentes, desglose por género, notificados por correo) y padrón de constancias individuales con enlaces de descarga y copiado rápido.
+- **Consecuencias**:
+  - *Positivas*: Cero consumo de RAM excesivo en Railway (Zero-Puppeteer); tiempos de respuesta instantáneos en el formulario; cumplimiento riguroso de rendición de cuentas para la ONG ante el gobierno; experiencia fluida para los asistentes al recibir su constancia por correo.
+  - *Negativas*: El guardado en archivo PDF físico depende del diálogo nativo del navegador del cliente ("Guardar como PDF"), requiriendo que la UI ofrezca una recomendación explícita al usuario.
+
+### ADR-30: Estandarización de Vistas de Detalle: Hero Header Canónico con Layout de Botones, Tarjeta Super Brief Reutilizable (DbRecordBriefCardComponent) y Modal de Confirmación Escrita con "yes" (UpdateConfirmModalComponent)
+- **Estado**: Aceptado e Implementado en Rama `dev` (`2026-11-15`).
+- **Contexto**:
+  1. **Disparidad en Vistas de Detalle de Base de Datos**: Las vistas de detalle operativas (`talk-detail`, `adoption-detail`, `campaign-detail`, `identification-detail`) presentaban discrepancias en la disposición de botones, carecían de una fila integrada de estadísticas en el gradiente `.admin-hero`, y no contaban con controles para refrescar la información in-situ ni disparar acreditaciones contextuales.
+  2. **Etiquetas Desactualizadas y Desincronización**: Al realizar modificaciones o consultar registros con desfase horario UTC, varias etiquetas (folios, estados de notificación por correo, contadores de género, encuestas) se mostraban estáticas o no reactivas.
+  3. **Riesgo Operativo en Acciones de Actualización**: La actualización de registros institucionales requería un mecanismo de seguridad explícito y deliberado para evitar sincronizaciones no autorizadas o involuntarias.
+- **Decisión**:
+  1. **Homologación Canónica del Hero Header (`.admin-hero.detail-hero`)**:
+     - Estructura fija en todas las vistas de detalle: `.hero-header-row` con `.hero-text-block` (eyebrow, tipo, botón de folio con copiado al portapapeles, título y subtítulo).
+     - Fila de botones `.hero-actions-row` estandarizada: *"Actualizar datos"* (azul cielo `#0284c7`), *"Registrar participación"* (azul marino `#1d3d69`), documentos oficiales (PDF/DOCX) y *"Borrar registro"* (rojo `#dc2626`).
+     - Fila de métricas `.hero-stats-row` embebida directamente en el gradiente del hero mediante tarjetas translúcidas con desenfoque de fondo (`backdrop-filter: blur(8px)`).
+  2. **Componente Reutilizable Super Brief Card (`<app-db-record-brief-card>`)**:
+     - Implementado en `frontend/src/app/components/shared/db-record-brief-card/`.
+     - Base estándar para todos los formularios de Base de Datos. Expone las métricas vitales del registro (fecha, sede, especie, estatus, totales) y replica la botonera de acciones tanto fuera como dentro de la tarjeta.
+  3. **Componente Reutilizable Modal con Confirmación Escrita `"yes"` (`<app-update-confirm-modal>`)**:
+     - Implementado en `frontend/src/app/components/shared/update-confirm-modal/`.
+     - Integra la super brief card del registro dentro del modal y solicita al operador teclear exactamente la palabra `"yes"` (case-insensitive) para autorizar la sincronización o actualización de datos.
+  4. **Reactividad Total en Etiquetas y Formateo Local**:
+     - Computación mediante *getters* y detección de cambios (`cdr.detectChanges()`) de todos los indicadores dependientes (`totalParticipants`, `femaleCount`, `maleCount`, `emailCount`, `emailStatus`, `formattedDate`), erradicando desfases de zona horaria UTC.
+- **Consecuencias**:
+  - *Positivas*: Cohesión visual absoluta entre los 4 módulos de Base de Datos; prevención de errores por doble clic o acciones involuntarias mediante tipeo `"yes"`; actualización instantánea de todas las etiquetas; total adaptabilidad en móviles, tabletas y escritorio.
+  - *Negativas*: El operador debe realizar un paso deliberado adicional (escribir `"yes"`) para completar la actualización.
+
+### ADR-31: Refactorización Narrativa y Conceptual: Separación Estricta entre Actividades Colectivas Institucionales (1 de 11 opciones) y Participaciones Individuales 1:1, Trilogía de Roles y Rediseño Pedagógico del Modal de Registro
+- **Estado**: Aceptado e Implementado en Rama `dev` (`2026-11-15`).
+- **Contexto**:
+  1. **Confusión entre Actividades y Acreditaciones**: Existía una ambigüedad generalizada entre las actividades colectivas (eventos convocados por ABAQ del catálogo de 11 opciones) y las participaciones individuales registradas entre un colaborador y la Coordinación.
+  2. **Falsa Percepción de Automatismo**: Los botones titulados *"Nueva acreditación"* daban a entender que al presionar el botón o guardar el formulario, la acreditación de horas se otorgaba de forma automática e inmediata, desdibujando el proceso de auditoría y validación de evidencias.
+  3. **Ambigüedad en Roles**: Se usaban términos genéricos como "admin" o "administración", omitiendo la estructura real de la ONG compuesta por la **Coordinación de Voluntariado**, los **Estudiantes de Servicio Social** y los **Voluntarios Generales**.
+- **Decisión**:
+  1. **Separación de Conceptos en la Arquitectura de Información**:
+     - **Actividades Colectivas**: Eventos institucionales grupales (`eventos ABAQ`) con sede, cupo, fecha y pase de lista colectivo.
+     - **Participaciones Individuales 1:1**: Solicitudes individuales de registro respaldadas con comprobante en `.PDF`, sujetas a auditoría formal por parte de la Coordinación antes de convertirse en acreditaciones oficiales.
+  2. **Estandarización de los 3 Roles Institucionales**:
+     - `student` -> **Estudiante de Servicio Social** (acumula 480 h obligatorias, requiere cartas académicas oficiales).
+     - `volunteer` -> **Voluntario General** (labor comunitaria altruista, sin requerimiento obligatorio de horas universitarias).
+     - `admin` -> **Coordinación / Coordinador(a)** (responsable de auditar comprobantes, validar horas y organizar eventos).
+  3. **Rediseño Narrativo de Botones y Componente Modal (`<app-new-accreditation-modal>`)**:
+     - Botones renombrados en todas las vistas de lista, detalle y perfiles a *"Registrar participación"* y *"Registrar participación a colaborador"*, suprimiendo la jerga técnica "1:1" de la UI visible.
+     - Inclusión del banner pedagógico de verificación `.accreditation-audit-banner` que explica explícitamente el flujo de revisión no automático.
+     - Botón de confirmación titulado *"Enviar a revisión de Coordinación"*.
+- **Consecuencias**:
+  - *Positivas*: Eliminación absoluta de expectativas falsas de automatismo; transparencia en la rendición de cuentas institucional; comprensión nítida del ciclo de vida de una participación individual.
+  - *Negativas*: Requirió la actualización simultánea de textos, tooltips, modales y barras de navegación en los módulos frontend.
+
+### ADR-32: Observabilidad Dual (Base de Datos + Bucket S3) con Costos Oficiales Railway, Empaquetado Tri-Modal `v3.0.0`, Validación Pre-Descarga y Rollback Zero-Overwrite
+- **Estado**: Propuesto en Documentación para Validación (`2026-11-15`).
+- **Contexto**:
+  1. El módulo `/admin/backups` solo mostraba estadísticas de MongoDB y respaldaba colecciones JSON sin considerar los documentos almacenados en Railway Storage Bucket S3 (`reglamentos`, `adopciones`, `evidencias`, `documentos`).
+  2. La Coordinación necesita visibilidad clara del consumo y costo mensual estimado tanto de la base de datos como del Bucket S3 sin saturar conexiones ni mostrar fórmulas técnicas complejas en la interfaz final.
+  3. Al incorporar archivos de Bucket S3 en el `.zip` y en el flujo de rollback/restauración, existía riesgo de exportar paquetes con registros/archivos corruptos o referencias huérfanas, o bien sobrescribir documentos y archivos existentes en producción.
+- **Decisión**:
+  1. **Dos Contenedores Gemelos Reutilizando Primitivas Existentes**: División del hero de `/admin/backups` en dos bloques con `.hero-stats-grid` y `.hero-stat-card`: **Base de datos (Información del sistema)** y **Almacenamiento de archivos (Documentos guardados — Bucket S3)**, cerrando con un *hint* discreto que muestra **únicamente la fecha** (`Última actualización: DD/MM/AAAA`). Operan con caché de servidor de **5 minutos**, **cooldown manual de 60 segundos** y cero *polling* automático.
+  2. **Tarifario Oficial Railway (Sin Fórmulas en UI)**: Cálculo en backend usando tarifas oficiales (RAM `$10/GB/mes`, CPU `$20/vCPU/mes`, Volumen `$0.15/GB/mes`, Service Egress `$0.05/GB`; Storage Bucket `$0.015/GB-mes`, API S3 y Bucket Egress internos `$0.00`), presentando en UI únicamente peso, costo USD estimado y diferencial/aceleración ($\Delta$).
+  3. **Respaldo Tri-Modal `manifest.json` `v3.0.0` en Lenguaje Ciudadano**: Selector con tres modalidades redactadas para usuario final utilizando **"archivos"** y **"documentos guardados"** (prohibiendo mencionar `"PDF"`): `Respaldo completo (Base de datos y archivos)` (`full`), `Solo base de datos (Registros del sistema)` (`db_only`) y `Solo archivos (Documentos guardados)` (`bucket_only`).
+  4. **Validador Obligatorio Pre-Descarga (`validateBackupReadiness`)**: Bloquea la descarga del `.zip` ante corrupción documental (`_id`, `folio`), corrupción binaria en Bucket S3 (`size > 0`, firma `%PDF-`, SHA-256) o enlaces rotos/huérfanos en `signedRulesDocument`, `ineDocument`, `comprobanteDomicilioDocument`, `signedFormatDocument`, `cloudUrls`, `evidenceUrl` y `authId`.
+  5. **Rollback Integral con Modales Reutilizados y Política Zero-Overwrite**: Reutiliza la zona de carga, `showRollbackReviewModal` / `showPackageReviewModal`, `.review-table-wrap` y `.review-mobile-card-list` extendidos al Bucket S3. Garantiza inserción no destructiva (`$setOnInsert` en MongoDB; comprobación previa por `ListObjectsV2`/`HeadObject` con omisión estricta de claves existentes en S3).
+  6. **Optimización de Empaquetado y Memoria (Compresión Híbrida + Streaming + `/tmp`)**: Mantiene los archivos en Bucket S3 sin zipeo en reposo, sustituye `zlib: { level: 9 }` uniforme (`backup.service.js:279`) por **Compresión Híbrida** (`zlib: { level: 6 }` para JSON y `store: true` / `ZIP_STORE` para archivos del Bucket vía `ReadableStream` en bloques de `64 KB`, manteniendo `<= 25 MB` extra en RAM), y reemplaza `multer.memoryStorage()` (`backup.route.js:27`) por disco temporal efímero en `os.tmpdir()` (`/tmp`) con limpieza garantizada en `finally` y extracción selectiva de únicamente archivos faltantes.
+- **Consecuencias**:
+  - *Positivas*: Respaldo integral real sin sobrescribir producción; transparencia financiera sin jerga técnica; reutilización estricta de componentes de UI existentes; garantía de integridad previa a la descarga; picos acotados de RAM (`+15–35 MB`) y mínimo uso de CPU (`3 %–8 %`) en contenedores Railway.
+  - *Negativas*: Aumenta el tiempo de validación pre-descarga cuando crece el volumen de objetos S3, mitigado mediante metadatos cacheados y verificación incremental.
+
+### ADR-33: Remediación Integral OWASP WSTG (`H-01`–`H-09`), Corrección AWS SigV4 y Guard Universal Anti-Abuso con Circuit Breaker de 8 Horas (`downloadGuard.js`)
+- **Estado**: Propuesto en Documentación para Validación (`2026-11-15`).
+- **Contexto**:
+  1. La auditoría de seguridad ejecutada conforme a las 6 fases del programa OWASP WSTG / Top 10:2021 (metodología Prof. Ricardo Monroy) identificó hallazgos activos en rutas de `student.route.js`, `volunteer.route.js`, `bucket.route.js`, `activity.route.js`, `adoption.route.js`, `campaign.route.js`, `identification.route.js`, `talk.route.js`, `auth.controller.js`, `handler.controller.js`, `backup.route.js` y `app.js` (`H-01` a `H-09`), incluyendo un bug de canonicalización SigV4 en `backend/services/railwayBucket.service.js:113` (`const canonicalQuery = ""`).
+  2. La entrega repetitiva o automatizada de documentos a navegadores genera cargos de **Service Egress (`$0.05/GB`)** en Railway, y los controles previos (`COOLDOWN_MS = 45 * 1000` en RAM del frontend y el mapa limitado únicamente a `downloadOfficialDocument`) no cubrían todas las rutas de descarga ni persistían bloqueos por abuso.
+- **Decisión**:
+  1. **Guardián Universal de Descargas (`downloadGuard.js` + `localStorage`)**: Sustituye protecciones parciales integrando en `bucket.controller.js`, `downloadSignedRules`, `talk.controller.js` y `backup.controller.js`:
+     - Protección anti-clikeo rápido `< 2 segundos`.
+     - Límite estricto de **3 descargas por archivo** $\rightarrow$ bloqueo de **8 horas** persistido autoritativamente en servidor y reflejado en `localStorage` del cliente (estado `.btn-download-locked-8h`).
+     - **Circuit Breaker Global por Comportamiento Anormal**: Ante `> 8` archivos distintos solicitados en `< 60 s` o `>= 5` intentos bloqueados en 10 min, deshabilita **todas** las descargas del usuario/IP por **8 horas**, solicitando acudir a Coordinación en caso necesario.
+  2. **Plan de Remediación Escalonado `H-01`–`H-09`**: Cierre de IDOR y BFLA en rutas privadas y administrativas; montaje de `express-mongo-sanitize` y listas blancas en `factory.updateOne`; eliminación de `console.log` con objetos de usuario (`.select("+passwordHash")`) y protección de `/auth/expediente-status`; endurecimiento de CORS, límites de `express.json`, eliminación de `allowQueryToken` y `requireTurnstile` en registro/activación; defensa anti Zip-Slip (`CWE-22`) / Zip-Bomb (`CWE-409`); y corrección de canonicalización SigV4 en `railwayBucket.service.js:113`.
+- **Consecuencias**:
+  - *Positivas*: Neutralización de fugas PII/IDOR, inyecciones NoSQL/Mass Assignment y riesgo de sobrecosto por egreso S3; verificación trazable fase a fase mediante matriz de re-test OWASP WSTG.
+  - *Negativas*: Usuarios con picos inusuales de descarga legítima deberán esperar 8 horas o contactar a Coordinación, priorizando expresamente la protección financiera y de seguridad de la ONG.
 
 ---
 

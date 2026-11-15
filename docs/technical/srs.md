@@ -1371,6 +1371,272 @@ abaq-backup-YYYY-MM-DD-HHmmss.zip
     - Las acciones de las tarjetas (`.adoption-card-actions`, `.card-action-buttons`, `.talk-card-actions`, `.card-footer`) se apilan verticalmente ocupando el ancho total (`width: 100%`).
     - El área de `<app-file-dropzone>` apila la previsualización del archivo de forma vertical y ajusta los botones *"Cambiar"* y *"Quitar"* al 50% cada uno para pulsación táctil con una sola mano.
 
+---
+
+## 23. Módulo de Pláticas: Carta Oficial de Realización (DOCX y PDF), Constancias Individuales de Participación, Vista de Descarga y Notificaciones por Correo
+
+### `[SRS 23.1 Requerimientos Funcionales - Carta Oficial y Reporte de Impacto Social]`
+
+- **RF-TLK-DOCX-01 (Generación de Carta Oficial en Microsoft Word - .docx)**:
+  - El sistema debe generar en memoria de forma no bloqueante la **Carta Oficial de Realización y Reporte de Impacto Social** en formato Microsoft Word (`.docx`).
+  - La carta debe incorporar:
+    - Logotipo oficial de ABAQ Querétaro e identidad institucional como Organización de la Sociedad Civil (OSC).
+    - Folio institucional estandarizado `ABAQ-PL-AAAA-XXXXXX`.
+    - Asunto: *"CARTA OFICIAL DE REALIZACIÓN Y REPORTE DE IMPACTO SOCIAL EN MATERIA DE BIENESTAR ANIMAL"*.
+    - Destinatario oficial: *"A QUIEN CORRESPONDA / AUTORIDADES EDUCATIVAS, GUBERNAMENTALES Y DE VINCULACIÓN SOCIAL"*.
+    - Ejes temáticos de impacto social acreditados: Concientización comunitaria, prevención del maltrato animal, tutela responsable y esterilización ética.
+    - Tabla estructurada con el padrón oficial de asistentes registrados (número progresivo, nombre completo, sexo, edad, folio de constancia digital y estado de acreditación).
+    - Leyenda de rendición de cuentas para dependencias de gobierno y firmas oficiales de la Coordinación General y Dirección de Bienestar Animal.
+  - La descarga binaria debe ser accesible a través de los endpoints:
+    - `GET /talk/public/:id/letter/docx` (acceso público con rate limiter).
+    - `GET /talk/:id/letter/docx` (acceso autenticado administrativo).
+
+- **RF-TLK-PDF-01 (Carta Oficial en Formato PDF / HTML Imprimible)**:
+  - El sistema debe proveer una vista HTML5/CSS3 autocontenida de alta fidelidad para consulta e impresión directa a PDF mediante la arquitectura Zero-Puppeteer.
+  - Debe incorporar logotipo institucional y marca de agua en Base64, reglas `@page { size: letter portrait; margin: 15mm; }`, y barra superior de herramientas (oculta durante la impresión `@media print`) con botones para:
+    - *"🖨️ Imprimir / Guardar en PDF"* (ejecuta `window.print()`).
+    - *"📥 Descargar en Word (.DOCX)"* (enlace directo al binario).
+    - *"📋 Copiar Enlace"* (copia el URL de trazabilidad al portapapeles).
+  - La vista debe estar disponible en:
+    - `GET /talk/public/:id/letter/pdf` (acceso público con rate limiter).
+    - `GET /talk/:id/letter/pdf` (acceso autenticado administrativo).
+
+### `[SRS 23.2 Requerimientos Funcionales - Constancias Individuales y Notificaciones Asíncronas]`
+
+- **RF-TLK-CERT-01 (Constancias Individuales por Asistente con Folio y Token Cifrado)**:
+  - Cada participante registrado en la plática debe recibir un folio único de constancia con el patrón `CP-AAMMDD-XXXX-NN` (donde `AAMMDD` es la fecha, `XXXX` son los últimos 4 caracteres del ID de la plática, y `NN` es el número de participante).
+  - Cada constancia debe estar respaldada por un token criptográfico AES-256-GCM (`createTalkCertificateHashToken`), accesible públicamente bajo `GET /certificate/talk/:hashToken`.
+  - La constancia individual debe renderizar el nombre del participante, tema de la plática, fecha, lugar, firmas oficiales y botones integrados para guardado en PDF o descarga como imagen PNG en alta definición.
+
+- **RF-TLK-MAIL-01 (Notificación Asíncrona por Correo Electrónico a Participantes)**:
+  - Al registrar una plática (vía formulario público `/formularios/platicas` o vía panel administrativo), el backend debe iterar sobre todos los participantes que hayan proporcionado una dirección de correo válida.
+  - El despacho de correos debe realizarse de forma asíncrona no bloqueante mediante `Promise.allSettled`, utilizando la API de Resend (`https://api.resend.com/emails`).
+  - El correo debe contener:
+    - Saludo formal e identificación institucional de ABAQ Querétaro como ONG donataria comprometida con la rendición de cuentas.
+    - Nombre del asistente, tema impartido, fecha, sede y folio de constancia.
+    - Botón CTA principal: *"Ver y Descargar mi Constancia Oficial (PDF / PNG)"*.
+    - Enlaces de consulta a la Carta Oficial de la plática (.PDF y .DOCX).
+  - El sistema debe registrar en MongoDB el estado del correo (`emailStatus`: `sent`, `failed`, `no_email`) y la fecha de envío (`emailSentAt`).
+
+### `[SRS 23.3 Requerimientos Funcionales - Vista Post-Envío y Detalle Administrativo]`
+
+- **RF-TLK-UI-01 (Dashboard de Éxito en Formulario Público - `PublicTalkForm`)**:
+  - Al completarse el envío, el formulario público debe renderizar un panel completo de acreditación e impacto social:
+    - Tarjeta de Carta Oficial con accesos directos a DOCX, PDF y copiado de enlace.
+    - Barra de métricas de impacto: Asistentes capacitados, desglose por género (mujeres/hombres) y total de notificados por correo.
+    - Padrón de constancias de participantes con folio, insignias de estado de correo (`✉️ Enviada a...` o `⚠️ Sin correo`), botón de apertura de constancia y botón de copiado de enlace con retroalimentación visual inmediata.
+    - Botón para registrar otra plática.
+
+- **RF-TLK-UI-02 (Acciones de Documentación en Detalle de Plática - `TalkDetailComponent`)**:
+  - En la vista administrativa de detalle (`/admin/talks/:id`), el encabezado `.admin-hero` debe incorporar botones de acción para descargar la Carta Oficial en Word (.DOCX), ver la carta en PDF y copiar el enlace oficial.
+  - En cada tarjeta de asistente de la lista de participantes se debe incluir el folio de constancia, el estatus de notificación por correo y los botones *"Ver constancia"* y *"Copiar link"*.
+
+### `[SRS 23.4 Requerimientos No Funcionales - Eficiencia y Seguridad]`
+
+- **RNF-TLK-PERF-01 (Arquitectura Zero-Puppeteer y Bajo Consumo de Recursos)**:
+  - Prohibido el levantamiento de procesos Chromium o Puppeteer en el backend.
+  - La generación de archivos DOCX se realiza con la librería binaria nativa `docx` en < 15ms con ~2MB de memoria RAM.
+  - El PDF se delega al motor de renderizado del navegador del cliente vía CSS print standards y `window.print()`.
+  - La respuesta HTTP del formulario (`POST /talk/public`) debe ser devuelta en < 150ms sin esperar a que los correos terminen de enviarse.
+
+- **RNF-TLK-SEC-01 (Seguridad Criptográfica y Mitigación Anti-Abuso)**:
+  - Las constancias y cartas están protegidas contra enumeración y manipulación de parámetros mediante tokens autenticados AES-256-GCM.
+  - Los endpoints públicos están resguardados por Cloudflare Turnstile anti-bot y rate limiting anti-DoS (`talkCertificateLimiter`).
+
+---
+
+## 24. Estandarización de Vistas de Detalle en Base de Datos: Hero Header Homologado, Tarjeta Super Brief Reutilizable y Modal de Confirmación Escrita con "yes"
+
+### `[SRS 24.1 Requerimientos Funcionales - Vistas de Detalle en Formularios de Base de Datos]`
+
+- **RF-ADM-HERO-01 (Homologación Estricta del Header Hero y Layout de Botones en Vistas de Detalle)**:
+  - Todas las vistas de detalle de formularios de Base de Datos (`/admin/talks/:id`, `/admin/adoptions/:id`, `/admin/campaigns/:id`, `/admin/identifications/:id`) deben reutilizar la estructura de encabezado canónica `.admin-hero.detail-hero`:
+    - `.hero-header-row` con bloque de texto `.hero-text-block` que incluye:
+      - Fila de badges (`.hero-eyebrow-row`): Título de sección (`.hero-eyebrow`), pastilla de tipo (`.hero-type-pill`) y botón con folio oficial institucional (`.hero-folio-btn`) con copiado al portapapeles y retroalimentación reactiva.
+      - Título principal `.hero-title` y subtítulo con metadatos `.hero-subtitle`.
+    - Fila de acciones `.hero-actions-row` con layout estandarizado de botones:
+      1. *"Actualizar datos"* (`.btn-hero-update`, ícono `sync` giratorio, abre el modal de confirmación con tipeo `"yes"`).
+      2. *"Nueva acreditación"* (`.btn-hero-accreditation`, abre el modal `<app-new-accreditation-modal>` con preselección contextual del módulo).
+      3. Botones de documentos oficiales (en pláticas: *"Carta Oficial .PDF"* y *"Descargar .DOCX"*).
+      4. *"Borrar registro"* (`.btn-hero-delete`, ícono `delete`, abre modal con tipeo obligatorio `"borrar"`).
+    - Fila de métricas integradas en el gradiente `.hero-stats-row` con tarjetas informativas semitransparentes (`.hero-stat-card`) que resumen los indicadores vitales del registro.
+
+- **RF-ADM-BRIEF-01 (Componente Reutilizable Super Brief Card - `<app-db-record-brief-card>`)**:
+  - El sistema debe proveer el componente desacoplado `<app-db-record-brief-card>` como base visual estándar para todos los formularios y expedientes de Base de Datos.
+  - La tarjeta presenta:
+    - Fila superior con categoría (`.badge-category`), estatus (`.badge-status`) y botón interactivo de folio (`.badge-folio-btn`).
+    - Título del registro, subtítulo y panel de métricas estructuradas (`.brief-metrics-panel`) en tarjetas compactas.
+    - Botonera completa de acciones reflejada dentro de la tarjeta para acceso inmediato (actualizar, acreditar, documentos, borrar).
+    - Fila de etiquetas temáticas (`.brief-tags-row`) y caja de notas de impacto social (`.brief-notes-box`).
+
+- **RF-ADM-UPD-01 (Modal de Confirmación Escrita con Palabra 'yes' - `<app-update-confirm-modal>`)**:
+  - Para evitar actualizaciones o sobreescrituras accidentales, el botón *"Actualizar datos"* debe abrir el componente modal interactivo `<app-update-confirm-modal>`.
+  - El modal debe incorporar:
+    - Encabezado con ícono `published_with_changes`, título y descripción del alcance de la actualización.
+    - Super brief integrado del registro mostrando su folio, título y las métricas clave para que el operador confirme qué información está sincronizando.
+    - Campo de texto obligatorio donde el usuario debe teclear la palabra **`yes`** (insensible a mayúsculas/minúsculas).
+    - Botón de confirmación deshabilitado hasta que el valor del campo coincida estrictamente con `"yes"`.
+    - Estado de carga reactivo (`isUpdating`) con ícono animado que deshabilita interacciones concurrentes.
+
+- **RF-ADM-LBL-01 (Reactividad y Actualización en Tiempo Real de Etiquetas)**:
+  - Todas las etiquetas, folios, badges de correo electrónico (`sent`, `pending`, `failed`, `none`), contadores de género y fechas en las vistas de detalle deben recalcularse dinámicamente y reflejar de inmediato los cambios al completarse la actualización sin requerir recargar la página completa.
+
+### `[SRS 24.2 Requerimientos No Funcionales - Responsividad y Accesibilidad Multidispositivo]`
+
+- **RNF-ADM-RESP-01 (Gobernanza Visual en Móvil, Tableta y Escritorio)**:
+  - **Escritorio (`> 1024px`)**: Contenedor con `max-width: 1200px`. Botones en línea horizontal dentro del hero y de la brief card. Grid de métricas en 4–5 columnas.
+  - **Tableta (`641px – 1024px`)**: Las botoneras se ajustan con `flex-wrap: wrap` con separación de 10px. El panel de métricas se redistribuye a 2 columnas.
+  - **Móvil (`320px – 640px`)**:
+    - Las filas `.hero-actions-row` y `.brief-actions-cluster` mutan a columnas verticales al 100% de ancho con botones de altura mínima accesible de 44px (WCAG AAA).
+    - El modal apila los botones de cancelar y confirmar al 100% de ancho en orden ergonómico.
+    - Las tarjetas de participantes reinician sus márgenes laterales a cero para maximizar el área de lectura.
+
+---
+
+## 25. Gobernanza de Narrativa y Terminología Institucional: Dualidad Actividades Colectivas vs. Participaciones Individuales 1:1, Trilogía de Roles y Flujo de Verificación Institucional
+
+### `[SRS 25.1 Requerimientos Funcionales - Narrativa y Modelo de Información]`
+
+- **RF-NAR-01 (Distinción Estricta entre Actividades Colectivas y Participaciones Individuales 1:1)**:
+  - El sistema debe separar conceptual y visualmente dos conceptos medulares de la organización:
+    1. **Actividades Colectivas (`eventos ABAQ`)**: Eventos y convocatorias institucionales grupales derivados del catálogo de las 11 opciones reglamentarias (esterilizaciones, pláticas, brigadas de limpieza, módulos de adopción, paseos). Se caracterizan por tener sede, fecha, cupo, pase de lista e inscripción de múltiples personas.
+    2. **Participación Individual (Interacción 1:1 Voluntario ↔ Coordinación)**: Registro y solicitud de acreditación de labor comunitaria o académica efectuada por un colaborador ante la Coordinación. Toda participación individual requiere adjuntar evidencia probatoria en formato `.PDF` y someterse a revisión formal.
+- **RF-NAR-02 (Unificación de los 3 Roles del Sistema)**:
+  - En toda la interfaz de usuario, barras de navegación, badges, modales y mensajes del sistema, se deben emplear de forma estricta las siguientes denominaciones de rol:
+    1. **Estudiante de Servicio Social** (`role: student`): Colaborador con meta obligatoria de horas curriculares universitarias (480 h). Cada participación validada le suma horas verificables hacia su carta de término.
+    2. **Voluntario General** (`role: volunteer`): Colaborador comunitario altruista sin sujeción a horas universitarias obligatorias. Sus participaciones le generan constancias de labor e insignias de mérito.
+    3. **Coordinación / Coordinador(a)** (`role: admin`): Autoridad responsable de la Coordinación de Voluntariado y Servicio Social de ABAQ. Audita comprobantes, valida o rechaza horas y programa actividades colectivas. Se prohíbe el uso de términos impersonales o técnicos ambiguos como "admin" o "administración general" en la UI.
+- **RF-NAR-03 (Rediseño Pedagógico del Modal y Botones de Registro)**:
+  - Se erradica la etiqueta engañosa *"Nueva acreditación"* de todos los botones de la plataforma, así como cualquier jerga técnica de arquitectura (como *"1:1"*).
+  - El botón pasa a denominarse **`Registrar participación`** (para colaboradores y expedientes) y **`Registrar participación a colaborador`** (en la cabecera de la Coordinación).
+  - El componente modal `<app-new-accreditation-modal>` debe incorporar de forma obligatoria un **Banner Informativo de Verificación Institucional (`.accreditation-audit-banner`)** que aclara que el registro no se convalida de forma automática, sino que se envía a la bandeja de auditoría de la Coordinación.
+  - El botón primario de envío se titula expresamente **`Enviar a revisión de Coordinación`**.
+- **RF-NAR-04 (Homologación Universal de Píldoras de Folio `<app-folio-pill>`)**:
+  - Tanto en las vistas de usuario final (`home`, `volunteer-home`, `student-profile`, `volunteer-profile`) como en las vistas administrativas (`student-detail`, `volunteer-detail` y la tabla general de voluntarios `student`), el folio de expediente (`SS-xxxx`, `VG-xxxx`) debe renderizarse exclusivamente mediante el componente interactivo reutilizable `<app-folio-pill>` con copiado reactivo al portapapeles y estilo `.folio-pill-ac`. Se prohíbe el uso de botones de folio ad-hoc desincronizados.
+- **RF-NAR-05 (Erradicación de Redundancias en Métricas de Horas y Control de Conclusión)**:
+  - En el panel de control del estudiante (`home`), se unifica la visualización de horas en una cuadrícula armónica de 5 tarjetas sin duplicar el valor de 480 horas: *"Horas acreditadas"* (`0 h` de meta 480 h), *"Horas pendientes"* (`480 h`), *"Progreso"*, *"Participaciones validadas"* y *"Participaciones en revisión"*.
+  - En perfiles y detalles de estudiante, la etiqueta *"FECHA DE TÉRMINO · Conclusión oficial ABAQ"* solo se renderiza si el estudiante ha completado sus 480 horas (`isStudentCompleted`). Si se encuentra activo, se rotula como *"FIN DE PERIODO (ESTIMADO) · Calendario escolar universitario"*.
+
+### `[SRS 25.2 Requerimientos No Funcionales - Claridad y Accesibilidad Multidispositivo]`
+
+- **RNF-NAR-01 (Claridad Contextual y Accesibilidad)**:
+  - Los mensajes explicativos deben tener un contraste mínimo de 4.5:1 (WCAG AA).
+  - El banner pedagógico de verificación debe mantener visibilidad óptima en móviles (`320px`), adaptando su disposición flexible verticalmente sin desbordar el contenedor.
+
+---
+
+## 26. Requerimientos de Estadísticas Duales con Costos Oficiales Railway, Respaldo y Restauración Integral (Base de Datos + Bucket S3), Validación Pre-Descarga, Protección Universal Anti-Abuso de 8 Horas y Auditoría de Seguridad OWASP WSTG (v2.14.0 - 2026.11.15)
+
+### `[SRS 26.1 Requerimientos Funcionales y No Funcionales - Observabilidad Dual y Costos Railway]`
+
+- **RF-BKP-STATS-01 (Contenedores Gemelos Reutilizados en Encabezado de Respaldos)**:
+  - La sección de estadísticas de `.admin-hero` en `/admin/backups` se dividirá en **dos contenedores gemelos**, reutilizando estrictamente las primitivas visuales y clases existentes `.hero-stats-grid` y `.hero-stat-card` sin duplicar estructura de componentes:
+    1. **Contenedor 1 — Base de datos (Información del sistema)**: Estado de conexión y latencia, módulos activos (`activeCollections / totalCollections`), total de documentos junto con su peso físico en almacenamiento (MB/GB), y tarjeta de **costo mensual estimado** en Railway acompañada de su indicador de diferencial y aceleración de crecimiento ($\Delta$).
+    2. **Contenedor 2 — Almacenamiento de archivos (Documentos guardados — Bucket S3)**: Estado del almacén de objetos, carpetas activas (`4 / 4`: `reglamentos`, `adopciones`, `evidencias`, `documentos`), total de archivos junto con su peso acumulado (MB/GB), y tarjeta de **costo mensual estimado** del Bucket S3 en Railway acompañada de su indicador de diferencial y aceleración de crecimiento ($\Delta$).
+
+- **RF-BKP-STATS-02 (Cálculo de Costos Oficiales Railway y Ocultamiento de Fórmulas en UI)**:
+  - El backend calculará las estimaciones de gasto mensual conforme a las tarifas oficiales publicadas por Railway:
+    - **Cómputo, Volumen y Egreso de Servicio/BD**: RAM a `$10 / GB / mes`, CPU a `$20 / vCPU / mes`, Volumen de almacenamiento a `$0.15 / GB / mes`, y Service/Network Egress a `$0.05 / GB`.
+    - **Storage Bucket S3**: Almacenamiento a `$0.015 / GB-mes`, con operaciones de API S3 (`PUT`/`GET`/`LIST`) y Bucket Egress internos ilimitados sin costo (`$0.00`), contemplando el cargo de Service Egress (`$0.05 / GB`) únicamente cuando el backend entrega archivos hacia el navegador del usuario por red pública.
+  - **Restricción estricta de interfaz**: El sistema **NO** debe mostrar fórmulas matemáticas, variables de tarifas ni desgloses aritméticos al usuario final; únicamente exhibirá el peso ocupado, el costo mensual estimado en USD y una etiqueta simple del diferencial/aceleración ($\Delta$ respecto al corte anterior). Las fórmulas completas residen exclusivamente en la documentación técnica.
+
+- **RF-BKP-STATS-03 (Eficiencia de Conexión, Caché y Cooldown Manual)**:
+  - Queda prohibido implementar *polling* o refresco automático periódico en `/admin/backups`.
+  - El endpoint de estadísticas mantendrá una caché en memoria de servidor con TTL mínimo de **5 minutos** y aplicará un **cooldown de 60 segundos** por administrador sobre recargas manuales, protegiendo las consultas `dbStats` en MongoDB y `ListObjectsV2` en S3 contra saturación o denegación de servicio.
+
+- **RF-BKP-STATS-04 (Hint Discreto con Fecha Única)**:
+  - Debajo de los contenedores de estadísticas se renderizará un *hint* visual de bajo perfil que muestre **únicamente la fecha** del último cálculo de métricas (formato `Última actualización: DD/MM/AAAA`), omitiendo hora exacta, milisegundos o etiquetas técnicas.
+
+### `[SRS 26.2 Requerimientos Funcionales - Respaldo Tri-Modal (BD + Bucket S3), Validación Pre-Descarga y Rollback Zero-Overwrite]`
+
+- **RF-BKP-SCOPE-01 (Selector de 3 Opciones en Lenguaje Ciudadano sin Jerga Técnica)**:
+  - En la tarjeta de descarga `.zip` de `/admin/backups`, el administrador podrá seleccionar exactamente una de tres modalidades redactadas en lenguaje simple para usuario final (**regla obligatoria**: referirse siempre a **"archivos"** o **"documentos guardados"**, quedando estrictamente prohibido mencionar las siglas `"PDF"` en la UI de respaldos):
+    1. **Respaldo completo (Base de datos y archivos)** (`scope: 'full'`).
+    2. **Solo base de datos (Registros del sistema)** (`scope: 'db_only'`).
+    3. **Solo archivos (Documentos guardados)** (`scope: 'bucket_only'`).
+
+- **RF-BKP-SCOPE-02 (Manifiesto Unificado `v3.0.0`)**:
+  - Todo archivo `.zip` generado incluirá un `manifest.json` en versión `"3.0.0"` que declare explícitamente `scope` (`full`, `db_only`, `bucket_only`), el desglose cuantitativo por colecciones JSON de base de datos, el inventario de archivos por carpeta S3 (`reglamentos`, `adopciones`, `evidencias`, `documentos`) con tamaño e identificador SHA-256 individual, y el resumen de verificación previa.
+
+- **RF-BKP-SCOPE-03 (Validación Obligatoria Pre-Descarga `validateBackupReadiness`)**:
+  - Antes de ensamblar o entregar el archivo `.zip` seleccionado, el backend ejecutará la función `validateBackupReadiness` para asegurar que el respaldo descargado no contenga datos corruptos ni vínculos rotos:
+    1. **Integridad en Base de Datos**: Comprobar existencia de `_id` válido, campo `folio` no nulo en los modelos aplicables y serialización JSON íntegra.
+    2. **Integridad en Archivos del Bucket S3**: Verificar que cada archivo posea peso real (`size > 0`), cabecera de firma íntegra (`%PDF-`) y huella SHA-256 consistente.
+    3. **Integridad Referencial Cruzada BD $\leftrightarrow$ Bucket S3**: Confirmar que las referencias documentales (`signedRulesDocument`, `ineDocument`, `comprobanteDomicilioDocument`, `signedFormatDocument`, `cloudUrls`, `evidenceUrl`, `authId`) apunten a objetos sanos sin claves huérfanas ni rutas rotas.
+  - Ante fallos críticos de integridad, la descarga se bloqueará de forma preventiva presentando un diagnóstico claro al administrador.
+
+- **RF-BKP-RESTORE-01 (Rollback y Restauración con Soporte para Archivos del Bucket S3)**:
+  - El flujo de carga y rollback (`processRollback` / `unifiedRestore` en `backup.service.js`) procesará manifiestos `v3.0.0` (conservando compatibilidad controlada con `v2.x`), soportando tanto registros JSON de MongoDB como la restauración estructurada de archivos hacia las cuatro carpetas del Bucket S3 (`reglamentos`, `adopciones`, `evidencias`, `documentos`).
+
+- **RF-BKP-RESTORE-02 (Reutilización de Componentes y Modal de Vista Previa)**:
+  - La inspección previa (*dry-run*) del archivo cargado reutilizará la zona de carga y los modales existentes `showRollbackReviewModal` y `showPackageReviewModal` junto con sus vistas `.review-table-wrap` y `.review-mobile-card-list`, extendiéndolas visualmente para listar el balance por carpeta de archivos del Bucket S3 (En paquete, Ya en nube, Restaurables nuevos, Omitidos sin sobrescritura).
+
+- **RF-BKP-RESTORE-03 (Política Estricta Zero-Overwrite en Base de Datos y Bucket S3)**:
+  - Ninguna restauración o rollback podrá sobrescribir información existente en producción:
+    - En **MongoDB**, las escrituras se realizarán exclusivamente mediante inserción condicional no destructiva (`$setOnInsert`), conservando intacto cualquier documento previo con el mismo identificador.
+    - En **Bucket S3**, antes de cada carga (`PUT`), el backend verificará la existencia previa del objeto mediante `ListObjectsV2` / `HeadObject`; toda clave existente será omitida (*skip*) y contabilizada en el resumen como elemento protegido contra sobrescritura.
+
+- **RF-BKP-RESTORE-04 (Endurecimiento Defensivo de Descompresión `.zip`)**:
+  - Todo paquete `.zip` sometido a lectura en servidor validará canónicamente sus rutas internas para impedir ataques *Zip-Slip* (`CWE-22`), impondrá topes estrictos de razón de compresión y peso total descomprimido contra *Zip-Bomb* (`CWE-409`), y verificará la firma binaria real de los archivos previo a cualquier escritura en S3.
+
+- **RNF-BKP-PERF-01 (Compresión Híbrida en Empaquetado ZIP: `level: 6` + `store: true`)**:
+  - En la generación de archivos `.zip` (`streamJsonZipBackup` en `backend/services/backup.service.js`), las colecciones JSON y `manifest.json` utilizarán compresión balanceada **`zlib: { level: 6 }`** (~85 % de reducción de texto con ~60 % menos uso de CPU que `level: 9`), mientras que los archivos provenientes del Bucket S3 (`bucket/*/*`) se empaquetarán mediante **`store: true` (`ZIP_STORE`, nivel 0 sin recomprimir)**, evitando saturar la vCPU al intentar recomprimir binarios ya comprimidos internamente.
+  - Los archivos en el Bucket S3 permanecerán en su formato original sin empaquetado `.zip` permanente para no penalizar con costo de CPU/RAM (`$20/vCPU-mes`, `$10/GB-mes`) las consultas cotidianas.
+
+- **RNF-BKP-PERF-02 (Streaming Secuencial con Techo de Memoria RAM `<= 25 MB` Extra)**:
+  - El empaquetado de archivos del Bucket S3 hacia el `.zip` saliente debe operar por flujo continuo secuencial (*streaming* 1 a 1 en bloques de `64 KB` vía `ReadableStream`), manteniendo el consumo adicional de memoria RAM en **`<= 25 MB` extra** (`+15 MB a +25 MB`) sin almacenar todos los objetos en memoria ni escribir el `.zip` final en disco.
+
+- **RNF-BKP-PERF-03 (Ingesta de Rollback en Disco Temporal `/tmp` y Extracción Selectiva)**:
+  - La ruta de restauración en `backend/routes/backup.route.js` reemplazará `multer.memoryStorage()` por almacenamiento temporal efímero en disco (`os.tmpdir()` / `/tmp`) con limpieza garantizada en bloque `finally { fs.unlink }`.
+  - Durante `processRollback`, los archivos ya existentes en Bucket S3 detectados mediante `ListObjectsV2` serán omitidos sin descomprimirse en RAM, extrayendo y subiendo únicamente los archivos faltantes (máximo 2 en paralelo) con un pico acotado de `+20 MB a +35 MB` de RAM extra.
+
+### `[SRS 26.3 Requerimientos Funcionales y No Funcionales - Protección Universal Anti-Abuso de Descargas (downloadGuard.js + 8h + Circuit Breaker)]`
+
+- **RF-DOC-GUARD-01 (Anti-Clikeo Rápido, Límite de 3 Descargas y Bloqueo Persistente de 8 Horas)**:
+  - Todas las descargas de documentos servidas por el sistema (documentos del Bucket en `bucket.controller.js`, reglamento firmado `downloadSignedRules`, cartas/constancias de `talk.controller.js` y exportaciones de respaldo en `backup.controller.js`) deben quedar regidas por un módulo unificado (`downloadGuard.js`), superando el límite parcial previo (`COOLDOWN_MS = 45 * 1000` en memoria RAM del frontend):
+    1. **Anti-clikeo rápido**: Bloqueo inmediato ante pulsaciones repetidas con intervalo `< 2 segundos`.
+    2. **Cuota estricta por archivo**: Máximo **3 descargas por archivo** por usuario/IP; alcanzado el umbral o detectado abuso sobre el botón, se impone un **bloqueo de 8 horas** con botón deshabilitado en UI y mensaje claro invitando al usuario a esperar o solicitar el archivo a la Coordinación si lo requiere con urgencia.
+
+- **RF-DOC-GUARD-02 (Circuit Breaker Global por Comportamiento Anormal Anti-Egress)**:
+  - Para blindar a la institución frente a cargos imprevistos de **Service Egress (`$0.05 / GB`)** derivados de *scraping* o descargas automatizadas, si un usuario o IP presenta comportamiento anormal (**`> 8` archivos distintos solicitados en `< 60 segundos`** o **`>= 5` intentos bloqueados en una ventana de 10 minutos**), el *Circuit Breaker* bloqueará **TODAS las acciones de descarga de documentos** de ese usuario/IP durante **8 horas**, mostrando un aviso claro indicando contactar a la Coordinación en caso de emergencia.
+
+- **RNF-DOC-GUARD-01 (Sincronización Autoritativa Backend + `localStorage`)**:
+  - El conteo y el estado de bloqueo por 8 horas (tanto por archivo como global del *Circuit Breaker*) deben aplicarse de forma autoritativa en el backend y replicarse en el cliente mediante `localStorage`, impidiendo la evasión mediante recarga de pestaña o limpieza volátil en RAM.
+
+### `[SRS 26.4 Requerimientos No Funcionales - Remediación Derivada de Auditoría de Seguridad Web OWASP WSTG (H-01 a H-09)]`
+
+Con base en la metodología de auditoría de 6 fases del Prof. Ricardo Monroy (OWASP WSTG / OWASP Top 10:2021) y el análisis realizado sobre el código actual y la propuesta:
+
+- **RNF-SEC-AUDIT-01 (`H-01` Crítico — A01 Broken Access Control / IDOR en Expedientes y Bucket)**:
+  - Añadir `protect`, `restrictToAdmin` (o validación estricta de titularidad) y `requireActiveAccount` en `backend/routes/student.route.js` y `backend/routes/volunteer.route.js` (`GET /:id`, `/auth/:authId`), y autenticar `GET /api/bucket/documents/:fileName` en `backend/routes/bucket.route.js`.
+
+- **RNF-SEC-AUDIT-02 (`H-02` Alto — A01 BFLA en Rutas de Gestión)**:
+  - Incorporar `restrictTo("admin")` de `backend/middlewares/role.middleware.js` en las rutas administrativas CRUD, aprobación/rechazo y eliminación de `activity.route.js`, `adoption.route.js`, `campaign.route.js`, `identification.route.js` y `talk.route.js`.
+
+- **RNF-SEC-AUDIT-03 (`H-03` Alto — A03 Inyección NoSQL y Mass Assignment)**:
+  - Instalar y montar `express-mongo-sanitize` en `backend/app.js`, validar `req.body.token` como cadena escalar en `auth.controller.js` (`activateVolunteer`), y reemplazar la actualización abierta en `handler.controller.js` (`factory.updateOne`) por listas blancas explícitas de campos permitidos.
+
+- **RNF-SEC-AUDIT-04 (`H-04` Medio-Alto — A02/A09 Fuga de Datos Sensibles y Logs)**:
+  - Eliminar `console.log` de objetos de usuario recuperados con `.select("+passwordHash")` en `auth.controller.js` (línea 118) y de `req.body` en `handler.controller.js`, así como restringir o proteger con verificación reforzada `/auth/expediente-status` para evitar la exposición anónima de `folio`, `fullName`, `email` y `cartaAceptacion`.
+
+- **RNF-SEC-AUDIT-05 (`H-05` Medio — A05/A07 Configuración Insegura de Superficie)**:
+  - Establecer límite explícito en `express.json({ limit: "1mb" })`, aplicar `requireTurnstile` en `/auth/register` y `/auth/activate-volunteer`, suprimir la autenticación por *query string* (`allowQueryToken` / `?token=`) en `backup.route.js`, reemplazar CORS reflejado permisivo en `app.js` por lista blanca estricta y prohibir `TURNSTILE_DISABLED` en producción.
+
+- **RNF-SEC-AUDIT-06 (`H-06` Alto — Cobertura Universal de Egreso)**:
+  - Extender el guardián de 8 horas (`downloadGuard.js`) y el *Circuit Breaker* a `downloadSignedRules`, descargas de `talk.controller.js` y exportaciones de `backup.controller.js`.
+
+- **RNF-SEC-AUDIT-07 (`H-07` Crítico Preventivo — Integridad de Paquetes en Rollback)**:
+  - Blindar el módulo de ingesta `.zip` contra *Zip-Slip*, *Zip-Bomb* y carga de archivos maliciosos verificando firmas mágicas y aplicando *Zero-Overwrite* en S3.
+
+- **RNF-SEC-AUDIT-08 (`H-08` Medio Preventivo — Firma AWS SigV4 y Denegación de Métricas)**:
+  - Corregir `buildSigV4Headers` en `backend/services/railwayBucket.service.js` (línea 113, donde `const canonicalQuery = ""` rompe consultas prefijadas/paginadas de `ListObjectsV2`) ordenando y codificando correctamente los parámetros de consulta para la firma SigV4, y mantener caché de 5 min + cooldown de 60 s en métricas.
+
+- **RNF-SEC-AUDIT-09 (`H-09` Medio Preventivo — Integridad Referencial Pre-Descarga)**:
+  - Garantizar la ejecución obligatoria de `validateBackupReadiness` previa a toda descarga `.zip` de respaldo.
+
+
+
+
 
 
 
