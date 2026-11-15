@@ -1198,6 +1198,39 @@ flowchart TD
   - *Positivas*: Botones con proporción ergonómica exacta en cualquier ancho (`327px`, `376px`, `680px`, desktop); navegación unificada en torno a `Participación` y `Base de datos` sin perder el código legado (archivado en `src/app/archive/`); captura rápida por teclado de fechas y horas 24h; cero exposición de IDs técnicos al usuario final; doble acción intuitiva (clic corto = copiar, mantener presionado = abrir pestaña) en los 4 formularios públicos.
   - *Negativas*: En navegadores móviles con bloqueadores estrictos de ventanas emergentes asíncronas (como ciertos modos de Safari iOS), `window.open` disparado desde `setTimeout` puede requerir confirmación del navegador.
 
+### ADR-27: Directiva Standalone Universal ActionFeedbackDirective para Retroalimentación Transitoria en el Foco de Acción del Usuario, Supresión de Banners Estáticos y Erradicación de Layout Shifts (CLS = 0)
+- **Estado**: Aceptado para Implementación en Rama `dev-rivers2` (`2026-11-14`).
+- **Contexto**:
+  1. **Dispersión de la Atención del Usuario y Fatiga de Scroll**: En formularios y expedientes (`student-detail`, `volunteer-detail`, modales administrativos), tras presionar botones clave como *"Modificar datos del voluntario"* o *"Guardar cambios"*, la confirmación se inyectaba mediante banners estáticos `<div class="status-feedback-alert alert-success">` colocados arriba o abajo de la vista. Esto obligaba al usuario a desviar la mirada del botón que acababa de presionar hacia otra región de la pantalla para enterarse si la operación culminó.
+  2. **Desplazamiento Acumulativo de Diseño (Cumulative Layout Shift - CLS)**: La inserción y desaparición condicional (`*ngIf`) de alertas en el flujo del documento empujaba físicamente los elementos interactivos hacia abajo (layout shift de 40px–60px), causando desorientación y clics accidentales en dispositivos móviles y tabletas.
+  3. **Proliferación de Variables Redundantes de Plantilla**: Múltiples componentes acumulaban banderas booleanas y cadenas dispersas (`statusFeedback`, `profileSuccess`, `profileError`, `successMessage`, `errorMessage`) con temporizadores desacoplados en cada `.ts`, generando inconsistencias y riesgo de fugas de memoria si el usuario navegaba antes de que expirara el temporizador.
+- **Decisión**:
+  1. **Directiva Standalone Universal `[appActionFeedback]` (`frontend/src/app/directives/action-feedback.directive.ts`)**:
+     - Decorar cualquier elemento interactivo `<button [appActionFeedback]="feedbackState" [successText]="'¡Guardado exitosamente!'" [errorText]="'Error al guardar'">`.
+     - Centralizar la mutación visual y el control temporal en una directiva desacoplada del componente anfitrión, encapsulando el estado dentro del propio botón físico.
+  2. **Máquina de Estados Determinista de 4 Fases con Auto-Recuperación (*Self-Healing*)**:
+     ```mermaid
+     stateDiagram-v2
+         [*] --> Idle: Inicialización
+         Idle --> Loading: Click / Disparo Asíncrono
+         Loading --> Success: HTTP 200 / Resolución Exitosa
+         Loading --> Error: HTTP 4xx-5xx / Fallo
+         Success --> Idle: Timer 3000ms cumplido (Fade In/Out)
+         Error --> Idle: Timer 4000ms cumplido (Fade In/Out)
+     ```
+  3. **Anatomía y Mutación Visual del Botón**:
+     - **`idle`**: Presenta texto, ícono y clases originales. Interactividad activa (`disabled = false`).
+     - **`loading`**: Deshabilita el botón (`disabled = true`, `pointer-events: none`). Sustituye temporalmente el contenido por un mini-spinner CSS rotativo de 16px y texto de progreso (`"Guardando..."`).
+     - **`success`**: Aplica token de éxito verde institucional (`#16a34a`), ícono de verificación `✓` (`done`), texto de confirmación parametrizable y microanimación sutil de pulso. Temporizador de 3000 ms.
+     - **`error`**: Aplica token de error rojo institucional (`#dc2626`), ícono de fallo `✕` (`close`), texto explicativo y microanimación de sacudida lateral (*gentle shake*, 300 ms). Temporizador de 4000 ms.
+     - **`self-healing`**: Al expirar el tiempo, ejecuta una transición de opacidad de 200 ms restaurando el HTML original del botón, sus clases CSS previas y restablece `disabled = false`.
+  4. **Garantías de Cero CLS y Gestión de Ciclo de Vida**:
+     - Dimensiones estables mediante `min-height: 44px; box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; gap: 8px;`. El botón preserva su volumen sin alterar el flujo del DOM.
+     - Implementación de `DestroyRef` / `ngOnDestroy` para cancelar de inmediato temporizadores activos (`clearTimeout`) al desmontar el componente, garantizando cero fugas de memoria.
+- **Consecuencias**:
+  - *Positivas*: Máxima claridad cognitiva: el usuario recibe la respuesta en el punto exacto donde hizo clic; erradicación de banners que desplazan la página (CLS = 0); eliminación de código duplicado de notificaciones en controladores Angular; comportamiento universal en desktop, tabletas y móviles.
+  - *Negativas*: El botón no debe albergar textos de éxito excesivamente largos que desborden contenedores estrechos en móviles; la directiva trunca o ajusta el tamaño de fuente si el texto supera el ancho disponible.
+
 ---
 
 ## 4. Atributos de Calidad del Sistema (Quality Attributes)

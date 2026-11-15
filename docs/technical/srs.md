@@ -1250,6 +1250,51 @@ abaq-backup-YYYY-MM-DD-HHmmss.zip
   - En resoluciones móviles ($\le 768\text{px}$, $\le 540\text{px}$ y viewports ultra-estrechos como $327 \times 2751\text{px}$), todos los botones de encabezado y de tarjetas (`.btn-create-item`, `.btn-hero-action`, `.btn-copy-form`, `.btn-act`, `.btn-doc-download`) deben ocupar el 100% del ancho útil (`width: 100%; max-width: 100%`) con altura natural determinada por su contenido (`flex: 0 0 auto; height: auto; min-height: 42px–44px`), impidiendo que un `flex-basis` heredado en contenedores con `flex-direction: column` infle la altura de los botones (p. ej. a $160\text{px}$).
   - Dentro de las píldoras de métricas del hero (`.hero-stat-pill`), la cifra y su unidad (`.stat-number`, como `200 h`) deben mantenerse indivisibles en una sola línea (`white-space: nowrap; flex-shrink: 0`).
 
+---
+
+## 21. Requerimientos de Retroalimentación en Foco de Acción (Action Feedback Directive) y Erradicación de Layout Shifts (v2.13.0 - 2026.11.14)
+
+### `[SRS 21.1 Requerimientos Funcionales - Retroalimentación en Foco de Botón]`
+
+- **RF-ACTION-FEEDBACK-01 (Directiva Standalone Universal `[appActionFeedback]`)**:
+  - Toda acción de mutación, guardado, actualización, aprobación, rechazo, inactivación, copiado o descarga en formularios y modales debe canalizar su retroalimentación visual **directamente en el botón disparador** donde el usuario mantiene su foco de atención, mediante la directiva reutilizable `[appActionFeedback]`.
+  - Queda prohibido el uso de alertas o banners estáticos (`div.status-feedback-alert`, `div.alert-success`, `div.alert-danger`) colocados fuera del campo visual del botón que empujen o desplacen los elementos de la interfaz hacia abajo (*Cumulative Layout Shift* = 0).
+
+- **RF-ACTION-FEEDBACK-02 (Máquina de Estados de Retroalimentación en Botón)**:
+  - El botón decorado con la directiva debe transicionar por cuatro estados deterministas:
+    1. **`idle` (Estado Normal / Reposo)**:
+       - Presenta la etiqueta, ícono y estilo CSS original del botón. `disabled: false`.
+    2. **`loading` (Estado en Ejecución)**:
+       - Al dispararse la acción asíncrona, el botón se bloquea temporalmente (`disabled: true` y `pointer-events: none`) para evitar dobles envíos (*double-submit*).
+       - Almacena en memoria el contenido original (texto e íconos) y muestra un indicador de giro sutil (*mini spinner* de 16px) junto con el texto contextual de procesamiento (ej. `"Guardando..."`, `"Actualizando..."`, `"Procesando..."`).
+    3. **`success` (Estado de Confirmación)**:
+       - Al resolverse exitosamente la promesa u observable, el botón muta temporalmente su apariencia:
+         - Fondo en verde esmeralda institucional (`#16a34a`).
+         - Ícono de verificación `✓` (`check` o `done`).
+         - Texto de éxito conciso parametrizable (ej. `"¡Guardado exitosamente!"`, `"¡Expediente actualizado!"`).
+         - Microanimación sutil de pulso / *check bounce*.
+       - Permanece en este estado durante un periodo configurable de **3000 ms** (3 segundos).
+    4. **`error` (Estado de Fallo)**:
+       - Ante un rechazo HTTP o error de validación, el botón muta a:
+         - Fondo en rojo error (`#dc2626`).
+         - Ícono de advertencia `✕` (`error` o `close`).
+         - Texto de error parametrizable (ej. `"Error al guardar"`, `"Fallo en la operación"`).
+         - Microanimación de sacudida lateral (*gentle shake* de 300 ms).
+       - Permanece en este estado durante **4000 ms** (4 segundos).
+    5. **`self-healing` (Restauración Automática a `idle`)**:
+       - Concluido el temporizador de éxito o error, el botón ejecuta una transición suave de opacidad (200 ms) restaurando con fidelidad absoluta su texto original, ícono original, clases CSS base y reactiva su interactividad (`disabled: false`).
+
+- **RF-ACTION-FEEDBACK-03 (Supresión de Banners de Estado Residuales)**:
+  - En las vistas de detalle y expedientes (`student-detail`, `volunteer-detail`, perfiles y modales), se suprimen todas las variables redundantes de plantilla (`statusFeedback`, `profileSuccess`, `profileError`, `successMessage`, `errorMessage`) sustituyéndolas por el objeto o señal de estado consumido por la directiva `[appActionFeedback]`.
+
+### `[SRS 21.2 Requerimientos No Funcionales - Estabilidad Visual y Rendimiento]`
+
+- **RNF-FEEDBACK-CLS-01 (Cero Desplazamiento Acumulativo de Diseño - CLS = 0)**:
+  - La mutación visual del botón no debe alterar su altura, ancho ni caja de maquetación (`box-sizing: border-box; min-height: 44px`), impidiendo saltos visuales en el viewport en resoluciones de escritorio, tableta y móvil.
+
+- **RNF-FEEDBACK-MEM-01 (Prevención de Fugas de Memoria en Navegación)**:
+  - La directiva debe cancelar automáticamente cualquier temporizador activo (`setTimeout`) en su ciclo de vida `ngOnDestroy` (o mediante `takeUntilDestroyed()`), garantizando que la navegación inmediata a otra ruta no dispare mutaciones sobre elementos desmontados del DOM.
+
 
 
 

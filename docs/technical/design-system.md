@@ -234,6 +234,7 @@ Toda evolución visual o funcional de la plataforma opera bajo un **Arnés de Re
 | **Baja / Inactivación de Colaboradores** | `<app-inactivate-volunteer-modal>` (`InactivateVolunteerModalComponent`) | `frontend/src/app/components/shared/inactivate-volunteer-modal/` | Reutilizado para registrar motivo y comentarios en bitácora de estatus. |
 | **Verificación Anti-Bot en Formularios Públicos** | `<app-turnstile-widget>` (`TurnstileWidgetComponent`) | `frontend/src/app/components/shared/turnstile-widget/` | Reutilizado en las 7 superficies públicas (`login`, `signup`, `adoptions`, `campaigns`, `identifications`, `talks`). |
 | **Abrir en Nueva Pestaña al Mantener Presionado** | `[appLongPressOpen]` (`LongPressOpenDirective`) | `frontend/src/app/directives/long-press-open.directive.ts` | Directiva standalone reutilizada en todos los botones `.btn-copy-form` (600 ms con clic o *tap*). |
+| **Retroalimentación en Foco de Botón (Cero CLS)** | `[appActionFeedback]` (`ActionFeedbackDirective`) | `frontend/src/app/directives/action-feedback.directive.ts` | Directiva standalone para transformar botones en retroalimentación temporal (`loading`, `success`, `error`, `self-healing`) erradicando banners estáticos. |
 
 ### 7.2 Patrones Estructurales CSS/HTML Reutilizados (Sin Crear Componentes Redundantes)
 1. **Encabezado `.admin-hero` + `a.back-link`**: Misma estructura DOM (`.hero-header-row` + `.hero-text-block` + `.hero-actions-row` + `.hero-stats-row`) en todas las vistas, gobernada en tableta y móvil por las reglas globales de `frontend/src/styles.scss`.
@@ -267,5 +268,87 @@ Toda evolución visual o funcional de la plataforma opera bajo un **Arnés de Re
   - **Tableta y Móvil (`<= 1024px`)**: El outline lateral se oculta por completo (`display: none !important`) y el formulario se expande al `100%` del ancho.
 - **Invariante Zero-Null Folio (`SS-YYMMDD-XX`, `VG-YYMMDD-XX`, `AC-YYMMDD-XXXX`, `OP-YYMMDD-XXXX`)**:
   - Ningún expediente de estudiante, voluntario, actividad grupal o participación individual puede existir sin folio institucional canónico e inmutable en MongoDB, garantizado por restricción `required: true`, hook `pre('validate')` y migración de arranque `ensureFolioIntegrity()`.
+
+---
+
+## 9. Sistema de Retroalimentación en Foco de Botón (`[appActionFeedback]`) y Erradicación de Layout Shifts
+
+### 9.1 Principio de Diseño: Enfoque Visual en el Punto de Acción (*Action-Focused Feedback*)
+Tradicionalmente, las confirmaciones de guardado o actualización en la plataforma insertaban banners estáticos tipo `<div class="status-feedback-alert alert-success">`. Esta práctica introducía dos fallas críticas de UX:
+1. **Ruptura del foco visual**: El usuario hace clic en el botón de acción (ej. *"Modificar datos del voluntario"* al pie del formulario) y debe desviar la vista hacia arriba o hacia otra región remota de la pantalla para buscar si apareció un mensaje.
+2. **Desplazamiento Acumulativo de Diseño (*Cumulative Layout Shift - CLS*)**: La aparición y desaparición repentina del banner empuja físicamente los elementos interactivos 40px–60px, provocando clics erróneos y desorientación en dispositivos móviles.
+
+La directiva `[appActionFeedback]` muta temporalmente el propio botón en el que el usuario hizo clic, manteniendo su atención exactamente donde ocurrió la interacción, con **CLS = 0**.
+
+### 9.2 Tokens de Color y Tipografía para Retroalimentación
+| Estado | Fondo (Background) | Texto / Ícono | Contraste WCAG | Duración Activa |
+|---|---|---|---|---|
+| **`idle` (Reposo)** | Color natural del botón (ej. `#24366f`, `#1f2937`) | Color natural | AA / AAA | Permanente |
+| **`loading` (Procesando)** | Tono base opacado (85%) con cursor `wait` | `#ffffff` | AA ($\ge 4.5:1$) | Hasta resolución asíncrona |
+| **`success` (Éxito)** | `#16a34a` (Verde esmeralda institucional) | `#ffffff` + Ícono `✓` | 7.3:1 (AAA) | **3000 ms** (3 segundos) |
+| **`error` (Fallo)** | `#dc2626` (Rojo advertencia institucional) | `#ffffff` + Ícono `✕` | 7.1:1 (AAA) | **4000 ms** (4 segundos) |
+| **`self-healing`** | Transición suave `background-color 250ms ease, opacity 200ms ease` | Retorno fiel al original | — | 200 ms |
+
+### 9.3 Microanimaciones CSS
+```scss
+// Rotación suave del mini spinner (16px)
+@keyframes abaqFeedbackSpin {
+  to { transform: rotate(360deg); }
+}
+
+// Micro-pulso sutil de éxito (confirmación táctil)
+@keyframes abaqFeedbackPulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.03); }
+  100% { transform: scale(1); }
+}
+
+// Sacudida lateral suave ante errores (300ms)
+@keyframes abaqFeedbackShake {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-4px); }
+  40%, 80% { transform: translateX(4px); }
+}
+```
+
+### 9.4 Progresión Visual del Botón (Paso a Paso)
+1. **Estado Normal (`idle`)**:
+   `[ ✎ Modificar datos del voluntario ]` (Azul `#24366f`)
+2. **Al presionar (`loading`)**:
+   `[ ⟳ Guardando... ]` (Azul `#1e3a8a`, botón deshabilitado, spinner rotando a 0.8s)
+3. **Resolución Exitosa (`success`)**:
+   `[ ✓ ¡Guardado exitosamente! ]` (Verde esmeralda `#16a34a`, pulso sutil, 3000ms)
+4. **Auto-Restauración (`self-healing`)**:
+   Transición imperceptible de 200ms que devuelve el botón a:
+   `[ ✎ Modificar datos del voluntario ]` (Restaurando interactividad)
+
+### 9.5 Regla de Integración en Plantillas Angular
+```html
+<!-- Ejemplo en formulario de expediente -->
+<button 
+  type="submit" 
+  class="btn-primary"
+  [appActionFeedback]="saveState"
+  [successText]="'¡Expediente actualizado exitosamente!'"
+  [errorText]="'Error al actualizar expediente'">
+  <i class="material-icons">edit</i>
+  Modificar datos del voluntario
+</button>
+```
+*En el componente TypeScript:*
+```typescript
+// Señal o propiedad de estado
+saveState: 'idle' | 'loading' | 'success' | 'error' = 'idle';
+
+onSubmit() {
+  this.saveState = 'loading';
+  this.volunteerService.update(...).subscribe({
+    next: () => { this.saveState = 'success'; },
+    error: () => { this.saveState = 'error'; }
+  });
+}
+```
+*Los banners estáticos `<div class="status-feedback-alert">` se eliminan por completo del HTML.*
+
 
 
