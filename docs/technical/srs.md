@@ -1270,15 +1270,15 @@ abaq-backup-YYYY-MM-DD-HHmmss.zip
     3. **`success` (Estado de Confirmación)**:
        - Al resolverse exitosamente la promesa u observable, el botón muta temporalmente su apariencia:
          - Fondo en verde esmeralda institucional (`#16a34a`).
-         - Ícono de verificación `✓` (`check` o `done`).
-         - Texto de éxito conciso parametrizable (ej. `"¡Guardado exitosamente!"`, `"¡Expediente actualizado!"`).
+         - Ícono de verificación `✓` (`check` o `done`) como elemento protagónico que describe el resultado.
+         - Micro-copy compacto de una palabra (ej. `"¡Listo!"`, `"¡Guardado!"`), prohibiendo descripciones largas de efecto secundario para no distorsionar el ancho del botón.
          - Microanimación sutil de pulso / *check bounce*.
        - Permanece en este estado durante un periodo configurable de **3000 ms** (3 segundos).
     4. **`error` (Estado de Fallo)**:
        - Ante un rechazo HTTP o error de validación, el botón muta a:
          - Fondo en rojo error (`#dc2626`).
          - Ícono de advertencia `✕` (`error` o `close`).
-         - Texto de error parametrizable (ej. `"Error al guardar"`, `"Fallo en la operación"`).
+         - Micro-copy conciso (ej. `"Error"` o `"Fallo"`).
          - Microanimación de sacudida lateral (*gentle shake* de 300 ms).
        - Permanece en este estado durante **4000 ms** (4 segundos).
     5. **`self-healing` (Restauración Automática a `idle`)**:
@@ -1289,8 +1289,9 @@ abaq-backup-YYYY-MM-DD-HHmmss.zip
 
 ### `[SRS 21.2 Requerimientos No Funcionales - Estabilidad Visual y Rendimiento]`
 
-- **RNF-FEEDBACK-CLS-01 (Cero Desplazamiento Acumulativo de Diseño - CLS = 0)**:
-  - La mutación visual del botón no debe alterar su altura, ancho ni caja de maquetación (`box-sizing: border-box; min-height: 44px`), impidiendo saltos visuales en el viewport en resoluciones de escritorio, tableta y móvil.
+- **RNF-FEEDBACK-CLS-01 (Invariante Geométrica Estricta y Cero Desplazamiento - CLS = 0)**:
+  - La mutación visual del botón no debe alterar ni su altura ni su ancho calculado (`offsetWidth` / `offsetHeight`). La directiva debe fijar y preservar estas dimensiones durante el estado activo (`box-sizing: border-box; min-height: 44px`), impidiendo saltos visuales o deformaciones en el viewport en resoluciones de escritorio, tableta y móvil.
+  - El botón por defecto debe describir claramente la acción a ejecutar, mientras que en la retroalimentación el ícono describe qué ocurrió (`✓` o `✕`) con economía espacial inteligente.
 
 - **RNF-FEEDBACK-MEM-01 (Prevención de Fugas de Memoria en Navegación)**:
   - La directiva debe cancelar automáticamente cualquier temporizador activo (`setTimeout`) en su ciclo de vida `ngOnDestroy` (o mediante `takeUntilDestroyed()`), garantizando que la navegación inmediata a otra ruta no dispare mutaciones sobre elementos desmontados del DOM.

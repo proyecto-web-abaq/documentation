@@ -311,16 +311,38 @@ La directiva `[appActionFeedback]` muta temporalmente el propio botón en el que
 }
 ```
 
-### 9.4 Progresión Visual del Botón (Paso a Paso)
-1. **Estado Normal (`idle`)**:
-   `[ ✎ Modificar datos del voluntario ]` (Azul `#24366f`)
-2. **Al presionar (`loading`)**:
-   `[ ⟳ Guardando... ]` (Azul `#1e3a8a`, botón deshabilitado, spinner rotando a 0.8s)
-3. **Resolución Exitosa (`success`)**:
-   `[ ✓ ¡Guardado exitosamente! ]` (Verde esmeralda `#16a34a`, pulso sutil, 3000ms)
-4. **Auto-Restauración (`self-healing`)**:
-   Transición imperceptible de 200ms que devuelve el botón a:
-   `[ ✎ Modificar datos del voluntario ]` (Restaurando interactividad)
+### 9.4 Progresión Visual del Botón e Inteligencia Espacial (Cero Mutación de Ancho y Alto)
+Para garantizar estabilidad absoluta y evitar deformaciones geométricas:
+- **El botón default describe la acción**: Su etiqueta inicial comunica con total claridad la tarea a realizar (ej. `✎ Modificar datos del voluntario`, `✕ Rechazar`, `Guardar cambios`).
+- **El ícono describe qué pasó**: La retroalimentación es guiada visualmente por el glifo (`✓` éxito, `✕` error, `⟳` en progreso).
+- **Micro-copy compacto sin textos largos**: Quedan prohibidos los textos largos de efecto (como *"Información del expediente actualizada exitosamente en la base de datos"*). Se utiliza micro-copy de una sola palabra (`"¡Listo!"`, `"¡Guardado!"`, `"Error"`).
+- **Invariante Geométrica Estricta**: La directiva bloquea y preserva el ancho (`inline-size`) y alto (`block-size`) exactos calculados en reposo (`offsetWidth` / `offsetHeight`), garantizando que el botón **no cambie de ancho ni de altura** durante ninguna fase.
+
+```text
+1. Estado Normal (idle):
+   ┌────────────────────────────────────────────────────────┐
+   │         ✎  Modificar datos del voluntario              │
+   └────────────────────────────────────────────────────────┘
+   (Ancho W, Alto H)
+
+2. Al presionar (loading):
+   ┌────────────────────────────────────────────────────────┐
+   │                  ⟳  Guardando...                       │
+   └────────────────────────────────────────────────────────┘
+   (Exactamente Ancho W, Alto H · Bloqueado contra doble clic)
+
+3. Resolución Exitosa (success) - 3000 ms:
+   ┌────────────────────────────────────────────────────────┐
+   │                     ✓  ¡Listo!                         │
+   └────────────────────────────────────────────────────────┘
+   (Exactamente Ancho W, Alto H · Fondo #16a34a · Ícono protagonista)
+
+4. Auto-Restauración (self-healing):
+   ┌────────────────────────────────────────────────────────┐
+   │         ✎  Modificar datos del voluntario              │
+   └────────────────────────────────────────────────────────┘
+   (Transición suave 200ms de retorno fiel al estado normal)
+```
 
 ### 9.5 Regla de Integración en Plantillas Angular
 ```html
@@ -329,8 +351,8 @@ La directiva `[appActionFeedback]` muta temporalmente el propio botón en el que
   type="submit" 
   class="btn-primary"
   [appActionFeedback]="saveState"
-  [successText]="'¡Expediente actualizado exitosamente!'"
-  [errorText]="'Error al actualizar expediente'">
+  [successText]="'¡Listo!'"
+  [errorText]="'Error al guardar'">
   <i class="material-icons">edit</i>
   Modificar datos del voluntario
 </button>

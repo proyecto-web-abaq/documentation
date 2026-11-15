@@ -11,6 +11,12 @@ Esta sección consolida las iniciativas técnicas, propuestas arquitectónicas y
 
 <div class="grid cards" markdown>
 
+-   :lucide-check-circle-2: **[Retroalimentación en Foco de Acción ([appActionFeedback]), Erradicación de Banners Estáticos y Cero Desplazamiento (2026-11-14)](./2026-11-14-retroalimentacion-en-foco-de-accion-appActionFeedback.md)**
+
+    ---
+
+    Transformación reactiva de botones in situ (`[appActionFeedback]`) con preservación geométrica estricta de ancho y alto (CLS = 0); micro-copy compacto basado en íconos (`✓` / `✕`); máquina de estados determinista (`idle` &rarr; `loading` &rarr; `success`/`error` &rarr; `self-healing`); y erradicación integral de banners estáticos (`status-feedback-alert`) que provocaban saltos de pantalla y dispersión visual del usuario.
+
 -   :lucide-file-up: **[Migración de Documentos a Bucket Railway y Seguridad de Endpoints (2026-11-13)](./2026-11-13-migracion-documentos-bucket-railway.md)**
 
     ---
