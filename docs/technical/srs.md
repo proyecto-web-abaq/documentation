@@ -1284,17 +1284,93 @@ abaq-backup-YYYY-MM-DD-HHmmss.zip
     5. **`self-healing` (Restauración Automática a `idle`)**:
        - Concluido el temporizador de éxito o error, el botón ejecuta una transición suave de opacidad (200 ms) restaurando con fidelidad absoluta su texto original, ícono original, clases CSS base y reactiva su interactividad (`disabled: false`).
 
-- **RF-ACTION-FEEDBACK-03 (Supresión de Banners de Estado Residuales)**:
-  - En las vistas de detalle y expedientes (`student-detail`, `volunteer-detail`, perfiles y modales), se suprimen todas las variables redundantes de plantilla (`statusFeedback`, `profileSuccess`, `profileError`, `successMessage`, `errorMessage`) sustituyéndolas por el objeto o señal de estado consumido por la directiva `[appActionFeedback]`.
+- **RF-ACTION-FEEDBACK-03 (Erradicación Sistémica de Banners, Toasts Ad-Hoc y `window.alert()`)**:
+  - Se eliminan en la totalidad del sistema (41 plantillas HTML y 9 plantillas inline) todos los contenedores de notificación transitoria de resultado de acción:
+    - **Banners estáticos**: `div.status-feedback-alert`, `div.participation-feedback-banner`, `div.profile-message`, `div.document-success-alert`, `div.document-error`, `div.table-action-feedback`, `div.alert-error-box`, `div.alert-error-banner`, `div.upload-alert-danger`, `div.auth-alert-error`, `div.validation-alert-banner`, `div.enter-error`, `div.unified-success-banner`, `div.alert-danger`, `div.alert-success`.
+    - **Toasts locales ad-hoc**: `div.feedback-toast` (`student-profile`, `volunteer-profile`) y `div.success-toast` (`activity`, `quick-activities`).
+    - **Alertas nativas bloqueantes**: Todas las invocaciones a `window.alert(...)` en `adoption-list`, `adoption-detail`, `campaign-list`, `campaign-detail`, `identification-list`, `identification-detail`, `talk-list` y `talk-detail`.
+  - Se suprimen las propiedades de estado redundantes en los controladores TypeScript (`statusFeedback`, `feedbackMessage`, `feedbackError`, `feedbackBannerMessage`, `showSuccessMessage`, `showActivitySuccessMessage`, `profileSuccess`, `profileError`, `documentSuccess`, `documentError`).
+
+- **RF-ACTION-FEEDBACK-04 (4 Patrones de Interacción por Tipo de Superficie)**:
+  1. **Patrón A (Formulario / Edición In-Situ)**: En expedientes (`volunteer-detail`, `student-detail`), perfiles (`volunteer-profile`, `student-profile`), plantillas (`quick-activities`, `activity`), autenticación (`login`, `signup`), onboarding (`onboarding-phase`) y respaldos (`backup`), el botón de envío transiciona `idle` $\rightarrow$ `loading` (`⟳ Guardando`) $\rightarrow$ `success` (`✓ ¡Listo!`, 3000 ms) o `error` (`✕ Error`, 4000 ms) $\rightarrow$ `idle`. Si guardar cierra un modo edición, el botón de acción de la sección conserva o recibe el estado `success` para que el usuario siempre vea el `✓ ¡Listo!`.
+  2. **Patrón B (Modal con Cierre Post-Éxito y Retención en Error)**: En los modales `decision-volunteer-modal`, `inactivate-volunteer-modal`, `delete-confirm-modal`, `new-accreditation-modal`, `file-upload-modal` y modales internos de `activity-list`, `activity-detail` y `student-detail`:
+     - Al tener **éxito**, el botón primario del modal muestra `✓ ¡Listo!` en verde durante **700 ms** (`[successDuration]="700"`) antes de emitir el cierre del modal, garantizando confirmación visual en el foco del usuario.
+     - Al ocurrir un **error**, el modal permanece abierto sin insertar cajas de alerta y el botón ejecuta la sacudida en rojo (`✕ Error`, 4000 ms) volviendo a `idle` para permitir reintentar.
+  3. **Patrón C (Acción Síncrona Instantánea — Copiado)**: En todos los botones de copiado de enlaces de formularios (`.btn-copy-form`), links de invitación en `/student` (`.dropdown-item-btn`) y botones de folio (`.hero-folio-btn`, `.folio-copy-btn`), la directiva transiciona directamente `idle` $\rightarrow$ `success` (`✓ ¡Copiado!`, 2500 ms) $\rightarrow$ `idle`.
+  4. **Patrón D (Descarga / Apertura de Archivos y Constancias)**: En todos los botones de descarga de PDF (`.btn-doc-download`, `.btn-download-rules-file`, `.btn-open-doc`, documentos en `adoption-detail`, `student-detail`, `volunteer-detail`), apertura de constancias y exportación de respaldos `.ZIP`/`.XLSX`, el botón transiciona `idle` $\rightarrow$ `loading` (`⟳ Abriendo` / `⟳ Descargando`) $\rightarrow$ `success` (`✓ ¡Listo!`, 2500 ms) o `error` (`✕ Error`, 4000 ms) $\rightarrow$ `idle`.
 
 ### `[SRS 21.2 Requerimientos No Funcionales - Estabilidad Visual y Rendimiento]`
 
 - **RNF-FEEDBACK-CLS-01 (Invariante Geométrica Estricta y Cero Desplazamiento - CLS = 0)**:
-  - La mutación visual del botón no debe alterar ni su altura ni su ancho calculado (`offsetWidth` / `offsetHeight`). La directiva debe fijar y preservar estas dimensiones durante el estado activo (`box-sizing: border-box; min-height: 44px`), impidiendo saltos visuales o deformaciones en el viewport en resoluciones de escritorio, tableta y móvil.
+  - La mutación visual del botón no debe alterar ni su altura ni su ancho calculado (`offsetWidth` / `offsetHeight`). Antes de salir de `idle`, la directiva mide y congela `width` y `height` exactos en píxeles (`box-sizing: border-box; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;`), liberándolos únicamente al retornar a `idle`.
   - El botón por defecto debe describir claramente la acción a ejecutar, mientras que en la retroalimentación el ícono describe qué ocurrió (`✓` o `✕`) con economía espacial inteligente.
 
 - **RNF-FEEDBACK-MEM-01 (Prevención de Fugas de Memoria en Navegación)**:
   - La directiva debe cancelar automáticamente cualquier temporizador activo (`setTimeout`) en su ciclo de vida `ngOnDestroy` (o mediante `takeUntilDestroyed()`), garantizando que la navegación inmediata a otra ruta no dispare mutaciones sobre elementos desmontados del DOM.
+
+### `[SRS 21.3 Matriz de Cobertura Integral de Interfaces del Sistema]`
+
+| Grupo Funcional | Componentes Cubiertos | Notificaciones Legadas Removidas | Botones Gobernados por `[appActionFeedback]` |
+|---|---|---|---|
+| **1. Expedientes y Perfiles** | `volunteer-detail`, `student-detail`, `volunteer-profile`, `student-profile` | `.status-feedback-alert`, `.profile-message`, `.document-success-alert`, `.document-error`, `.feedback-toast` | Modificar/Guardar datos, Aceptar/Rechazar aspirante, Inactivar cuenta, Guardar semblanza/redes, Guardar enlace reporte, Aprobar/Rechazar acreditación, Descargar PDF/Constancia, Copiar folio. |
+| **2. Directorio y Participación** | `student`, `activity-list`, `activity-detail`, `quick-activities`, `activity` | `.table-action-feedback`, `.participation-feedback-banner`, `.doc-fallback-alert`, `.success-toast`, `.form-error` | Links de invitación, Aceptar/Rechazar/Inactivar en tabla, Inscribirme, Cancelar asistencia/envío, Validar/Rechazar participación, Eliminar actividad, Pase de lista (`Asistió`/`No asistió`), Crear/Actualizar/Publicar/Eliminar plantilla, Descargar comprobante. |
+| **3. Módulos Operativos y Públicos** | `adoption-list`, `adoption-detail`, `campaign-list`, `campaign-detail`, `identification-list`, `identification-detail`, `talk-list`, `talk-detail`, `public-*-form` (x4) | Todas las llamadas `window.alert(...)` de copiado, borrado y descarga de PDF | Copiar formulario (`.btn-copy-form`), Actualizar datos (`.btn-refresh-data`), Guardar campaña/placa/plática, Confirmar adopción, Marcar placa completada, Descargar PDF de adopción, Enviar formulario público. |
+| **4. Modales Compartidos** | `decision-volunteer-modal`, `inactivate-volunteer-modal`, `delete-confirm-modal`, `new-accreditation-modal`, `file-upload-modal` | `.alert-error-box`, `.alert-error-banner`, `.upload-alert-danger` y `alert()` de padres | Aceptar y Activar, Confirmar Rechazo, Inactivar Cuenta Definitivamente, Eliminar definitivamente, Enviar a revisión, Guardar en expediente (Bucket S3). |
+| **5. Auth, Onboarding y Backups** | `login`, `signup`, `onboarding-phase`, `expediente-recibido`, `backup` | `.auth-alert-error`, `.validation-alert-banner`, `.enter-error`, `.unified-success-banner`, `.alert-danger`, `.alert-success` | Iniciar sesión, Continuar a Fase 1, Guardar y continuar fase, Ingresar a plataforma, Descargar ZIP/XLSX, Analizar/Descargar/Purgar deshidratación, Revisar paquete, Ejecutar rollback/restauración/rehidratación. |
+
+---
+
+## 22. Estandarización y Reutilización de Componentes: Carga de Archivos Drag & Drop, Nueva Acreditación Contextual, Borrado Seguro en Tarjetas y Actualización Reactiva de Datos
+
+### `[SRS 22.1 Requerimientos Funcionales - Componentes Reutilizables y Módulos de Base de Datos]`
+
+- **RF-UPL-01 (Componente Reutilizable de Carga con Arrastrar y Soltar - `FileDropzoneComponent`)**:
+  - El sistema debe proveer un componente visual y funcionalmente desacoplado (`<app-file-dropzone>`) para la carga de documentos oficiales en formato PDF (límite configurable de 15 MB), reutilizable en formularios públicos y vistas administrativas.
+  - El componente debe admitir tanto interacción táctil o selección clásica por explorador (`<input type="file" hidden>`) como eventos nativos de arrastrar y soltar (*drag & drop*):
+    - Detección de `dragover`, `dragleave` y `drop`.
+    - Mutación de clase CSS a `.is-dragover` con contorno punteado en verde institucional (`#5ca83a`), elevación y fondo tintado (`#f0fdf4`).
+    - Validación client-side inmediata de extensión y tipo MIME (`application/pdf`) y peso máximo, emitiendo mensajes de error claros sin recargar la vista ni romper la alineación geométrica.
+    - Previsualización reactiva del archivo cargado: distintivo con ícono `picture_as_pdf`, micro-indicador verde de resguardo seguro, truncamiento con elipsis del nombre de archivo, cálculo formateado de tamaño (`formatBytes()`) y botones integrados de *"Cambiar"* y *"Quitar"* (`delete`).
+  - En el formulario público de adopción (`/formularios/adopciones`), se deben reemplazar las cajas nativas legadas por 3 instancias independientes de `<app-file-dropzone>` correspondientes a:
+    1. Formato Oficial de Solicitud de Adopción Firmado (obligatorio).
+    2. Identificación Oficial Vigente (INE) del adoptante responsable (opcional).
+    3. Comprobante de Domicilio reciente (opcional).
+
+- **RF-ADM-ACCR-01 (Botón de Nueva Acreditación Contextual en Formularios de Base de Datos)**:
+  - Los 4 módulos administrativos de Base de Datos / Formularios de Servicio Social:
+    - **Adopciones ABAQ** (`/admin/adoptions`)
+    - **Campañas EST** (`/admin/campaigns`)
+    - **Placas de Identificación** (`/admin/identifications`)
+    - **Pláticas de Concientización** (`/admin/talks`)
+    deben incorporar en la fila de acciones del encabezado `.admin-hero` (`.hero-actions-row`) el botón de acción primaria institucional `.btn-new-accreditation` (*"Nueva acreditación"*, ícono `assignment_turned_in`).
+  - Al presionarse, debe abrir el componente modal compartido `<app-new-accreditation-modal>`, preconfigurando automáticamente mediante la propiedad reactiva `[initialAccreditationType]` el tipo de actividad reglamentaria asociada al módulo:
+    - Adopciones: preselecciona `ADOPTION` (opción 5 del catálogo).
+    - Campañas EST: preselecciona `CAMPAIGN` (opción 8 del catálogo).
+    - Placas de Identificación: preselecciona `IDENTIFICATION` (opción 3 del catálogo).
+    - Pláticas: preselecciona `TALK` (opción 7 del catálogo).
+  - Al completar el registro y emitirse el evento `@Output() created`, la vista anfitriona debe cerrar el modal y recargar de forma automática su colección local.
+
+- **RF-ADM-DEL-01 (Borrado Seguro Directo en Tarjetas Operativas con Guard Tipográfico)**:
+  - Cada tarjeta de registro en los 4 listados (`.adoption-card`, `.campaign-card`, `.identification-card`, `.talk-card`) debe incorporar en su zona de acciones, junto al botón de consulta *"Ver detalles"*, el botón de eliminación directa `.btn-delete-card` (*"Borrar"*, ícono `delete`).
+  - La acción no debe borrar inmediatamente ni valerse de diálogos nativos `window.confirm()`. En su lugar, debe instanciar el modal institucional `<app-delete-confirm-modal>` pasando el nombre y folio del elemento.
+  - El modal debe obligar al usuario a teclear exactamente la palabra `"borrar"` antes de habilitar el botón de confirmación destructiva.
+  - Al confirmarse, el sistema consume el endpoint RESTful protegido del backend (`DELETE /:id`) sobre la colección respectiva, cerrando el modal y refrescando el listado.
+
+- **RF-ADM-SYNC-01 (Botón de Actualización Reactiva de Datos - "Actualizar datos")**:
+  - En la cabecera `.hero-actions-row` de los 4 módulos administrativos se debe proveer el botón `.btn-refresh-data` con ícono `sync` y texto *"Actualizar datos"*.
+  - Mientras la petición HTTP de recarga esté en tránsito (`isLoading = true`), el ícono debe rotar continuamente mediante animación CSS (`@keyframes abaqSpin`) y el botón debe deshabilitarse para evitar tormentas de peticiones concurrentes.
+
+### `[SRS 22.2 Requerimientos No Funcionales - Responsividad y Ergonomía Multidispositivo]`
+
+- **RNF-RESP-VIEWPORT-01 (Adaptabilidad Canónica en Móvil, Tableta y Escritorio)**:
+  - **Escritorio (`> 1024px`)**: Contenedor principal centrado con `max-width: 1500px` y `padding: 32px 24px 80px`. Fila de acciones del héroe (`.hero-actions-row`) alineada a la derecha con botones en línea horizontal. Tarjetas con disposición horizontal de metadatos y botones de acción agrupados.
+  - **Tableta (`641px – 1024px`)**: Envoltura fluida (`flex-wrap: wrap`) de los botones en el héroe con separación uniforme de 10px a 12px. Disposición de tarjetas en 1 o 2 columnas según la densidad de información.
+  - **Móvil (`320px – 640px`)**:
+    - La fila `.hero-actions-row` muta a columna vertical (`flex-direction: column; width: 100%`).
+    - Todos los botones de acción (`.btn-copy-form`, `.btn-refresh-data`, `.btn-new-accreditation`, `.btn-create-item`) se dimensionan al **100% del ancho del viewport** con texto centrado y una altura táctil accesible no menor a 44px (WCAG AAA).
+    - Las acciones de las tarjetas (`.adoption-card-actions`, `.card-action-buttons`, `.talk-card-actions`, `.card-footer`) se apilan verticalmente ocupando el ancho total (`width: 100%`).
+    - El área de `<app-file-dropzone>` apila la previsualización del archivo de forma vertical y ajusta los botones *"Cambiar"* y *"Quitar"* al 50% cada uno para pulsación táctil con una sola mano.
+
 
 
 

@@ -1198,38 +1198,66 @@ flowchart TD
   - *Positivas*: Botones con proporción ergonómica exacta en cualquier ancho (`327px`, `376px`, `680px`, desktop); navegación unificada en torno a `Participación` y `Base de datos` sin perder el código legado (archivado en `src/app/archive/`); captura rápida por teclado de fechas y horas 24h; cero exposición de IDs técnicos al usuario final; doble acción intuitiva (clic corto = copiar, mantener presionado = abrir pestaña) en los 4 formularios públicos.
   - *Negativas*: En navegadores móviles con bloqueadores estrictos de ventanas emergentes asíncronas (como ciertos modos de Safari iOS), `window.open` disparado desde `setTimeout` puede requerir confirmación del navegador.
 
-### ADR-27: Directiva Standalone Universal ActionFeedbackDirective para Retroalimentación Transitoria en el Foco de Acción del Usuario, Supresión de Banners Estáticos y Erradicación de Layout Shifts (CLS = 0)
+### ADR-27: Directiva Standalone Universal ActionFeedbackDirective para Retroalimentación Transitoria en el Foco de Acción del Usuario, Erradicación Sistémica de Banners/Toasts/`window.alert()` y Cero Layout Shift (CLS = 0)
 - **Estado**: Aceptado para Implementación en Rama `dev-rivers2` (`2026-11-14`).
 - **Contexto**:
-  1. **Dispersión de la Atención del Usuario y Fatiga de Scroll**: En formularios y expedientes (`student-detail`, `volunteer-detail`, modales administrativos), tras presionar botones clave como *"Modificar datos del voluntario"* o *"Guardar cambios"*, la confirmación se inyectaba mediante banners estáticos `<div class="status-feedback-alert alert-success">` colocados arriba o abajo de la vista. Esto obligaba al usuario a desviar la mirada del botón que acababa de presionar hacia otra región de la pantalla para enterarse si la operación culminó.
-  2. **Desplazamiento Acumulativo de Diseño (Cumulative Layout Shift - CLS)**: La inserción y desaparición condicional (`*ngIf`) de alertas en el flujo del documento empujaba físicamente los elementos interactivos hacia abajo (layout shift de 40px–60px), causando desorientación y clics accidentales en dispositivos móviles y tabletas.
-  3. **Proliferación de Variables Redundantes de Plantilla**: Múltiples componentes acumulaban banderas booleanas y cadenas dispersas (`statusFeedback`, `profileSuccess`, `profileError`, `successMessage`, `errorMessage`) con temporizadores desacoplados en cada `.ts`, generando inconsistencias y riesgo de fugas de memoria si el usuario navegaba antes de que expirara el temporizador.
+  1. **Dispersión de la Atención del Usuario y Fatiga de Scroll**: En las 41 plantillas HTML y 9 plantillas inline del frontend, las acciones de mutación inyectaban banners estáticos (`div.status-feedback-alert`, `div.participation-feedback-banner`, `div.profile-message`, `div.alert-error-box`, `div.auth-alert-error`, `div.unified-success-banner`), toasts locales (`div.feedback-toast`, `div.success-toast`) o alertas nativas bloqueantes (`window.alert` en `adoption-*`, `campaign-*`, `identification-*`, `talk-*`). Esto obligaba al usuario a desviar la mirada del botón que acababa de presionar hacia otra región de la pantalla.
+  2. **Desplazamiento Acumulativo de Diseño (Cumulative Layout Shift - CLS)**: La inserción y desaparición condicional (`*ngIf` / `@if`) de alertas en el flujo del documento empujaba físicamente los elementos interactivos hacia abajo (40px–80px), causando desorientación y clics accidentales en dispositivos móviles y tabletas.
+  3. **Proliferación de Variables Redundantes de Plantilla**: Más de 35 banderas booleanas, cadenas de estado y `setTimeout` manuales (`statusFeedback`, `feedbackMessage`, `feedbackError`, `feedbackBannerMessage`, `showSuccessMessage`, `showActivitySuccessMessage`, `profileSuccess`, `profileError`) estaban dispersos en los controladores TypeScript.
 - **Decisión**:
   1. **Directiva Standalone Universal `[appActionFeedback]` (`frontend/src/app/directives/action-feedback.directive.ts`)**:
-     - Decorar cualquier elemento interactivo `<button [appActionFeedback]="feedbackState" [successText]="'¡Guardado exitosamente!'" [errorText]="'Error al guardar'">`.
-     - Centralizar la mutación visual y el control temporal en una directiva desacoplada del componente anfitrión, encapsulando el estado dentro del propio botón físico.
+     - Decorar todo botón de acción del sistema `<button [appActionFeedback]="feedbackState" [loadingText]="'Guardando'" [successText]="'¡Listo!'" [errorText]="'Error'">`.
+     - Centralizar la mutación visual, el bloqueo dimensional (`offsetWidth` / `offsetHeight` congelados fuera de `idle`) y el control temporal en una sola directiva desacoplada del componente anfitrión.
   2. **Máquina de Estados Determinista de 4 Fases con Auto-Recuperación (*Self-Healing*)**:
      ```mermaid
      stateDiagram-v2
-         [*] --> Idle: Inicialización
-         Idle --> Loading: Click / Disparo Asíncrono
-         Loading --> Success: HTTP 200 / Resolución Exitosa
-         Loading --> Error: HTTP 4xx-5xx / Fallo
-         Success --> Idle: Timer 3000ms cumplido (Fade In/Out)
-         Error --> Idle: Timer 4000ms cumplido (Fade In/Out)
+         [*] --> Idle: Inicialización (Ancho y Alto naturales)
+         Idle --> Loading: Click Asíncrono (Congela Width y Height, Spinner 16px)
+         Idle --> Success: Acción Síncrona (Copiado de link/folio)
+         Loading --> Success: HTTP 200 / Resolución Exitosa (Verde #16a34a + ✓)
+         Loading --> Error: HTTP 4xx-5xx / Fallo (Rojo #dc2626 + ✕ + Shake)
+         Success --> Idle: Timer cumplido (3000ms form / 700ms modal / 2500ms copy)
+         Error --> Idle: Timer 4000ms cumplido (Restaura HTML y libera dimensiones)
      ```
-  3. **Anatomía y Mutación Visual del Botón**:
-     - **`idle`**: Presenta texto, ícono y clases originales. Interactividad activa (`disabled = false`).
-     - **`loading`**: Deshabilita el botón (`disabled = true`, `pointer-events: none`). Sustituye temporalmente el contenido por un mini-spinner CSS rotativo de 16px y texto de progreso (`"Guardando..."`).
-     - **`success`**: Aplica token de éxito verde institucional (`#16a34a`), ícono de verificación `✓` (`done`), texto de confirmación parametrizable y microanimación sutil de pulso. Temporizador de 3000 ms.
-     - **`error`**: Aplica token de error rojo institucional (`#dc2626`), ícono de fallo `✕` (`close`), texto explicativo y microanimación de sacudida lateral (*gentle shake*, 300 ms). Temporizador de 4000 ms.
-     - **`self-healing`**: Al expirar el tiempo, ejecuta una transición de opacidad de 200 ms restaurando el HTML original del botón, sus clases CSS previas y restablece `disabled = false`.
-  4. **Garantías de Cero CLS y Gestión de Ciclo de Vida**:
-     - Dimensiones estables mediante `min-height: 44px; box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; gap: 8px;`. El botón preserva su volumen sin alterar el flujo del DOM.
-     - Implementación de `DestroyRef` / `ngOnDestroy` para cancelar de inmediato temporizadores activos (`clearTimeout`) al desmontar el componente, garantizando cero fugas de memoria.
+  3. **4 Patrones Arquitectónicos de Interacción en Todo el Sistema**:
+     - **Patrón A (Formulario / Edición In-Situ)**: En `volunteer-detail`, `student-detail`, `volunteer-profile`, `student-profile`, `quick-activities`, `activity`, `login`, `signup`, `onboarding-phase`, `backup`, `adoption-detail`, `campaign-list`, `identification-list`, `identification-detail`, `talk-list` y los 4 formularios públicos. Si el guardado colapsa una tarjeta de edición (`isEditing = false`), el estado `success` (`✓ ¡Listo!`) se presenta sobre el botón de acción de la sección para no ocultar la confirmación.
+     - **Patrón B (Modal con Cierre Diferido en Éxito y Retención en Error)**: En `decision-volunteer-modal`, `inactivate-volunteer-modal`, `delete-confirm-modal`, `new-accreditation-modal`, `file-upload-modal` y modales de confirmación en `activity-list`, `activity-detail` y `student-detail`. En éxito, muestra `✓ ¡Listo!` durante `700 ms` antes de cerrar el modal; en error, mantiene el modal abierto y muestra `✕ Error` con *shake* sobre el botón primario, erradicando `.alert-error-box` y `.alert-error-banner`.
+     - **Patrón C (Acción Síncrona de Copiado)**: En todos los `.btn-copy-form` (4 módulos operativos), `.dropdown-item-btn` de invitación en `/student` y botones de folio en expedientes/onboarding. Transiciona directo `idle` $\rightarrow$ `success` (`✓ ¡Copiado!`, 2500 ms), eliminando todos los `window.alert('Formulario copiado...')`.
+     - **Patrón D (Descarga / Apertura de Archivos y Constancias)**: En botones de descarga de PDF (INE, CV, Reglamento, Comprobantes, Adopciones), constancias PNG y respaldos `.ZIP`/`.XLSX`. Muestra `⟳ Abriendo` $\rightarrow$ `✓ ¡Listo!` / `✕ Error`, eliminando `alert('No se pudo descargar...')` y `.doc-fallback-alert`.
+  4. **Invariante Geométrica (CLS = 0) y Gestión de Ciclo de Vida**:
+     - Antes de salir de `idle`, la directiva captura `el.offsetWidth` y `el.offsetHeight` y fija `style.width` y `style.height` exactos con `box-sizing: border-box; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;`. El botón jamás se ensancha ni cambia de altura.
+     - Implementación de `DestroyRef` / `ngOnDestroy` para cancelar temporizadores activos (`clearTimeout`) al desmontar el componente.
 - **Consecuencias**:
-  - *Positivas*: Máxima claridad cognitiva: el usuario recibe la respuesta en el punto exacto donde hizo clic; erradicación de banners que desplazan la página (CLS = 0); eliminación de código duplicado de notificaciones en controladores Angular; comportamiento universal en desktop, tabletas y móviles.
-  - *Negativas*: El botón no debe albergar textos de éxito excesivamente largos que desborden contenedores estrechos en móviles; la directiva trunca o ajusta el tamaño de fuente si el texto supera el ancho disponible.
+  - *Positivas*: Homologación del 100% de las notificaciones de acción del sistema en el foco visual del usuario; cero saltos de layout (CLS = 0); eliminación de decenas de banners HTML, estilos CSS muertos y llamadas `window.alert()`.
+  - *Negativas*: Exige micro-copy estricto de 1–2 palabras acompañado del ícono de estado (`✓` / `✕` / `⟳`) para caber siempre dentro del ancho original del botón.
+
+### ADR-28: Estandarización y Reutilización de Componentes: Carga de Archivos Drag & Drop (FileDropzoneComponent), Nueva Acreditación Contextual, Borrado Seguro en Tarjetas y Actualización Reactiva de Datos en Formularios de Servicio Social
+- **Estado**: Aceptado e Implementado en Rama `dev` (`2026-11-15`).
+- **Contexto**:
+  1. **Heterogeneidad en la Carga de Archivos**: El formulario público de adopción (`public-adoption-form`) requería 3 documentos oficiales (Formato de adopción firmado, INE y Comprobante de domicilio), pero los implementaba como `<input type="file">` básicos sin capacidad de arrastrar y soltar (*drag & drop*), sin estados visuales interactivos de arrastre (`dragover`), sin formateo de peso del archivo ni controles rápidos de sustitución y eliminación.
+  2. **Aislamiento del Flujo de Acreditación en Vistas de Base de Datos**: Los módulos administrativos de **Adopciones**, **Campañas EST**, **Placas de Identificación** y **Pláticas** carecían de acceso directo al flujo canónico de acreditación institucional (`<app-new-accreditation-modal>`), obligando a los coordinadores a abandonar la vista para registrar participaciones derivadas de estos programas.
+  3. **Ausencia de Eliminación Directa en Tarjetas**: Las tarjetas operativas forzaban al administrador a navegar al detalle profundo para purgar registros de prueba o duplicados.
+  4. **Falta de Acción de Sincronización In-Situ**: Los encabezados `.admin-hero` de estos 4 módulos no disponían de un control visible para recargar la colección en tiempo real, requiriendo recargar la ventana del navegador.
+- **Decisión**:
+  1. **Componente Reutilizable Standalone `FileDropzoneComponent` (`<app-file-dropzone>`)**:
+     - Ubicado en `frontend/src/app/components/ui/file-dropzone/`.
+     - Implementa eventos nativos `(dragover)`, `(dragleave)` y `(drop)` con señales reactivas `signal(false)` para aplicar la clase `.is-dragover`.
+     - Valida client-side formato `.pdf` y tamaño máximo (15 MB), mostrando preview estructurado con ícono `picture_as_pdf`, micro-tag verde de resguardo, peso formateado (`formatBytes`) y botones de *"Cambiar"* y *"Quitar"*.
+     - Reutilizado en `public-adoption-form` para los 3 documentos requeridos.
+  2. **Extensión y Reutilización de `NewAccreditationModalComponent`**:
+     - Se añadió `@Input() initialAccreditationType?: string` en `<app-new-accreditation-modal>`.
+     - Integrado en la fila `.hero-actions-row` de los 4 módulos administrativos con preselección contextual (`ADOPTION`, `CAMPAIGN`, `IDENTIFICATION`, `TALK`).
+     - Al emitir `(created)`, el modal se cierra y la colección local se recarga automáticamente.
+  3. **Integración Transversal de `DeleteConfirmModalComponent` en Tarjetas**:
+     - Se añadió el botón `.btn-delete-card` junto a *"Ver detalles"* en cada tarjeta.
+     - Invoca el modal tipográfico donde el usuario debe escribir obligatoriamente `"borrar"` para desbloquear la confirmación, ejecutando la llamada RESTful protegida del backend (`DELETE /:id`).
+  4. **Botón de Sincronización `.btn-refresh-data` ("Actualizar datos")**:
+     - Incorporado en `.hero-actions-row` con ícono `sync` y animación rotatoria (`@keyframes abaqSpin`) mientras `isLoading = true`.
+  5. **Reglas de Responsividad Multidispositivo (Móvil, Tableta y Escritorio)**:
+     - En pantallas `<=` 640px/700px, `.hero-actions-row` y las acciones de tarjetas mutan a columna vertical al 100% de ancho con altura táctil `>= 44px`.
+- **Consecuencias**:
+  - *Positivas*: Reutilización estricta de componentes de UI; experiencia de arrastrar y soltar moderna y accesible en adopción; capacidad de acreditar y eliminar registros directamente desde las vistas de listado sin desplazamientos innecesarios; adaptación perfecta en teléfonos móviles, tabletas y computadoras de escritorio.
+  - *Negativas*: El modal de acreditación inicializa el catálogo contextual, requiriendo que si el administrador desea cambiar de tipo dentro del modal deba usar el selector de opciones.
 
 ---
 

@@ -228,8 +228,9 @@ Toda evolución visual o funcional de la plataforma opera bajo un **Arnés de Re
 | **Selector / Combobox con Búsqueda** | `<app-custom-select>` (`CustomSelectComponent`) | `frontend/src/app/components/ui/custom-select/` | Reutilizar para selección asistida de escuelas, carreras y colaboradores (`[Folio] Nombre completo`). |
 | **Selector de Fecha Institucional** | `<app-custom-datepicker>` (`CustomDatepickerComponent`) | `frontend/src/app/components/ui/custom-datepicker/` | Reutilizar en onboarding y expedientes con máscara `DD/MM/AAAA`. |
 | **Carga de Documentos PDF al Bucket S3** | `<app-file-upload-modal>` (`FileUploadModalComponent`) | `frontend/src/app/components/ui/file-upload-modal/` | Único modal para subir INE, CV, reglamento firmado, formato de adopción y evidencias `.PDF`. |
-| **Registro de Participación Individual / Acreditación** | `<app-new-accreditation-modal>` (`NewAccreditationModalComponent`) | `frontend/src/app/components/shared/new-accreditation-modal/` | Reutilizado tanto por estudiantes/voluntarios (`Mi participación`) como por administradores (`Participación`, `student-detail`, `volunteer-detail`). |
-| **Confirmación Segura de Eliminación (`"borrar"`)** | `<app-delete-confirm-modal>` (`DeleteConfirmModalComponent`) | `frontend/src/app/components/shared/delete-confirm-modal/` | Reutilizado en el borrado de Adopciones, Pláticas, Campañas, Placas y registros administrativos. |
+| **Zona de Carga con Arrastrar y Soltar (Drag & Drop)** | `<app-file-dropzone>` (`FileDropzoneComponent`) | `frontend/src/app/components/ui/file-dropzone/` | Componente standalone para carga directa, validación .PDF <= 15MB, estados de arrastre (.is-dragover), vista previa y sustitución/eliminación. Reutilizado en `public-adoption-form`. |
+| **Registro de Participación Individual / Acreditación** | `<app-new-accreditation-modal>` (`NewAccreditationModalComponent`) | `frontend/src/app/components/shared/new-accreditation-modal/` | Reutilizado en `Mi participación`, `Participación`, `student-detail`, `volunteer-detail` y en los 4 módulos de Base de Datos (`adopciones`, `campañas`, `placas`, `pláticas`) con `[initialAccreditationType]`. |
+| **Confirmación Segura de Eliminación (`"borrar"`)** | `<app-delete-confirm-modal>` (`DeleteConfirmModalComponent`) | `frontend/src/app/components/shared/delete-confirm-modal/` | Reutilizado tanto en expedientes de detalle como directamente en las tarjetas de los 4 módulos de Base de Datos (`adoptions`, `campaigns`, `identifications`, `talks`). |
 | **Aprobación / Rechazo de Aspirantes** | `<app-decision-volunteer-modal>` (`DecisionVolunteerModalComponent`) | `frontend/src/app/components/shared/decision-volunteer-modal/` | Reutilizado en `/student`, `/student/:id` y `/volunteer-detail/:id`. |
 | **Baja / Inactivación de Colaboradores** | `<app-inactivate-volunteer-modal>` (`InactivateVolunteerModalComponent`) | `frontend/src/app/components/shared/inactivate-volunteer-modal/` | Reutilizado para registrar motivo y comentarios en bitácora de estatus. |
 | **Verificación Anti-Bot en Formularios Públicos** | `<app-turnstile-widget>` (`TurnstileWidgetComponent`) | `frontend/src/app/components/shared/turnstile-widget/` | Reutilizado en las 7 superficies públicas (`login`, `signup`, `adoptions`, `campaigns`, `identifications`, `talks`). |
@@ -371,6 +372,98 @@ onSubmit() {
 }
 ```
 *Los banners estáticos `<div class="status-feedback-alert">` se eliminan por completo del HTML.*
+
+### 9.6 Catálogo Exhaustivo de Interfaces, Banners Removidos y Micro-Copy por Botón (Todo el Sistema)
+
+| Vista / Componente | Elementos Legados a Remover | Botones Mapeados (`idle`) | `loadingText` | `successText` | `errorText` |
+|---|---|---|---|---|---|
+| **`volunteer-detail`** | `.status-feedback-alert` (`statusFeedback`) | `Modificar datos` / `Guardar cambios`<br>`Aceptar Voluntario y Activar`<br>`Rechazar`<br>`Descargar PDF ↓` / `Ver constancia` | `Guardando`<br>`Aceptando`<br>`Rechazando`<br>`Abriendo` | `¡Listo!`<br>`Activado`<br>`Rechazado`<br>`¡Listo!` | `Error`<br>`Error`<br>`Error`<br>`Error` |
+| **`student-detail`** | `.status-feedback-alert`, `.profile-message`, `.document-success-alert`, `.document-error` | `Editar información` / `Guardar cambios`<br>`Aceptar Estudiante y Activar` / `Rechazar`<br>`Guardar enlace`<br>`Aprobar` / `Rechazar` (acreditación)<br>`Descargar PDF ↓` / `Ver constancia` | `Guardando`<br>`Procesando`<br>`Guardando`<br>`Procesando`<br>`Abriendo` | `¡Listo!`<br>`¡Listo!`<br>`¡Listo!`<br>`¡Listo!`<br>`¡Listo!` | `Error`<br>`Error`<br>`Error`<br>`Error`<br>`Error` |
+| **`volunteer-profile`**<br>**`student-profile`** | `.feedback-toast.toast-success`, `.feedback-toast.toast-error` (`feedbackMessage`, `feedbackError`) | `✓ Guardar cambios` (Contacto)<br>`✓ Guardar cambios` (Semblanza)<br>`✓ Guardar cambios` (Redes sociales)<br>`Descargar PDF ↓` / `Ver constancia` | `Guardando`<br>`Guardando`<br>`Guardando`<br>`Abriendo` | `¡Listo!`<br>`¡Listo!`<br>`¡Listo!`<br>`¡Listo!` | `Error`<br>`Error`<br>`Error`<br>`Error` |
+| **`student`** (Directorio) | `.table-action-feedback`, `copiedKey` | `.dropdown-item-btn` (4 links invitación)<br>`Aceptar` / `Rechazar` / `Inactivar` (tabla) | *(Síncrono)*<br>`...` | `¡Copiado!`<br>`¡Listo!` | `Error`<br>`Error` |
+| **`activity-list`** | `.participation-feedback-banner`, `.doc-fallback-alert` (`feedbackBannerMessage`) | `Inscribirme` / `Volver a inscribirme`<br>`Cancelar asistencia` / `Sí, cancelar envío`<br>`Validar participación` / `Confirmar rechazo`<br>`Eliminar actividad`<br>`.btn-doc-download` (Comprobante PDF) | `Inscribiendo`<br>`Cancelando`<br>`Procesando`<br>`Eliminando`<br>`Abriendo` | `Inscrito`<br>`Cancelado`<br>`¡Listo!`<br>`Eliminada`<br>`¡Listo!` | `Error`<br>`Error`<br>`Error`<br>`Error`<br>`Error` |
+| **`activity-detail`** | Mensajes de error sueltos | `✓ Asistió` / `✕ No asistió`<br>`Validar X h` / `Validar desempeño` | `...`<br>`Validando` | `Asistió` / `No asistió`<br>`Validado` | `Error`<br>`Error` |
+| **`quick-activities`**<br>**`activity`** | `.success-toast`, `.success-message`, `.form-error` | `Crear/Actualizar plantilla`<br>`Publicar actividad`<br>`Eliminar` (plantilla)<br>`Crear actividad` | `Guardando`<br>`Publicando`<br>`Eliminando`<br>`Creando` | `¡Listo!`<br>`Publicada`<br>`Eliminada`<br>`Creada` | `Error`<br>`Error`<br>`Error`<br>`Error` |
+| **4 Módulos Operativos**<br>(`adoption-*`, `campaign-*`, `identification-*`, `talk-*`) | Todos los `window.alert(...)` de copiado, borrado y descarga | `Copiar formulario/enlace` (`.btn-copy-form`)<br>`Actualizar datos` (`.btn-refresh-data`)<br>`Guardar campaña/placa/plática`<br>`Confirmar adopción` / `Marcar completada`<br>`Descargar PDF` (Adopción) | *(Síncrono)*<br>`Cargando`<br>`Guardando`<br>`Guardando`<br>`Abriendo` | `¡Copiado!`<br>`¡Listo!`<br>`Guardado`<br>`Completada`<br>`¡Listo!` | `Error`<br>`Error`<br>`Error`<br>`Error`<br>`Error` |
+| **4 Formularios Públicos**<br>(`public-*-form`) | Alertas de fallo de envío | `Enviar formulario` / `Enviar solicitud` | `Enviando` | `Enviado` | `Error` |
+| **5 Modales Compartidos**<br>(`decision`, `inactivate`, `delete`, `new-accreditation`, `file-upload`) | `.alert-error-box`, `.alert-error-banner`, `.upload-alert-danger` y `alert()` en padres | `Aceptar y Activar` / `Confirmar Rechazo`<br>`Inactivar Cuenta Definitivamente`<br>`Eliminar definitivamente`<br>`Enviar a revisión`<br>`Guardar en expediente` | `Procesando`<br>`Inactivando`<br>`Borrando`<br>`Enviando`<br>`Subiendo` | `¡Listo!` (700ms)<br>`Inactivada` (700ms)<br>`Eliminado` (700ms)<br>`Enviado` (700ms)<br>`Guardado` (700ms) | `Error`<br>`Error`<br>`Error`<br>`Error`<br>`Error` |
+| **`login` / `signup` / `onboarding` / `backup`** | `.auth-alert-error`, `.validation-alert-banner`, `.enter-error`, `.unified-success-banner`, `.alert-danger`, `.alert-success` | `Iniciar sesión` / `Continuar a Fase 1`<br>`Guardar y continuar` / `Ingresar`<br>`Descargar Respaldo (.ZIP / .XLSX)`<br>`Analizar / Descargar / Purgar corte`<br>`Revisar / Restaurar / Rehidratar` | `Validando`<br>`Guardando`<br>`Generando`<br>`Procesando`<br>`Restaurando` | `¡Listo!`<br>`¡Listo!`<br>`Descargado`<br>`¡Listo!`<br>`Restaurado` | `Credenciales inválidas`<br>`Faltan datos`<br>`Error`<br>`Error`<br>`Error` |
+
+---
+
+## 10. Sistema de Carga de Archivos Drag & Drop (`<app-file-dropzone>`), Acciones Estandarizadas en Formularios y Viewport Multidispositivo
+
+### 10.1 Anatomía y Tokens Visuales de `<app-file-dropzone>`
+El componente desacoplado `<app-file-dropzone>` (`frontend/src/app/components/ui/file-dropzone/`) estandariza la interacción de carga de expedientes PDF en formularios:
+
+1. **Estado en Reposo (`idle`)**:
+   - Contenedor con borde discontinuo `2px dashed #cbd5e1`, esquinas redondeadas `border-radius: 16px`, fondo `#f8fafc` y cursor puntero.
+   - Ícono central `cloud_upload` (42px) en azul marino `#24366f` sobre fondo `#eff6ff`.
+   - Micro-copy claro: *"Arrastra y suelta tu archivo aquí"* + *"o si lo prefieres, selecciónalo desde tu dispositivo"*.
+   - Botón primario de explorador `.btn-browse-file` con fondo `#24366f`, texto blanco y sombra institucional.
+2. **Estado de Arrastre Activo (`.is-dragover`)**:
+   - Borde punteado reactivo en verde institucional `2px dashed #5ca83a`.
+   - Fondo verde suave `#f0fdf4`, elevación `box-shadow: 0 8px 24px rgba(92, 168, 58, 0.16)` y micro-escala `scale(1.01)`.
+   - Ícono muta a color verde `#5ca83a` sobre fondo circular `#dcfce7`.
+3. **Estado con Archivo Adjunto (`.has-file`)**:
+   - Borde continuo `2px solid #a7f3d0` y fondo `#f0fdf4`.
+   - Distintivo con ícono `picture_as_pdf` en rojo `#dc2626` sobre caja `#fee2e2` (44px × 44px).
+   - Metadatos del archivo: micro-etiqueta verde con viñeta (`status-dot`) *"Documento listo para envío seguro"*, nombre de archivo en negrita `#1e293b` con elipsis segura, y peso en KB/MB formateado por `formatBytes()`.
+   - Botón secundario `.btn-replace-file` (*"Cambiar"*, ícono `refresh`, `#eff6ff`) y botón destructivo `.btn-remove-file` (*"Quitar"*, ícono `delete`, `#fef2f2` con texto `#b91c1c`).
+4. **Estado de Error (`.has-error`)**:
+   - Borde rojo claro `#fca5a5`, fondo `#fff5f5` y alerta `.dropzone-alert-error` con ícono `error` y texto explicativo.
+
+### 10.2 Botones Estandarizados en Encabezados `.admin-hero`
+En los 4 módulos de Base de Datos / Formularios de Servicio Social (`/admin/adoptions`, `/admin/campaigns`, `/admin/identifications`, `/admin/talks`), la fila `.hero-actions-row` contiene:
+
+| Botón | Clase CSS | Visual / Tokens | Acción Operativa |
+|---|---|---|---|
+| **Copiar formulario / enlace** | `.btn-copy-form` | Fondo blanco `#ffffff`, texto azul `#24366f`, ícono `link` | Copia la URL pública en el portapapeles. Admite pulsación prolongada (`[appLongPressOpen]`) para abrirla en nueva pestaña. |
+| **Actualizar datos** | `.btn-refresh-data` | Fondo traslúcido `rgba(255,255,255,0.16)`, borde blanco `rgba(255,255,255,0.28)`, ícono `sync` | Dispara la recarga de datos (`loadAdoptions()`, `loadCampaigns()`, etc.). El ícono gira con `@keyframes abaqSpin` mientras `isLoading` esté activo. |
+| **Nueva acreditación** | `.btn-new-accreditation` | Gradiente verde `linear-gradient(135deg, #5ca83a 0%, #468c27 100%)`, texto blanco, ícono `assignment_turned_in` | Abre `<app-new-accreditation-modal>` con `[initialAccreditationType]` preseleccionado según el contexto (`ADOPTION`, `CAMPAIGN`, `IDENTIFICATION`, `TALK`). |
+| **Nuevo registro específico** | `.btn-create-item` | Fondo blanco `#ffffff` (o verde según vista), ícono `add_circle` | Abre el formulario in-situ de alta (ej. *"Nueva campaña"*, *"Nueva plática"*, *"Nueva placa"*). |
+
+### 10.3 Botones Estandarizados en Tarjetas Operativas (`Cards`)
+Cada tarjeta de registro incorpora una botonera agrupada (`.card-action-buttons`, `.adoption-card-actions`, etc.):
+
+1. **Acción Principal ("Ver detalles" / "Ver detalle")**:
+   - Botón oscuro institucional (`#111827` / `#2f4b9a`), texto blanco, esquinas redondeadas (8px–10px).
+   - Conduce a la ruta de expediente detallado (`/admin/.../:id`).
+2. **Acción Secundaria Destructiva ("Borrar")**:
+   - Botón `.btn-delete-card`: Fondo rojo suave `#fee2e2`, borde `#fecaca`, texto `#b91c1c`, ícono `delete` (16px–18px).
+   - En `:hover`: Fondo rojo intenso `#ef4444`, texto blanco y sombra sutil `0 4px 12px rgba(239, 68, 68, 0.25)`.
+   - Abre el modal institucional `<app-delete-confirm-modal>`, exigiendo teclear `"borrar"` para ejecutar la eliminación.
+
+### 10.4 Reglas de Adaptabilidad y Viewports (Móvil, Tableta y Escritorio)
+
+```
+┌────────────────────────────────────────────────────────────────────────┐
+│ ESCRITORIO (> 1024px)                                                  │
+│ max-width: 1500px; padding: 32px 24px 80px;                            │
+│ .hero-actions-row: [ Copiar ] [ Actualizar datos ] [ Nueva acreditación ]
+│ Card: [ Foto / Info ] ───────────────────────── [ Ver detalles ] [ Borrar ]
+└────────────────────────────────────────────────────────────────────────┘
+
+┌────────────────────────────────────────────────────────────────────────┐
+│ TABLETA (641px - 1024px)                                               │
+│ .hero-actions-row: flex-wrap: wrap; gap: 10px; (botones en 2 filas)    │
+│ Card: Grid adaptativa de 1 o 2 columnas; acciones alineadas al final   │
+└────────────────────────────────────────────────────────────────────────┘
+
+┌────────────────────────────────────────────────────────────────────────┐
+│ MÓVIL (320px - 640px)                                                  │
+│ .hero-actions-row: flex-direction: column; width: 100%;                │
+│ [ ────── Botón 1: Copiar formulario (100% W, min-h: 44px) ────── ]     │
+│ [ ────── Botón 2: Actualizar datos (100% W, min-h: 44px) ─────── ]     │
+│ [ ────── Botón 3: Nueva acreditación (100% W, min-h: 44px) ───── ]     │
+│ Card: flex-direction: column; foto ancho completo                      │
+│ Botonera tarjeta: flex-direction: column;                              │
+│ [ ────── Ver detalles (100% W) ────── ]                                │
+│ [ ────── Borrar (100% W) ──────────── ]                                │
+│ Dropzone preview: apilada en vertical; [Cambiar (50%)] [Quitar (50%)]  │
+└────────────────────────────────────────────────────────────────────────┘
+```
+
 
 
 

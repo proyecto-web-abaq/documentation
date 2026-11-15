@@ -11,6 +11,12 @@ Esta sección consolida las iniciativas técnicas, propuestas arquitectónicas y
 
 <div class="grid cards" markdown>
 
+-   :lucide-upload-cloud: **[Carga de Archivos Drag & Drop, Nueva Acreditación Contextual, Borrado Seguro en Tarjetas y Actualización Reactiva de Datos (2026-11-15)](./2026-11-15-reutilizacion-carga-archivos-drag-drop-acreditacion-borrado-formularios.md)**
+
+    ---
+
+    Estandarización y reutilización transversal de componentes en el formulario de adopción y los 4 módulos administrativos de Base de Datos: `<app-file-dropzone>` para carga de documentos con drag & drop nativo (.PDF <= 15MB); botón de "Nueva acreditación" en héroes reutilizando `<app-new-accreditation-modal>` con `initialAccreditationType` contextual (`ADOPTION`, `CAMPAIGN`, `IDENTIFICATION`, `TALK`); botón "Actualizar datos" reactivo con ícono giratorio; acción destructiva de "Borrar" en tarjetas con modal de confirmación obligatoria ("borrar") reutilizando `<app-delete-confirm-modal>`; y diseño responsivo optimizado para móviles (320px–640px), tabletas (641px–1024px) y escritorio.
+
 -   :lucide-check-circle-2: **[Retroalimentación en Foco de Acción ([appActionFeedback]), Erradicación de Banners Estáticos y Cero Desplazamiento (2026-11-14)](./2026-11-14-retroalimentacion-en-foco-de-accion-appActionFeedback.md)**
 
     ---
