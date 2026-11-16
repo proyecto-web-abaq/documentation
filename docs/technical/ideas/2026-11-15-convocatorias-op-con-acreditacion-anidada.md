@@ -1,7 +1,7 @@
 # Convocatorias OP con Acreditación Anidada
 
-!!! warning "Estado: Propuesta pendiente de validación"
-    Rama: `dev-rivers2-(feat)-actividad-acreditacion-anidada` (frontend, backend y documentación). No se ha modificado código.
+!!! success "Estado: Validada e implementada en rama de feature"
+    Rama: `dev-rivers2-(feat)-actividad-acreditacion-anidada` (frontend, backend y documentación). Decisiones validadas el 15/11/2026 (§6); implementación descrita en §8. Pendiente: migración de la base de desarrollo y despliegue.
 
 | Campo | Valor |
 |---|---|
@@ -22,7 +22,7 @@ Consecuencias observadas:
 1. Para el voluntario y la coordinación son "lo mismo dos veces": asistir a un evento puede quedar como actividad **y** como participación.
 2. Las horas se suman al expediente por **dos caminos** (`updateParticipationStatus` y `approveAccreditation`), con riesgo de doble conteo y reglas distintas.
 3. Desempeño y comentarios viven en dos estructuras diferentes.
-4. La regla de horas de eventos no coincide con el reglamento: el código da **× 4** a "Limpieza de refugio", y el reglamento indica **2×1 para todo Evento ABAQ, incluido el apoyo en refugios**.
+4. El reglamento indica 2×1 para los Eventos ABAQ; ABAQ confirmó que la **limpieza de refugio acredita × 4** (regla institucional vigente), y el resto de categorías × 2.
 
 ## 2. Solución propuesta
 
@@ -39,12 +39,20 @@ Consecuencias observadas:
 
 ### 2.2 Categorías de evento (definidas en la plantilla)
 
-Según lo acordado con ABAQ: **Campaña de esterilización**, **Apoyo a refugio (paseo o limpieza)**, **Módulo de adopción**, **Plática de bienestar animal** y **Otro** (se detalla en las indicaciones).
+| Código | Categoría | Multiplicador |
+|---|---|---|
+| `STERILIZATION_CAMPAIGN` | Campaña de esterilización | × 2 |
+| `SHELTER_WALK` | Apoyo a refugio · Paseo | × 2 |
+| `SHELTER_CLEANING` | Apoyo a refugio · Limpieza | **× 4** |
+| `ADOPTION_MODULE` | Módulo de adopción | × 2 |
+| `TALK` | Plática de bienestar animal | × 2 |
+| `OTHER` | Otro evento ABAQ | × 2 |
+| `GENERAL` | Evento ABAQ (registros previos, no seleccionable) | × 2 |
 
 ### 2.3 Regla de horas (reglamento)
 
-- **Evento ABAQ (cualquier categoría):** horas acreditadas = **duración × 2** (2×1 por hora de participación). La duración se calcula **en el servidor** a partir del horario de la convocatoria (`startTime`–`endTime`).
-- **Servicio Social:** el valor sugerido es `duración × 2`, limitado a las horas pendientes del estudiante. Al validar, la coordinación puede **ajustarlo** dentro de `0 … tope` (por ejemplo, si el voluntario llegó tarde o se retiró antes), además de calificar y comentar.
+- **Evento ABAQ:** horas acreditadas = **duración × multiplicador de la categoría** (× 4 limpieza de refugio, × 2 el resto). La duración se calcula **en el servidor** a partir del horario de la convocatoria (`startTime`–`endTime`).
+- **Servicio Social:** el valor sugerido es `duración × multiplicador`, limitado a las horas pendientes del estudiante. Al validar, la coordinación puede **sobrescribirlo** (clic en el campo selecciona el valor) hasta las horas pendientes del estudiante, además de calificar y comentar.
 - **Voluntariado General:** no acumula horas; se registran asistencia, desempeño y comentarios, como hoy. Su modal no muestra horas.
 - **Vinculaciones:** sin cambios; conservan sus horas fijas del reglamento (5, 10, 100, 40, 50, 30 h, 5 + 1/5 reacciones, 1 h por $50).
 
@@ -124,14 +132,17 @@ Controles adicionales:
 3. **No** se vuelven a sumar horas: los expedientes ya tienen sumadas las validadas; la migración solo crea registros.
 4. Las convocatorias y folios `AC` existentes se conservan como históricos de solo lectura; las nuevas nacen `OP-EVE`.
 
-## 6. Decisiones a validar
+## 6. Decisiones validadas (15/11/2026)
 
-1. **Modelo:** ¿opción A (acreditación con `activityRef`)? *Recomendada.*
-2. **Folios:** convocatoria `OP-EVE-…` y una acreditación `OP-EVE-…` propia por inscrito, ligadas por `activityRef`. ¿De acuerdo?
-3. **Evento ABAQ individual:** ¿se conserva la opción 1 de "Registrar participación" para eventos no publicados (marchas, apoyos imprevistos)? *Recomendado conservarla para excepciones.*
-4. **Refugio:** ¿se aplica el reglamento (× 2) en lugar del × 4 actual para registros nuevos?
-5. **Ajuste de horas:** ¿el admin puede subir las horas por encima de `duración × 2` (hasta el tope de horas pendientes) o solo bajarlas?
-6. **Históricos `AC`:** ¿se conservan como solo lectura (recomendado) o se renombran a `OP`?
+| # | Decisión | Resolución |
+|---|---|---|
+| 1 | Modelo | La **acreditación (oportunidad) es la fuente de verdad**: ya tiene calificación, comentarios, horas y fecha; solo se agrega la **asistencia**. Referencia por `activityRef`. |
+| 2 | Folios | Convocatoria e inscritos usan `OP-EVE` (sub-código ya existente). |
+| 3 | Evento ABAQ individual | **Se conserva** (opción 1 de "Registrar vinculación") para eventos no publicados. |
+| 4 | Refugio | **× 4** para limpieza de refugio; × 2 el resto. |
+| 5 | Ajuste de horas | El admin **sobrescribe** las horas propuestas al validar la asistencia (clic selecciona el campo), con tope en las horas pendientes. |
+| 6 | Folios `AC` previos | **Se sobrescriben** (datos de prueba): la migración los convierte a `OP-EVE`. |
+| — | Narrativa | "Convocatoria" es lo principal (asistir y ayudar con tu tiempo); "Vinculación" es lo excepcional ("si consigues para ABAQ…"). |
 
 ## 7. Plan de implementación (tras validación)
 
@@ -142,3 +153,26 @@ Controles adicionales:
 5. **Frontend:** selector de categoría en plantillas, tabla de evaluación sobre acreditaciones, Participación unificada, folios `OP`.
 6. **Pruebas:** unitarias de reglas de horas y permisos; e2e de inscripción concurrente, IDOR y doble conteo; build y pruebas del frontend.
 7. **Despliegue en desarrollo** (`dev-rivers2`) para validación con ABAQ antes de producción.
+
+## 8. Implementación (rama de feature)
+
+### 8.1 Backend
+
+- `utils/accreditationRules.js`: `EVENT_MULTIPLIERS` / `EVENT_TYPES` (catálogo único de categorías).
+- `models/accreditation.model.js`: `attendance` (`registered`/`attended`/`absent`/`cancelled`), `hoursSuggested`, `evaluatedBy`, `evaluatedAt`, estado `cancelled`, desempeño `absent` e índices únicos parciales `{ activityRef, studentRef }` / `{ activityRef, volunteerRef }` + `{ activityRef, status }`.
+- `models/activity.model.js` y `quickActivity.model.js`: `eventType`; la convocatoria nace con folio `OP-EVE-YYMMDD-HEX`.
+- `controllers/activity.controller.js`: inscripción, cancelación, evaluación y participantes operan sobre la acreditación; `assignedActivities[]` queda como **proyección de solo lectura** (con `accreditationId`) que escribe solo el servidor. Rutas del API sin cambios.
+- `services/hours.service.js`: **vía única** de suma de horas (`$inc` atómico + conclusión automática a las horas requeridas), usada por convocatorias y vinculaciones.
+- `controllers/accreditation.controller.js`: S-1 a S-4 corregidos; las acreditaciones de convocatoria no se aprueban/rechazan/borran por la vía genérica; aprobación con transición atómica `pending → approved`; los listados de vinculaciones excluyen convocatorias (`?include=convocatorias` las agrega).
+- `controllers/quickActivity.controller.js`: lista blanca de campos y herencia de `eventType` al publicar.
+- Migración: `scripts/migrate-convocatorias-op.js --db <base> [--dry]` (idempotente, no vuelve a sumar horas); el sembrado de ciclo de vida la aplica al final.
+- Pruebas: `tests/convocatoria-op.test.js` (17 casos: cupo concurrente, doble validación, IDOR, campos protegidos, migración). Requiere `mongodb-memory-server` como dependencia de desarrollo.
+
+### 8.2 Frontend
+
+- `services/event-categories.ts`: espejo de categorías y multiplicadores para vistas previas.
+- Plantillas: selector **Categoría de evento** (reemplaza "Tipo de actividad", que no tenía efecto) y vista previa "Acredita N h de Servicio Social por persona"; la tarjeta muestra la categoría y su multiplicador.
+- Detalle de convocatoria: tarjeta "Categoría" y "Duración → acredita"; el modal de evaluación propone las horas del servidor y permite sobrescribirlas.
+- Narrativa: Convocatoria / Vinculación en Participación, menú móvil ("Registrar Vinculación", "Nueva Vinculación") y modal de registro.
+- `app-folio-pill`: el color sale del prefijo del folio (`OP-`/`AC-`).
+

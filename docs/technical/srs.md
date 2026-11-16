@@ -1705,17 +1705,17 @@ Con base en la metodología de auditoría de 6 fases del Prof. Ricardo Monroy (O
 
 ---
 
-## 28. Convocatorias OP con Acreditación Anidada `[PROPUESTA — PENDIENTE DE VALIDACIÓN]`
+## 28. Convocatorias OP con Acreditación Anidada `[VALIDADO 15/11/2026 — IMPLEMENTADO EN RAMA DE FEATURE]`
 
-!!! warning "Propuesta"
-    Diseño completo, decisiones abiertas y plan de implementación en [Convocatorias OP con Acreditación Anidada](ideas/2026-11-15-convocatorias-op-con-acreditacion-anidada.md).
+!!! success "Validado"
+    Diseño completo, decisiones validadas e implementación en [Convocatorias OP con Acreditación Anidada](ideas/2026-11-15-convocatorias-op-con-acreditacion-anidada.md).
 
 ### `[SRS 28.1 Requerimientos Funcionales Propuestos]`
 
 - **RF-OP-UNI-01 (Todo es oportunidad OP)**: Las plantillas publicadas son convocatorias con folio `OP-EVE-YYMMDD-HEX`; no se emiten nuevos folios `AC`. Los `AC` históricos se conservan como solo lectura.
 - **RF-OP-UNI-02 (Categoría de evento en la plantilla)**: La plantilla define la categoría: Campaña de esterilización, Apoyo a refugio (paseo o limpieza), Módulo de adopción, Plática de bienestar animal u Otro.
-- **RF-OP-UNI-03 (Acreditación anidada por inscripción)**: Al inscribirse, el servidor crea la acreditación `OP-EVE` del voluntario, ligada a la convocatoria (`activityRef`), con horas sugeridas `duración × 2` (reglamento, 2×1 por hora de participación) para Servicio Social y 0 h para Voluntariado General.
-- **RF-OP-UNI-04 (Evaluación sobre la acreditación)**: Validar aprueba la acreditación con horas ajustables por el admin dentro de `0 … tope` (SS), desempeño y comentario; "No asistió" la rechaza con desempeño y motivo obligatorio. Cancelar la inscripción la marca `cancelled`.
+- **RF-OP-UNI-03 (Acreditación anidada por inscripción)**: Al inscribirse, el servidor crea la acreditación `OP-EVE` del voluntario, ligada a la convocatoria (`activityRef`), con horas sugeridas `duración × multiplicador de la categoría` (× 4 limpieza de refugio, × 2 el resto) para Servicio Social y 0 h para Voluntariado General.
+- **RF-OP-UNI-04 (Evaluación sobre la acreditación)**: Validar aprueba la acreditación con las horas propuestas, que el admin puede sobrescribir hasta las horas pendientes (SS), desempeño y comentario; "No asistió" la rechaza con desempeño y motivo obligatorio. Cancelar la inscripción la marca `cancelled`.
 - **RF-OP-UNI-05 (Vinculaciones sin cambio)**: Las opciones 2–10 de "Registrar participación" conservan sus horas fijas del reglamento.
 
 ### `[SRS 28.2 Requerimientos No Funcionales Propuestos - Seguridad e Integridad]`

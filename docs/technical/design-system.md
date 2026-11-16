@@ -759,12 +759,14 @@ Para maximizar la velocidad de captura por teclado y aprovechar los selectores n
 
 ---
 
-## 19. Convocatorias OP con Acreditación Anidada `[PROPUESTA — PENDIENTE DE VALIDACIÓN]`
+## 19. Convocatorias OP con Acreditación Anidada `[VALIDADO 15/11/2026]`
 
-Diseño completo en [Convocatorias OP con Acreditación Anidada](ideas/2026-11-15-convocatorias-op-con-acreditacion-anidada.md). Lineamientos visuales propuestos, reutilizando componentes existentes:
+Diseño completo en [Convocatorias OP con Acreditación Anidada](ideas/2026-11-15-convocatorias-op-con-acreditacion-anidada.md). Lineamientos visuales, reutilizando componentes existentes:
 
-- **Plantillas:** el selector "Tipo de actividad" se reemplaza por "Categoría de evento" (`<app-custom-select>`); bajo el valor en horas se muestra "Duración: 4 h → acredita 8 h (Servicio Social)".
+- **Plantillas:** el selector "Tipo de actividad" se reemplaza por "Categoría de evento" (cada opción muestra su multiplicador, p. ej. "Apoyo a refugio · Limpieza · 4× por hora"); bajo el valor en horas, `.field-hint` "Acredita N h de Servicio Social por persona · Voluntariado General no acumula horas". La insignia de la tarjeta muestra la categoría y su multiplicador.
+- **Narrativa:** "Convocatoria" (lo principal: asistir y ayudar) y "Vinculación" (lo excepcional: "si consigues para ABAQ…"). Menú móvil: "Registrar Vinculación" (voluntarios) y "Nueva Vinculación" (admin).
+- **Evaluación:** el campo de horas usa `appAutoSelectOnClick` (clic selecciona para sobrescribir) y el texto "Sugerido: N h (duración × multiplicador, categoría) · tope X h".
 - **Participación (voluntario):** una sola lista de oportunidades `OP`; se retiran las insignias "Actividad grupal" / "Participación individual" y la categoría ("Evento · Campaña de esterilización", "Vinculación · Placas…") identifica cada registro. La barra `.step-pipeline` usa las fases `1. Inscrito → 2. Asistencia → 3. Validada` para convocatorias y `1. Enviada → 2. En revisión → 3. Validada` para vinculaciones.
 - **Detalle de convocatoria (admin):** la tabla de evaluación de §18.2 se conserva; opera sobre la acreditación anidada.
-- **Folios:** todas las píldoras nuevas usan `.folio-pill-op`; los `AC` históricos se muestran sin cambios.
+- **Folios:** `app-folio-pill` toma el color del prefijo del folio (`OP-` naranja, `AC-` azul); tras la migración todas las convocatorias e inscripciones son `OP-EVE`.
 
