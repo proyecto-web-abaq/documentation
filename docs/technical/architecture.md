@@ -1439,6 +1439,13 @@ flowchart TD
   5. **`ActionFeedbackDirective`**: con `feedbackOnClick`, el estado de éxito se aplica después del clic; deshabilitar el botón durante el clic cancelaba el envío de formularios (`type="submit"`).
 - **Consecuencias**: Menos pasos para la coordinación, datos de prueba aislados de producción y registro de voluntarios funcional.
 
+### ADR-36: Convocatorias OP con Acreditación Anidada y Vía Única de Horas `[PROPUESTA — PENDIENTE DE VALIDACIÓN]`
+
+- **Contexto**: Actividades grupales (`AC`) y participaciones individuales (`OP`) duplican conceptos para ABAQ y para los voluntarios; las horas se suman por dos caminos (`updateParticipationStatus` y `approveAccreditation`) y la regla de eventos del código (× 4 en refugio) difiere del reglamento (2×1 para todo evento). La revisión del flujo encontró además IDOR y asignación masiva en `/accreditation`.
+- **Decisión propuesta**: Toda convocatoria publicada es una oportunidad `OP-EVE`; cada inscripción crea en el servidor una `Accreditation` con `activityRef` (referencia, no copia embebida en la convocatoria); la evaluación y la suma de horas ocurren solo sobre la acreditación; la duración y las horas sugeridas se calculan en el servidor; el titular se toma de la sesión y los campos de evaluación quedan reservados al admin.
+- **Alternativa descartada**: embeber la acreditación completa dentro de la convocatoria (crecimiento sin límite del documento, duplicación de datos y contención de escrituras al evaluar en paralelo).
+- **Consecuencias**: Un solo concepto en la interfaz (oportunidades `OP` distinguidas por categoría), sin doble conteo de horas y con los riesgos S-1 a S-6 cerrados. Requiere migración idempotente con `--dry-run` de las inscripciones históricas. Detalle en [Convocatorias OP con Acreditación Anidada](ideas/2026-11-15-convocatorias-op-con-acreditacion-anidada.md).
+
 ## 4. Atributos de Calidad del Sistema (Quality Attributes)
 
 1. **Mantenibilidad y Comprensibilidad (Maintainability & Understandability)**:

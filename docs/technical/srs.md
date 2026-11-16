@@ -1703,3 +1703,25 @@ Con base en la metodología de auditoría de 6 fases del Prof. Ricardo Monroy (O
 
 - **RNF-VOCAB-01**: En toda la interfaz se usa "voluntario(s)" en lugar de "colaborador(es)" y "animal(es) de compañía" en lugar de "mascota(s)" o "animal(es)" cuando se refiere a los animales; "Bienestar Animal", "Rescate Animal" y los identificadores de código no cambian.
 
+---
+
+## 28. Convocatorias OP con Acreditación Anidada `[PROPUESTA — PENDIENTE DE VALIDACIÓN]`
+
+!!! warning "Propuesta"
+    Diseño completo, decisiones abiertas y plan de implementación en [Convocatorias OP con Acreditación Anidada](ideas/2026-11-15-convocatorias-op-con-acreditacion-anidada.md).
+
+### `[SRS 28.1 Requerimientos Funcionales Propuestos]`
+
+- **RF-OP-UNI-01 (Todo es oportunidad OP)**: Las plantillas publicadas son convocatorias con folio `OP-EVE-YYMMDD-HEX`; no se emiten nuevos folios `AC`. Los `AC` históricos se conservan como solo lectura.
+- **RF-OP-UNI-02 (Categoría de evento en la plantilla)**: La plantilla define la categoría: Campaña de esterilización, Apoyo a refugio (paseo o limpieza), Módulo de adopción, Plática de bienestar animal u Otro.
+- **RF-OP-UNI-03 (Acreditación anidada por inscripción)**: Al inscribirse, el servidor crea la acreditación `OP-EVE` del voluntario, ligada a la convocatoria (`activityRef`), con horas sugeridas `duración × 2` (reglamento, 2×1 por hora de participación) para Servicio Social y 0 h para Voluntariado General.
+- **RF-OP-UNI-04 (Evaluación sobre la acreditación)**: Validar aprueba la acreditación con horas ajustables por el admin dentro de `0 … tope` (SS), desempeño y comentario; "No asistió" la rechaza con desempeño y motivo obligatorio. Cancelar la inscripción la marca `cancelled`.
+- **RF-OP-UNI-05 (Vinculaciones sin cambio)**: Las opciones 2–10 de "Registrar participación" conservan sus horas fijas del reglamento.
+
+### `[SRS 28.2 Requerimientos No Funcionales Propuestos - Seguridad e Integridad]`
+
+- **RNF-OP-SEC-01 (Titularidad)**: El titular de una acreditación creada por un no-admin sale siempre de la sesión (`req.user`); consulta y borrado solo para el titular o el admin (corrige IDOR en `POST`, `GET /student/:id` y `DELETE /:id`).
+- **RNF-OP-SEC-02 (Campos protegidos)**: `performance`, `hoursAccredited`, `status` y `activityRef` solo los fija el servidor o el admin al evaluar.
+- **RNF-OP-SEC-03 (Cupo e idempotencia)**: Reserva de cupo con incremento atómico condicionado e índices únicos parciales `{ activityRef, studentRef }` / `{ activityRef, volunteerRef }`.
+- **RNF-OP-SEC-04 (Una sola vía de horas)**: Las horas se suman al expediente únicamente al aprobar la acreditación, calculadas en el servidor y auditadas (`evaluatedBy`, `evaluatedAt`, horas sugeridas frente a finales).
+

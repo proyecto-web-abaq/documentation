@@ -757,3 +757,14 @@ Para maximizar la velocidad de captura por teclado y aprovechar los selectores n
 - **Login**: todo fallo se muestra en el propio botón con texto corto ("Espera la verificación anti-bot", "Correo o contraseña incorrectos", "Sin conexión con el servidor"); un error repetido vuelve a animarse pasando por `idle`.
 - **Límite de descargas**: el contador anti-abuso es interno; los botones dicen "✓ Comprobante descargado" o "✓ Documento descargado", sin "(n/3)".
 
+---
+
+## 19. Convocatorias OP con Acreditación Anidada `[PROPUESTA — PENDIENTE DE VALIDACIÓN]`
+
+Diseño completo en [Convocatorias OP con Acreditación Anidada](ideas/2026-11-15-convocatorias-op-con-acreditacion-anidada.md). Lineamientos visuales propuestos, reutilizando componentes existentes:
+
+- **Plantillas:** el selector "Tipo de actividad" se reemplaza por "Categoría de evento" (`<app-custom-select>`); bajo el valor en horas se muestra "Duración: 4 h → acredita 8 h (Servicio Social)".
+- **Participación (voluntario):** una sola lista de oportunidades `OP`; se retiran las insignias "Actividad grupal" / "Participación individual" y la categoría ("Evento · Campaña de esterilización", "Vinculación · Placas…") identifica cada registro. La barra `.step-pipeline` usa las fases `1. Inscrito → 2. Asistencia → 3. Validada` para convocatorias y `1. Enviada → 2. En revisión → 3. Validada` para vinculaciones.
+- **Detalle de convocatoria (admin):** la tabla de evaluación de §18.2 se conserva; opera sobre la acreditación anidada.
+- **Folios:** todas las píldoras nuevas usan `.folio-pill-op`; los `AC` históricos se muestran sin cambios.
+
