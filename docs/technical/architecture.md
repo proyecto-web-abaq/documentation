@@ -1447,6 +1447,13 @@ flowchart TD
 - **Alternativa descartada**: embeber la acreditación completa dentro de la convocatoria (crecimiento sin límite del documento, duplicación de datos y contención de escrituras al evaluar en paralelo).
 - **Consecuencias**: Un solo concepto en la interfaz (oportunidades `OP` distinguidas por categoría), sin doble conteo de horas y con los riesgos S-1 a S-6 cerrados. Requiere migración idempotente con `--dry-run` de las inscripciones históricas. Detalle en [Convocatorias OP con Acreditación Anidada](ideas/2026-11-15-convocatorias-op-con-acreditacion-anidada.md).
 
+### ADR-37: Centro de Notificaciones y Resumen Semanal por Lotes `[ACEPTADO 15/11/2026]`
+
+- **Contexto**: `dev-rivers` tenía campana, drawer y notificaciones en MongoDB, pero con validación de titularidad defectuosa (`&&`), efectos al consultar (creaba notificaciones y enviaba correos en `GET /my`), exposición de configuración de correo y un panel para forzar envíos. La rama actual solo enviaba correos. Además, el equipo retiró los barridos automáticos con `node-cron` (prueba `no-twelve-month-or-cron`).
+- **Decisión**: Se porta el modelo `Notification`, la campana y el drawer; las notificaciones se crean en `services/notification.service.js` desde `utils/notifications.js`, junto a cada correo existente. El resumen semanal vive en `services/weekly-digest.service.js` y se ejecuta como proceso independiente (`scripts/send-weekly-digest.js`) programado como **cron de Railway** el domingo y el lunes, no dentro del servidor web. Usa la API batch de Resend y la bitácora `WeeklyDigestDelivery` (índice único semana + persona) para repartir la cuota y no repetir envíos.
+- **Alternativas descartadas**: `node-cron` dentro del servidor (duplicaría envíos con varias réplicas o reinicios y contradice la retirada de barridos); enviar todo el domingo (excede la cuota diaria de Resend).
+- **Consecuencias**: La campana refleja todos los avisos aunque falle el correo; el resumen tolera reintentos y caídas; los correos de prueba no consumen cuota. Requiere configurar el servicio cron en Railway (`0 15 * * 0,1`, 9:00 en Querétaro).
+
 ## 4. Atributos de Calidad del Sistema (Quality Attributes)
 
 1. **Mantenibilidad y Comprensibilidad (Maintainability & Understandability)**:

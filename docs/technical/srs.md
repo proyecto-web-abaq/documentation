@@ -1725,3 +1725,22 @@ Con base en la metodología de auditoría de 6 fases del Prof. Ricardo Monroy (O
 - **RNF-OP-SEC-03 (Cupo e idempotencia)**: Reserva de cupo con incremento atómico condicionado e índices únicos parciales `{ activityRef, studentRef }` / `{ activityRef, volunteerRef }`.
 - **RNF-OP-SEC-04 (Una sola vía de horas)**: Las horas se suman al expediente únicamente al aprobar la acreditación, calculadas en el servidor y auditadas (`evaluatedBy`, `evaluatedAt`, horas sugeridas frente a finales).
 
+---
+
+## 29. Centro de Notificaciones y Resumen Semanal `[IMPLEMENTADO 15/11/2026]`
+
+### `[SRS 29.1 Requerimientos Funcionales]`
+
+- **RF-NOT-01 (Campana y drawer)**: Toda sesión ve una campana con contador de no leídas (barra superior en móvil y escritorio) que abre el drawer de notificaciones (portado de `dev-rivers`): filtros Todas / No leídas / Institucional / Acreditaciones / Actividades, búsqueda, marcar leída/no leída, marcar todas y eliminar.
+- **RF-NOT-02 (Paridad con correos)**: Cada correo transaccional existente deja su notificación en la campana, aun sin correo registrado: aceptación (+ recordatorio de permanencia SS), correcciones de expediente, inactividad/baja, conclusión de Servicio Social y nuevo registro (aviso compartido para la Coordinación).
+- **RF-NOT-03 (Resumen semanal)**: Los voluntarios activos (SS y VG) reciben por correo y en la campana un resumen semanal: arriba, lo nuevo (convocatorias de la semana con cupo, horas que acreditan para SS y si ya están inscritos, más las recién publicadas); abajo, lo hecho la semana pasada (participaciones, estado y horas acreditadas para SS, avance de horas).
+- **RF-NOT-04 (Envío por lotes)**: El resumen se envía el domingo (primera mitad de destinatarios) y el lunes (el resto) con la API batch de Resend, sin superar `WEEKLY_DIGEST_DAILY_CAP` correos por ejecución (default 80) para respetar la cuota diaria.
+
+### `[SRS 29.2 Requerimientos No Funcionales]`
+
+- **RNF-NOT-SEC-01 (Titularidad)**: Las notificaciones se consultan, marcan y eliminan solo por su titular (`recipientAuthId` = sesión); los avisos compartidos de la Coordinación solo los ven administradores. Una notificación ajena responde 404.
+- **RNF-NOT-SEC-02 (Sin efectos al consultar)**: Consultar la campana no crea notificaciones ni envía correos, y no expone configuración del proveedor de correo.
+- **RNF-NOT-SEC-03 (Acciones seguras)**: Las acciones de una notificación solo navegan a rutas internas o abren enlaces `https`.
+- **RNF-NOT-REL-01 (Idempotencia)**: Cada persona se reclama una sola vez por semana (`WeeklyDigestDelivery`, índice único); un fallo de Resend se reintenta en la siguiente ejecución sin duplicar la notificación.
+- **RNF-NOT-REL-02 (Dominios de prueba)**: El resumen no redirige correos de dominios de prueba (`.local`, `.test`, `.example`): esas cuentas solo reciben la notificación en la campana.
+
