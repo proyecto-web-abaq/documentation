@@ -1314,7 +1314,7 @@ abaq-backup-YYYY-MM-DD-HHmmss.zip
 |---|---|---|---|
 | **1. Expedientes y Perfiles** | `volunteer-detail`, `student-detail`, `volunteer-profile`, `student-profile` | `.status-feedback-alert`, `.profile-message`, `.document-success-alert`, `.document-error`, `.feedback-toast` | Modificar/Guardar datos, Aceptar/Rechazar aspirante, Inactivar cuenta, Guardar semblanza/redes, Guardar enlace reporte, Aprobar/Rechazar acreditación, Descargar PDF/Constancia, Copiar folio. |
 | **2. Directorio y Participación** | `student`, `activity-list`, `activity-detail`, `quick-activities`, `activity` | `.table-action-feedback`, `.participation-feedback-banner`, `.doc-fallback-alert`, `.success-toast`, `.form-error` | Links de invitación, Aceptar/Rechazar/Inactivar en tabla, Inscribirme, Cancelar asistencia/envío, Validar/Rechazar participación, Eliminar actividad, Pase de lista (`Asistió`/`No asistió`), Crear/Actualizar/Publicar/Eliminar plantilla, Descargar comprobante. |
-| **3. Módulos Operativos y Públicos** | `adoption-list`, `adoption-detail`, `campaign-list`, `campaign-detail`, `identification-list`, `identification-detail`, `talk-list`, `talk-detail`, `public-*-form` (x4) | Todas las llamadas `window.alert(...)` de copiado, borrado y descarga de PDF | Copiar formulario (`.btn-copy-form`), Actualizar datos (`.btn-refresh-data`), Guardar campaña/placa/plática, Confirmar adopción, Marcar placa completada, Descargar PDF de adopción, Enviar formulario público. |
+| **3. Módulos Operativos y Públicos** | `adoption-list`, `adoption-detail`, `campaign-list`, `campaign-detail`, `identification-list`, `identification-detail`, `talk-list`, `talk-detail`, `public-*-form` (x4) | Todas las llamadas `window.alert(...)` de copiado, borrado y descarga de PDF | Copiar formulario (`.btn-copy-form`), Guardar campaña/placa/plática, Confirmar adopción, Marcar placa completada, Descargar PDF de adopción, Enviar formulario público. |
 | **4. Modales Compartidos** | `decision-volunteer-modal`, `inactivate-volunteer-modal`, `delete-confirm-modal`, `update-confirm-modal`, `new-accreditation-modal`, `file-upload-modal`, `folio-pill` | `.alert-error-box`, `.alert-error-banner`, `.upload-alert-danger` y `alert()` de padres | Aceptar y Activar, Confirmar Rechazo, Inactivar Cuenta Definitivamente, Eliminar definitivamente, Confirmar y actualizar, Enviar a revisión, Copiar folio con feedback interactivo. |
 | **5. Auth, Onboarding y Backups** | `login`, `signup`, `onboarding-phase`, `sobre-mi`, `backup` | `.auth-alert-error`, `.validation-alert-banner`, `.enter-error`, `.unified-success-banner`, `.alert-danger`, `.alert-success` | Iniciar sesión, Continuar a Fase 1, Guardar y continuar fase, Finalizar expediente, Guardar sobre mí, Descargar ZIP/XLSX, Analizar/Descargar/Purgar deshidratación, Ejecutar rollback/restauración/rehidratación. |
 
@@ -1359,9 +1359,7 @@ abaq-backup-YYYY-MM-DD-HHmmss.zip
   - El modal debe obligar al usuario a teclear exactamente la palabra `"borrar"` antes de habilitar el botón de confirmación destructiva.
   - Al confirmarse, el sistema consume el endpoint RESTful protegido del backend (`DELETE /:id`) sobre la colección respectiva, cerrando el modal y refrescando el listado.
 
-- **RF-ADM-SYNC-01 (Botón de Actualización Reactiva de Datos - "Actualizar datos")**:
-  - En la cabecera `.hero-actions-row` de los 4 módulos administrativos se debe proveer el botón `.btn-refresh-data` con ícono `sync` y texto *"Actualizar datos"*.
-  - Mientras la petición HTTP de recarga esté en tránsito (`isLoading = true`), el ícono debe rotar continuamente mediante animación CSS (`@keyframes abaqSpin`) y el botón debe deshabilitarse para evitar tormentas de peticiones concurrentes.
+- **RF-ADM-SYNC-01 (Botón "Actualizar datos") `[DEROGADA — 15/11/2026]`**: ~~Botón `.btn-refresh-data` en la cabecera de los 4 módulos administrativos~~. Retirado junto con el modal de confirmación `"yes"` del detalle: solo recargaba datos sin modificarlos. Las listas se recargan al crear o borrar un registro.
 
 ### `[SRS 22.2 Requerimientos No Funcionales - Responsividad y Ergonomía Multidispositivo]`
 
@@ -1370,7 +1368,7 @@ abaq-backup-YYYY-MM-DD-HHmmss.zip
   - **Tableta (`641px – 1024px`)**: Envoltura fluida (`flex-wrap: wrap`) de los botones en el héroe con separación uniforme de 10px a 12px. Disposición de tarjetas en 1 o 2 columnas según la densidad de información.
   - **Móvil (`320px – 640px`)**:
     - La fila `.hero-actions-row` muta a columna vertical (`flex-direction: column; width: 100%`).
-    - Todos los botones de acción (`.btn-copy-form`, `.btn-refresh-data`, `.btn-new-accreditation`, `.btn-create-item`) se dimensionan al **100% del ancho del viewport** con texto centrado y una altura táctil accesible no menor a 44px (WCAG AAA).
+    - Todos los botones de acción (`.btn-copy-form`, `.btn-create-item`) se dimensionan al **100% del ancho del viewport** con texto centrado y una altura táctil accesible no menor a 44px (WCAG AAA).
     - Las acciones de las tarjetas (`.adoption-card-actions`, `.card-action-buttons`, `.talk-card-actions`, `.card-footer`) se apilan verticalmente ocupando el ancho total (`width: 100%`).
     - El área de `<app-file-dropzone>` apila la previsualización del archivo de forma vertical y ajusta los botones *"Cambiar"* y *"Quitar"* al 50% cada uno para pulsación táctil con una sola mano.
 
@@ -1431,7 +1429,7 @@ abaq-backup-YYYY-MM-DD-HHmmss.zip
     - Botón para registrar otra plática.
 
 - **RF-TLK-UI-02 (Acciones de Documentación en Detalle de Plática - `TalkDetailComponent`)**:
-  - En la vista administrativa de detalle (`/admin/talks/:id`), el encabezado `.admin-hero` debe incorporar botones de acción para descargar la Carta Oficial en Word (.DOCX), ver la carta en PDF y copiar el enlace oficial.
+  - En la vista administrativa de detalle (`/admin/talks/:id`), el encabezado `.admin-hero` expone únicamente `Borrar registro`. Los botones de Carta Oficial (.DOCX / .PDF / copiar enlace) se retiraron de esta vista (15/11/2026) y se reubicarán en otra sección.
   - En cada tarjeta de asistente de la lista de participantes se debe incluir el folio de constancia, el estatus de notificación por correo y los botones *"Ver constancia"* y *"Copiar link"*.
 
 ### `[SRS 23.4 Requerimientos No Funcionales - Eficiencia y Seguridad]`
@@ -1650,7 +1648,7 @@ Con base en la metodología de auditoría de 6 fases del Prof. Ricardo Monroy (O
 
 - **RF-NAV-MOB-02 (Matriz de Acciones Rápidas y Módulos por Rol)**:
   - El hub organiza la información en 4 bloques prioritarios:
-    1. **Acciones Más Requeridas**: Grid 2x2 táctil con tarjetas interactivas de alto contraste adaptadas al rol (`admin`: Invitar Voluntario, Registrar Actividad, Respaldos & Métricas, Pláticas; `student`: Inscribirme, Registrar Participación, Mis Acreditaciones, Mi Perfil; `volunteer`: Actividades Abiertas, Registrar Participación, Historial, Mi Perfil; `public`: Iniciar Sesión, Convocatoria, Actividades Públicas, Acerca de ABAQ).
+    1. **Acciones Más Requeridas**: Grid táctil con tarjetas que **ejecutan la acción** (no solo navegan a la sección), vía parámetro `?accion=` (ver RF-NAV-MOB-03): `admin`: Nueva Actividad (elegir plantilla), Nueva Acreditación (registrar participación), Buscar Voluntario, Respaldar Sistema; `student` y `volunteer` (misma narrativa): Inscribirme a Actividades, Registrar Participación; `public`: Iniciar Sesión, Registrarse. Las constancias y acreditaciones no forman parte de las acciones rápidas.
     2. **Vistas Más Utilizadas**: Fila horizontal de chips píldora táctiles (`.hub-chip-pill`) para salto directo a 1-tap.
     3. **Secciones del Sistema**: Lista estructurada y agrupada de módulos con iconografía Material Symbols.
     4. **Acción de Sesión**: Botón accesible al pie del contenedor para iniciar o cerrar sesión (`logout()`).
@@ -1667,16 +1665,41 @@ Con base en la metodología de auditoría de 6 fases del Prof. Ricardo Monroy (O
     - `● Concluido`: `#67e8f9` (Ratio > 11:1).
   - Las clases de insignias con fondo pastel (`.status-pending`, `.status-rejected`, etc.) deben quedar estrictamente encapsuladas dentro del contenedor de acreditaciones (`.accreditation-status`), impidiendo cualquier fuga hacia el hero o encabezados principales.
 
+---
 
+## 27. Refinamientos Operativos del 15/11/2026 (v2026.11.15.1): Acciones Directas, Evaluación de Actividades, Rendimiento de Carga y Vocabulario Institucional
 
+### `[SRS 27.1 Requerimientos Funcionales - Navegación y Acciones Directas]`
 
+- **RF-NAV-MOB-03 (Acciones rápidas que ejecutan la acción)**: Cada tarjeta de "Acciones Más Requeridas" navega con `?accion=<clave>` y la vista destino ejecuta la acción al cargar mediante el helper `onMenuAction()` (`services/menu-action.ts`), que además limpia el parámetro de la URL para que recargar o volver atrás no la repita. Claves vigentes: `plantillas` (listado de plantillas en `/admin/quick-activities`), `acreditar` (abre `<app-new-accreditation-modal>` en `/activity-list`; se omite para cuentas inactivas), `buscar` (enfoca el buscador de `/student`), `respaldar` (desplaza al panel de descarga de `/admin/backups`) e `inscribirme` (pestaña de actividades abiertas). `whenElementReady()` espera a que el elemento destino exista cuando depende de una carga de datos.
+- **RF-NAV-MOB-04 (Narrativa común de voluntarios)**: El hub de Servicio Social y el de Voluntariado General usan las mismas etiquetas ("Inscribirme a Actividades", "Convocatorias Disponibles", "Convocatorias y Participación"); se prohíbe el término "Jornadas" en el hub.
+- **RF-VOL-SEARCH-01 (Búsqueda de voluntarios por universidad)**: El buscador de `/student` ignora acentos y mayúsculas e incluye la escuela y sus **siglas oficiales** tomadas del catálogo `QUERETARO_UNIVERSITIES` del registro (p. ej. "uaq", "uteq"). No se generan siglas por iniciales (colisiones como Anáhuac/Autónoma = "UAQ").
 
+### `[SRS 27.2 Requerimientos Funcionales - Participación Individual y Evaluación de Actividades]`
 
+- **RF-PART-OPT-01 (Catálogo de opciones de participación individual)**: El menú de "Registrar participación" ofrece 10 opciones numeradas: 1. Evento ABAQ · 2. Vinculación · Placas de identificación · 3. Vinculación · Campaña de esterilización y/o vacunación · 4. Vinculación · Adopción de animal de compañía · 5. Vinculación · Coordinar módulo de adopción · 6. Vinculación · Plática de bienestar animal · 7. Vinculación · Difusión en medios · 8. Publicación en redes sociales · 9. Recaudación de fondos o donación en especie · 10. Apoyo administrativo. "Inducción completada" y "Campaña de esterilización" ya no se ofrecen; los registros históricos de esos tipos conservan su etiqueta. Las reglas de horas y las categorías de "Evento ABAQ" no cambian.
+- **RF-PART-ADMIN-01 (Registro de participación solo por el voluntario)**: Conforme a lo acordado con ABAQ (15/11/2026), los detalles administrativos de voluntario (`/student/:id`, `/volunteer-detail/:id`) no exponen el botón "Registrar participación"; el voluntario registra y la coordinación valida.
+- **RF-ACT-EVAL-01 (Evaluación de participantes en actividades grupales)**: `/activity-list/:id` presenta a los participantes en tabla (`.students-table` con columna fija de acciones) con dos acciones por fila que abren un único modal de evaluación:
+  - **Validar**: registra asistencia y desempeño (5 niveles) con comentario opcional. Para Servicio Social acredita horas, con valor sugerido igual al de la actividad y editable hasta el tope permitido; Voluntariado General se valida sin horas. El frontend encadena `attended → validated`, como exige la API.
+  - **No asistió**: registra desempeño y **motivo obligatorio**. El backend conserva la calificación (o `absent` si no se envía) y el comentario en `assignedActivities.$.performance` / `performanceComment`.
+  - `GET /activity/:id/participants` incluye `performance` y `performanceComment`. Una evaluación validada no puede modificarse.
+- **RF-ACT-EVAL-02 (Visibilidad del desempeño)**: El desempeño y su comentario se muestran en el detalle administrativo de ambos tipos de voluntario (pestañas "Todas" y "Actividades"), en los perfiles y en ambos Inicio. Las inasistencias muestran su calificación como "Inasistencia · <calificación>".
 
+### `[SRS 27.3 Requerimientos Funcionales - Registro, Inducción y Agenda]`
 
+- **RF-ONB-VIDEO-01 (Temporizador de videos de inducción)**: Los módulos 3 a 6 declaran su duración real (`durationSeconds`: 22:32, 2:32, 6:58 y 54:55). Al abrir el video inicia una cuenta regresiva mostrada en su propio botón; el módulo no puede certificarse ni la fase avanzar hasta que termine. El inicio se guarda en el borrador (`phase2.videoStartedAt`) para que recargar no lo reinicie.
+- **RF-ONB-SOCIAL-01 (Validación de clics en redes oficiales)**: Cada red del Módulo 1 registra el clic (`phase2.visitedChannels`) y se marca "✓ Visitada". La validación de la fase reporta las redes no abiertas como error independiente del de la casilla de confirmación.
+- **RF-AGENDA-ICS-01 (Exportar a calendario)**: En "Tu agenda de participación", tocar la tarjeta (fecha o información) entrega el evento como archivo `.ics` (RFC 5545, compatible con Google Calendar, Apple Calendar y Outlook): horas en UTC, día completo cuando no hay horario y recordatorio 1 h antes. En iOS/iPadOS abre la hoja nativa "Añadir a Calendario"; en Android, macOS, Windows y Linux se descarga para la app de calendario predeterminada. Los botones de la tarjeta conservan su acción.
+- **RF-TPL-HOURS-01 (Valor en horas desde el horario)**: En la creación, edición y publicación de plantillas, "Valor en horas" se calcula del rango de horario (redondeo a 0.5 h) y queda de solo lectura mientras el rango esté completo; sin rango se captura manualmente. Cada campo de hora ofrece un botón que abre el selector de hora nativo del sistema.
 
+### `[SRS 27.4 Requerimientos No Funcionales - Rendimiento de Carga y Actualización Automática]`
 
+- **RNF-PERF-LOAD-01 (Primera carga escalonada)**: Inicio (Servicio Social y Voluntariado General) y Participación muestran un esqueleto de carga (`.abaq-skeleton`) en lugar de áreas vacías; Inicio solicita el perfil una sola vez (flujo compartido con `shareReplay`) y, con el navegador desocupado (`requestIdleCallback`), precarga la lista de actividades para que Participación se pinte al instante.
+- **RNF-PERF-LIVE-01 (Actividades nuevas sin recarga manual)**: El cliente consulta `GET /activity/changes` (huella: total, último id y última modificación) cada 60 s **solo con la pestaña visible**, y de inmediato al volver a ella; la lista completa (consulta con `$lookup`) se descarga únicamente si la huella cambió. Ediciones, inscripciones, cancelaciones y evaluaciones actualizan `updated` para invalidar la huella.
+- **RNF-PERF-OPTIONS-01 (Selectores ligeros)**: El selector de voluntarios del modal de participación usa `GET /student/options` y `GET /volunteer/options` (solo id, folio y nombre) en lugar de expedientes completos, con respaldo a las rutas completas.
+- **RNF-SEC-GUARD-UI-01 (Límite de descargas invisible)**: El contador del límite anti-abuso de descargas (3 por ventana) es interno y no se muestra en ningún botón.
 
+### `[SRS 27.5 Vocabulario Institucional]`
 
-
+- **RNF-VOCAB-01**: En toda la interfaz se usa "voluntario(s)" en lugar de "colaborador(es)" y "animal(es) de compañía" en lugar de "mascota(s)" o "animal(es)" cuando se refiere a los animales; "Bienestar Animal", "Rescate Animal" y los identificadores de código no cambian.
 

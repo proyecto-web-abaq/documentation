@@ -1417,6 +1417,28 @@ flowchart TD
 
 ---
 
+### ADR-34: Actualización Automática por Huella de Cambios, Caché Compartida de Actividades, Primera Carga Escalonada y Selectores Ligeros (2026-11-15)
+
+- **Contexto**: Las vistas de voluntario (Inicio y Participación) cargaban todo una sola vez al abrir: una actividad publicada después solo aparecía al recargar. La lista de actividades es la consulta más costosa del backend (`$lookup` sobre las actividades asignadas de todos los estudiantes y voluntarios), por lo que repetirla periódicamente no era viable. Inicio pedía el perfil dos veces (plantilla `| async` y `subscribe` sin compartir) y el modal de participación descargaba expedientes completos solo para armar "[folio] Nombre".
+- **Decisión**:
+  1. **Huella de cambios** `GET /activity/changes`: agregación mínima (`count`, `max(_id)`, `max(updated)`) que devuelve un token corto. Las ediciones (hook `pre findOneAndUpdate/updateOne` en el modelo) y las inscripciones, cancelaciones y evaluaciones (`touchActivity`) actualizan `updated`.
+  2. **`ActivityService` con caché en memoria** (`getActivitiesCached`), fusión de peticiones simultáneas (`shareReplay`) y `prefetchActivities()`. El flujo `changes$` revisa la huella cada 60 s solo con `document.visibilityState === 'visible'` y al recuperar foco; usa `exhaustMap` (sin peticiones solapadas) y `share()` (se activa con el primer suscriptor y se apaga con el último).
+  3. **Primera carga escalonada**: pintado inmediato desde caché y revalidación posterior; perfil compartido con `shareReplay({ refCount: true })`; precarga de actividades con `requestIdleCallback`; esqueleto CSS (`.abaq-skeleton`) sin JavaScript.
+  4. **Selectores ligeros** `GET /student/options` y `GET /volunteer/options` (proyección `folio`, `nombreCompleto`), con respaldo a las rutas completas.
+- **Alternativas descartadas**: WebSocket/SSE (conexiones persistentes más costosas y frágiles detrás del proxy de Railway para cambios que ocurren pocas veces al día) y sondeo directo de la lista completa (multiplicaría la consulta más pesada).
+- **Consecuencias**: Una actividad nueva aparece en menos de 60 s (o al volver a la pestaña) con un costo de una consulta indexada mínima por cliente activo; con la pestaña oculta no hay tráfico. Se eliminó el registro verboso de la lista en consola.
+
+### ADR-35: Evaluación Unificada de Participantes, Acciones Directas desde el Hub Móvil, Calendario `.ics` en Cliente y Entorno de Desarrollo Aislado (2026-11-15)
+
+- **Contexto**: La administración de actividad usaba tarjetas con botones "Asistió / No asistió" sin evaluación y un modal separado para validar; la inasistencia descartaba desempeño y comentario. Las acciones rápidas del hub móvil solo navegaban a secciones. El frontend de desarrollo en Railway llamaba al backend de producción.
+- **Decisión**:
+  1. **Evaluación unificada**: tabla con el patrón `.students-table` y un modal (`validate` | `absent`) que reutiliza los controles de desempeño; el cliente encadena `attended → validated`. El backend conserva la calificación y el comentario en `absent` y los expone en `GET /activity/:id/participants`.
+  2. **Acciones directas** (`?accion=` + `onMenuAction()`/`whenElementReady()`): la vista destino ejecuta la acción y limpia el parámetro de la URL.
+  3. **Calendario en cliente** (`services/calendar-ics.ts`): generación RFC 5545 sin backend (UTC, plegado a 75 bytes UTF-8, alarma de 1 h); `data:` URL en iOS/iPadOS y descarga `Blob` en el resto.
+  4. **Entorno de desarrollo aislado**: `frontend-development-*.up.railway.app` resuelve a `backend-development-a4fa8bc3.up.railway.app` (proyecto `miabaq-abaq`, rama `dev-rivers2`, base `MongoDB-GZwo`); producción (`dev` → `api.hypercoreqro.lat`) no cambia. La CSP (`connect-src`, modo report-only) incluye ambos backends de Railway.
+  5. **`ActionFeedbackDirective`**: con `feedbackOnClick`, el estado de éxito se aplica después del clic; deshabilitar el botón durante el clic cancelaba el envío de formularios (`type="submit"`).
+- **Consecuencias**: Menos pasos para la coordinación, datos de prueba aislados de producción y registro de voluntarios funcional.
+
 ## 4. Atributos de Calidad del Sistema (Quality Attributes)
 
 1. **Mantenibilidad y Comprensibilidad (Maintainability & Understandability)**:
