@@ -187,7 +187,7 @@ Cada inscripción a una convocatoria genera dos folios con el mismo formato `OP-
 | Folio | Dónde vive | Quién lo ve |
 |---|---|---|
 | **Folio de la convocatoria** | `Activity.folio` y la proyección `Student/Volunteer.assignedActivities[].interactionFolio` | Todos: es el que se muestra y se busca. |
-| **Folio de la acreditación individual** | `Accreditation.interactionFolio` (índice único), ligado por `assignedActivities[].accreditationId` | Solo la Coordinación ("Ver asistentes"), respaldos y auditoría. |
+| **Folio de la acreditación individual** | `Accreditation.interactionFolio` (índice único), ligado por `assignedActivities[].accreditationId` | Nadie en la interfaz; solo base de datos, respaldos y bitácora de horas. |
 
 Reglas:
 

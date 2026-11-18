@@ -777,7 +777,10 @@ Diseño completo en [Convocatorias OP con Acreditación Anidada](ideas/2026-11-1
 - **Campana:** `.hnav-bell-btn` (44 px en móvil, junto al botón hamburguesa; 40 px en escritorio, antes de "Cerrar sesión") con `.hnav-badge` rojo (máx. "99+"). `aria-label` con el número de no leídas.
 - **Drawer:** `<app-notifications-center [isDrawer]="true">` montado en el shell; estilos en `abaq-design.css` (`.notifications-drawer`, `.notification-card`, píldoras `.filter-pill`). Escape cierra; botón de expandir a pantalla completa.
 - **Colores de etiqueta:** `green` (aceptado, concluido), `navy` (nuevo registro, resumen semanal), `amber` (correcciones, inactividad, reglamento), `red` (baja, nuevo `.notif-tag-red` / `.notif-icon-red`), `slate` (informativo).
-- **Correo del resumen semanal:** cabecera navy "Tu semana en ABAQ", sección "Lo nuevo esta semana" con tarjetas (categoría en verde, fecha/horario, "Acredita N h" solo SS, cupo o "✓ Ya estás inscrito(a)"), botón verde "Ver convocatorias e inscribirme" y, tras un separador, "Lo que hiciste la semana pasada" en tono secundario: título, fecha y tipo ("Convocatoria" / "Vinculación enviada"), sin estados ni horas validadas por la Coordinación.
+- **Correo del resumen semanal:** cabecera navy "Tu semana en ABAQ".
+    - "Lo que viene esta semana": primero "Tus inscripciones" (en verde) y luego "Convocatorias disponibles". Cada tarjeta lleva la categoría en verde, el título, "📅 día, fecha · 🕒 hora", "Acredita N h" (solo SS) y el cupo o "✓ Ya estás inscrito(a)".
+    - Botón verde "Ver convocatorias e inscribirme".
+    - Tras un separador, "Lo que hiciste la semana pasada": título y tipo, fecha y hora de la actividad, estado en color (verde "Validada", rojo "No validada", ámbar "Pendiente de validar"), horas asignadas (SS) y "el <fecha de validación>".
 
 ---
 
@@ -800,7 +803,9 @@ Diseño completo en [Convocatorias OP con Acreditación Anidada](ideas/2026-11-1
 - **Redacción:** título en segunda persona para el colaborador ("Tu vinculación fue aprobada"); para la Coordinación, el nombre de la persona va en la descripción. La descripción incluye categoría o modalidad, folio y, si aplica, horas ("Se acreditaron 2 h") o motivo. Textos de más de 140 caracteres se recortan con "…".
 - **Acción:** todos llevan a `/activity-list` (ruta interna).
 - **Chip de participantes (admin):** `.participant-chip` muestra "evaluados/inscritos participantes" (título accesible "Evaluados / inscritos"); `.eval-pending` en ámbar `#b45309` mientras falten evaluaciones, `.eval-complete` en verde `#15803d` al completar; `.full` (rojo) se conserva para cupo lleno.
-- **Folio visible:** en tarjetas, agenda y buscador de *Mi participación*, `app-folio-pill` muestra el folio de la convocatoria (`OP-EVE-…`) para toda inscripción. El folio individual de la acreditación solo aparece en "Ver asistentes" (Coordinación).
+- **Folio visible:** en tarjetas, agenda y buscador de *Mis participaciones*, `app-folio-pill` muestra el folio de la convocatoria (`OP-EVE-…`) para toda inscripción. En el detalle de la convocatoria (Coordinación) el folio va en el encabezado, junto al título; las filas de inscritos no muestran folio.
+- **Filtros de la campana por rol:** píldoras "Todas", "No leídas" y tres por categoría con la narrativa de participaciones (ver SRS RF-NOT-17), generadas desde una sola lista (`filtersFor(role)`) para el drawer y la pantalla completa.
+- **Nombre de la sección:** "Mis participaciones" (estudiantes y voluntarios) y "Participaciones" (Coordinación) en la barra, el menú móvil y el título de la vista.
 
 ---
 

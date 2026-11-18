@@ -1733,7 +1733,7 @@ Con base en la metodología de auditoría de 6 fases del Prof. Ricardo Monroy (O
 
 - **RF-NOT-01 (Campana y drawer)**: Toda sesión ve una campana con contador de no leídas (barra superior en móvil y escritorio) que abre el drawer de notificaciones (portado de `dev-rivers`): filtros Todas / No leídas / Institucional / Acreditaciones / Actividades, búsqueda, marcar leída/no leída, marcar todas y eliminar.
 - **RF-NOT-02 (Paridad con correos)**: Cada correo transaccional existente deja su notificación en la campana, aun sin correo registrado: aceptación (+ recordatorio de permanencia SS), correcciones de expediente, inactividad/baja, conclusión de Servicio Social y nuevo registro (aviso compartido para la Coordinación).
-- **RF-NOT-03 (Resumen semanal)**: Los voluntarios activos (SS y VG) reciben por correo y en la campana un resumen semanal: arriba, lo nuevo (convocatorias de la semana con cupo, horas que acreditan para SS y si ya están inscritos, más las recién publicadas); abajo, lo hecho la semana pasada (qué y cuándo: convocatorias a las que asistió y vinculaciones que envió, más el avance total de horas SS). *Actualizado el 17/11/2026: el correo no muestra decisiones de la Coordinación (validada, no aprobada, inasistencia, horas acreditadas) ni datos de la bitácora de horas.*
+- **RF-NOT-03 (Resumen semanal)**: Los voluntarios activos (SS y VG) reciben por correo y en la campana un resumen semanal. *Actualizado el 17/11/2026:* arriba, **lo que viene esta semana**: primero sus inscripciones y luego las convocatorias disponibles, con día, fecha, hora y horas que acredita (SS), cupo o "ya inscrito(a)", más las recién publicadas. Abajo, **lo que hizo la semana pasada**: por cada convocatoria o vinculación, la fecha (y hora) de la actividad, si quedó validada, no validada o pendiente, las horas asignadas (SS) y la fecha de validación, más el avance total de horas SS. No incluye la bitácora de horas (propuesta original, ajustes ni quién validó).
 - **RF-NOT-04 (Envío por lotes)**: El resumen se envía el domingo (primera mitad de destinatarios) y el lunes (el resto) con la API batch de Resend. *Actualizado el 17/11/2026: el tope fijo `WEEKLY_DIGEST_DAILY_CAP` se sustituye por el cupo diario calculado de RF-NOT-12.*
 
 ### `[SRS 29.2 Requerimientos No Funcionales]`
@@ -1767,15 +1767,21 @@ Estos avisos no envían correo; solo aparecen en la campana. **Principio: nadie 
 
 ### `[SRS 30.2 Requerimientos Funcionales - Resumen semanal y cupo de correo]`
 
-- **RF-NOT-11 (Horario y reparto)**: El resumen se ejecuta domingo y lunes a las **7:00 de Querétaro** (cron de Railway `0 13 * * 0,1`, UTC). Los destinatarios son los colaboradores activos en ese momento y se reparten mitad y mitad: el domingo `ceil(N/2)` y el lunes el resto.
+- **RF-NOT-11 (Cola, horario y reparto)**: El resumen funciona como cola en dos tiempos, domingo y lunes (cron de Railway `0 9,13 * * 0,1`, UTC):
+    - **3:00 de Querétaro, preparar:** valida destinatarios activos y contenido, arma cada correo y lo deja en cola (`WeeklyDigestDelivery` `queued`) sin enviar ni consumir cuota.
+    - **7:00, enviar:** prepara lo que falte y despacha la cola dentro del cupo; el contenido se borra tras enviarse.
+    - Los destinatarios son los colaboradores activos en ese momento y se reparten mitad y mitad: el domingo `ceil(N/2)` y el lunes el resto.
+    - La cola se reclama de forma atómica (`queued → sending`), así que dos ejecuciones simultáneas no duplican envíos.
 - **RF-NOT-12 (Cupo diario)**: El cupo de cada ejecución es `RESEND_DAILY_LIMIT` (100) − correos ya enviados ese día por cualquier motivo (contador `EmailUsage`) − `EMAIL_TRANSACTIONAL_RESERVE` (20, para aceptaciones, constancias y demás del resto del día), nunca negativo.
-- **RF-NOT-16 (Envío de prueba)**: `send-weekly-digest.js --to <correo>` envía el resumen de la semana a un solo correo con un destinatario de muestra ("Prueba ABAQ"), sin datos personales; no reclama destinatarios ni crea avisos, de modo que no altera el envío programado, y respeta el cupo del día.
-- **RF-NOT-13 (Sin cupo)**: Lo que no alcance el domingo pasa al lunes; lo que no alcance el lunes recibe el resumen **solo en la campana**, de modo que nadie se queda sin él.
+- **RF-NOT-16 (Envío de prueba)**: `send-weekly-digest.js --to <correo>` envía el resumen de la semana a un solo correo con un destinatario de muestra ("Prueba ABAQ"), sin datos personales; no usa la cola ni crea avisos, de modo que no altera el envío programado, y respeta el cupo del día.
+- **RF-NOT-17 (Filtros por rol)**: Los filtros de la campana usan la narrativa de participaciones según el rol: estudiante SS "Convocatorias / Vinculaciones / Mi Servicio Social"; voluntario "Convocatorias / Vinculaciones / Mi voluntariado"; Coordinación "Por validar / Solicitudes / Nuevos registros" (más "Todas" y "No leídas").
+- **RF-NAV-01 (Sección de participaciones)**: La sección se llama "Mis participaciones" para estudiantes y voluntarios y "Participaciones" para la Coordinación (navegación, menú móvil y título).
+- **RF-NOT-13 (Sin cupo)**: Lo que no alcance el domingo queda en cola para el lunes; lo que no alcance el lunes recibe el resumen **solo en la campana**, de modo que nadie se queda sin él. Un envío fallido vuelve a la cola en la siguiente preparación.
 
 ### `[SRS 30.3 Requerimientos Funcionales - Folio visible]`
 
 - **RF-FOL-01 (Un solo folio por convocatoria)**: El colaborador ve y busca su inscripción con el **folio de la convocatoria** (`OP-EVE-…`). El folio de su acreditación individual se sigue generando y guardando, pero no se le muestra.
-- **RF-FOL-02 (Vista de la Coordinación)**: En "Ver asistentes", el admin conserva el folio individual de cada inscripción para auditoría.
+- **RF-FOL-02 (Vista de la Coordinación)**: *Actualizado el 17/11/2026:* el detalle de la convocatoria muestra su folio en el encabezado y las filas de inscritos ya no muestran el folio individual. Ese folio solo queda en la base de datos, los respaldos y la bitácora de horas.
 
 ### `[SRS 30.4 Requerimientos No Funcionales - Seguridad de notificaciones]`
 

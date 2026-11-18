@@ -15,7 +15,7 @@ Las tareas programadas **no** corren dentro del servidor web. Cada una es un ser
 
 | Servicio de Railway | Script (`backend/`) | Cron (UTC) | Hora en Querétaro | Envía correo |
 |---|---|---|---|---|
-| `weekly-digest` | `node scripts/send-weekly-digest.js` | `0 13 * * 0,1` | Domingo y lunes 7:00 | **Sí** |
+| `weekly-digest` | `node scripts/send-weekly-digest.js` | `0 9,13 * * 0,1` | Domingo y lunes 3:00 (prepara) y 7:00 (envía) | **Sí**, a las 7:00 |
 | `validation-reminders` | `node scripts/send-validation-reminders.js` | `*/15 * * * *` | Cada 15 minutos | No (solo campana) |
 
 !!! warning "El resumen semanal envía correos reales"
@@ -25,23 +25,36 @@ Las tareas programadas **no** corren dentro del servidor web. Cada una es un ser
 
 ## 1. Qué hace cada tarea
 
-### 1.1 Resumen semanal (`weekly-digest`)
+### 1.1 Resumen semanal (`weekly-digest`): cola en dos tiempos
+
+El mismo comando corre a las 3:00 y a las 7:00 de Querétaro; el script decide qué hacer por la hora (o se fuerza con `--prepare` / `--send`).
+
+**3:00, preparar (madrugada):**
 
 1. Calcula la semana: el domingo anticipa la semana que empieza el lunes; el lunes usa la semana en curso.
-2. Toma como destinatarios a los estudiantes SS y voluntarios con expediente **activo** en ese momento.
-3. Reparte mitad y mitad: el domingo `ceil(N/2)` y el lunes el resto.
-4. Calcula el cupo del día: `RESEND_DAILY_LIMIT − enviados hoy − EMAIL_TRANSACTIONAL_RESERVE`. Los enviados hoy salen del contador `EmailUsage`, que suma todo correo del sistema, incluidas las constancias de pláticas.
-5. Envía con la API batch de Resend (100 por petición, 600 ms entre peticiones).
-6. Registra a cada persona en `WeeklyDigestDelivery` (una vez por semana).
+2. Valida destinatarios: estudiantes SS y voluntarios con expediente **activo** en ese momento.
+3. Reparte mitad y mitad entre quienes tienen correo: el domingo `ceil(N/2)` y el lunes el resto.
+4. Arma cada correo y lo deja en cola en `WeeklyDigestDelivery` (`status: queued`, con asunto, HTML, texto y el aviso de campana). No envía ni consume cuota.
 
-Sin cupo, el domingo deja pendientes para el lunes; el lunes entrega el resumen **solo en la campana**. Las cuentas de dominios de prueba (`.local`, `.test`, `.example`) nunca reciben correo, solo campana.
+**7:00, enviar:**
 
-El correo no muestra decisiones de la Coordinación (validada, no aprobada, inasistencia, horas acreditadas) ni datos de la bitácora de horas; "Lo que hiciste la semana pasada" solo lista qué y cuándo.
+1. Prepara lo que falte (por si la ejecución de las 3:00 no corrió).
+2. Calcula el cupo del día: `RESEND_DAILY_LIMIT − enviados hoy − EMAIL_TRANSACTIONAL_RESERVE`. Los enviados hoy salen de `EmailUsage`, que suma todo correo del sistema, incluidas las constancias de pláticas.
+3. Reclama cada entrada de la cola (`queued → sending`) y envía con la API batch de Resend (100 por petición, 600 ms entre peticiones). Al enviar, crea el aviso de campana y borra el contenido guardado.
 
-Al terminar imprime:
+Sin cupo, el domingo deja la entrada en cola para el lunes; el lunes la entrega **solo en la campana**. Un envío fallido queda en `failed` y vuelve a la cola en la siguiente preparación. Las cuentas de dominios de prueba (`.local`, `.test`, `.example`) nunca reciben correo, solo campana.
+
+**Contenido:**
+
+- Arriba, lo que viene esta semana: sus inscripciones y las convocatorias disponibles, con día, fecha, hora y horas que acredita (SS).
+- Abajo, lo que hizo la semana pasada: fecha y hora de la actividad, validada / no validada / pendiente, horas asignadas (SS) y fecha de validación.
+- No incluye la bitácora de horas.
+
+Registros de cada fase:
 
 ```text
-📬 Resumen semanal 2026-11-23 (domingo): correos 42 (cupo 42, disponible hoy 80) · fallidos 0 · solo campana 3 (sin cupo 0) · sin contenido 1 · para la siguiente ejecución 41 · ya procesados 0
+🗂️  Resumen semanal 2026-11-23 (domingo) preparado: en cola por correo 42 · solo campana 3 · sin contenido 1 · para la siguiente ejecución 41 · ya procesados 0
+📬 Resumen semanal 2026-11-23 (domingo) enviado: correos 42 (disponible hoy 80) · fallidos 0 · solo campana 3 (sin cupo 0) · en cola para el lunes 0
 ```
 
 ### 1.2 Recordatorio de validación (`validation-reminders`)
@@ -65,6 +78,7 @@ Los cron de Railway se programan en **UTC** y dos ejecuciones deben estar separa
 
 | Hora deseada en Querétaro | Expresión cron (UTC) |
 |---|---|
+| Domingo y lunes 3:00 y 7:00 (resumen: preparar y enviar) | `0 9,13 * * 0,1` |
 | Domingo y lunes 7:00 | `0 13 * * 0,1` |
 | Domingo y lunes 6:30 | `30 12 * * 0,1` |
 | Domingo y lunes 9:00 | `0 15 * * 0,1` |
@@ -121,7 +135,7 @@ Nunca pegues valores de secretos en tickets, chats ni en esta documentación.
 Desde `backend/`, con el URI del entorno en la variable (sin imprimirlo):
 
 ```bash
-# Resumen semanal: destinatarios, cupo y contenido; --preview guarda el HTML de cada correo
+# Resumen semanal: qué prepararía ahora (destinatarios y contenido); --preview guarda el HTML de cada correo
 MONGODB_URI="<uri del entorno>" node scripts/send-weekly-digest.js --dry --preview ./preview-resumen
 
 # Recordatorio: cuántas convocatorias avisaría ahora
@@ -177,7 +191,8 @@ En el panel de Resend aparecen los envíos del lote del resumen.
 |---|---|---|
 | El cron no corrió a la hora | La ejecución anterior sigue **Active**: Railway omite la nueva mientras otra está en curso | Revisa los registros de la anterior. Los scripts cierran la conexión a MongoDB al terminar; si quedó colgado, detén ese despliegue. |
 | Corrió a otra hora | Expresión pensada en hora local | Convierte a UTC (sección 2). |
-| Resumen: `correos 0 … para la siguiente ejecución N` el domingo | Cupo agotado (constancias u otros correos ese día) | Normal: pasan al lunes. Revisa `emailusages` del día. |
+| Resumen: `en cola para el lunes N` el domingo | Cupo agotado (constancias u otros correos ese día) | Normal: se envían el lunes. Revisa `emailusages` del día. |
+| Resumen: a las 7:00 no salió nada y hay entradas `queued` | Falló la ejecución de las 7:00 | `railway cron run` o `node scripts/send-weekly-digest.js --send`. |
 | Resumen: `solo campana … (sin cupo N)` el lunes | Cupo insuficiente | Normal: lo reciben en la campana. Si pasa seguido, sube `RESEND_DAILY_LIMIT` (plan de Resend) o baja la reserva. |
 | Resumen: `fallidos N` | Error de Resend (429, dominio, llave) | Corrige la causa; el siguiente `railway cron run` reintenta solo los fallidos sin duplicar. |
 | Recordatorio: no avisa una convocatoria terminada | No tiene inscripciones pendientes, terminó hace más de 7 días o su `endTime` es posterior | Revisa `validationReminderAt` y la fecha/hora de la convocatoria. |
@@ -189,6 +204,7 @@ En el panel de Resend aparecen los envíos del lote del resumen.
 ## 8. Cambiar el horario, pausar o retirar
 
 - **Cambiar horario:** edita **Settings → Deploy → Cron Schedule** (sección 2). No requiere cambios de código.
+- **Solo una fase a mano:** `node scripts/send-weekly-digest.js --prepare` o `--send`.
 - **Pausar:** borra la expresión de *Cron Schedule*; el servicio deja de ejecutarse hasta que la vuelvas a poner.
 - **Retirar:** elimina el servicio. Los datos (`weeklydigestdeliveries`, `emailusages`, `validationReminderAt`) permanecen y se respaldan con el resto de la base.
 
@@ -197,7 +213,7 @@ En el panel de Resend aparecen los envíos del lote del resumen.
 ## 9. Lista de verificación por entorno
 
 - [ ] Simulaciones `--dry` de ambos scripts contra la base del entorno revisadas (sección 5.1).
-- [ ] `weekly-digest`: rama, comando, `0 13 * * 0,1`, reinicio `Never`, variables de la sección 4.
+- [ ] `weekly-digest`: rama, comando, `0 9,13 * * 0,1`, reinicio `Never`, variables de la sección 4.
 - [ ] `validation-reminders`: rama, comando, `*/15 * * * *`, reinicio `Never`, `MONGODB_URI` por referencia.
 - [ ] Sin dominio público en ninguno.
 - [ ] Primeras ejecuciones revisadas en registros, base de datos y campana (sección 6).
