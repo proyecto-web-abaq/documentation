@@ -1851,3 +1851,23 @@ Estos avisos no envían correo; solo aparecen en la campana. **Principio: nadie 
 - **RNF-REP-02 (Sin duplicados)**: Una entrega por admin y semana (`WeeklyDigestDelivery`, `weekKey` `admin-…`, índice único); repetir el job no reenvía.
 - **RNF-REP-03 (Cupo)**: Respeta el cupo diario de correo (RNF de §30); sin cupo, no envía y lo reporta.
 - Cobertura: `tests/admin-weekly-report.test.js`; Evento ABAQ suelto y migración en `tests/convocatoria-op.test.js`.
+
+## 34. Re-registro Silencioso tras Rechazo `[IMPLEMENTADO 17/11/2026]`
+
+### `[SRS 34.1 Requerimientos Funcionales]`
+
+- **RF-REG-01 (Mismo flujo)**: Quien fue rechazado se registra de nuevo en `/auth/signup` con el mismo correo y **la misma contraseña**, sin pantallas especiales. El servidor reconoce la cuenta y sustituye el expediente rechazado por el nuevo; queda en "pendiente" y la Coordinación recibe el aviso de nuevo registro.
+- **RF-REG-02 (Cambio de tipo)**: Si elige el otro tipo de voluntario, el expediente anterior se borra y se crea el del nuevo tipo (folio `SS-` o `VG-`), sin avisos. Con el mismo tipo se conservan `_id`, folio e historial de estatus, y el contenido se reemplaza completo (no se mezcla con el anterior).
+- **RF-REG-03 (Verificación temprana)**: Al pulsar "Continuar a Fase 1", `POST /auth/signup-precheck` confirma que el correo puede registrarse. Si no, el mensaje aparece bajo el campo de correo y no puede avanzar al formulario.
+- **RF-REG-04 (Texto para el rechazado)**: La pantalla de expediente rechazado indica que puede registrarse de nuevo con el mismo correo y la misma contraseña, y elegir otra modalidad.
+- **RF-REG-05 (Desbloqueo)**: La Coordinación libera un correo bloqueado con `node scripts/unblock-signup.js --email <correo> [--reset-count]`.
+
+### `[SRS 34.2 Requerimientos No Funcionales - Seguridad]`
+
+- **RNF-REG-01 (Titularidad)**: El re-registro exige la contraseña de la cuenta. Sin ella, cualquiera que conociera el correo de una persona rechazada tomaría su cuenta y vería sus datos.
+- **RNF-REG-02 (Alcance)**: Solo expedientes `rejected` sin historial (inscripciones ni vinculaciones). Nunca cuentas admin, activas, pendientes ni inactivas. Los expedientes se ubican solo por `authId`; el de otra persona con el mismo correo personal no se toca.
+- **RNF-REG-03 (Topes)**: 5 contraseñas equivocadas en 1 h bloquean el correo 24 h; 3 re-registros lo bloquean de forma permanente; 20 intentos de registro por IP cada 15 min (`signupLimiter`), además de Turnstile en el envío final.
+- **RNF-REG-04 (Sin enumeración de motivos)**: Cualquier rechazo responde el mismo mensaje: "No es posible continuar el registro con este correo. Si ya tienes cuenta, inicia sesión o comunícate con la Coordinación."
+- **RNF-REG-05 (Concurrencia y rollback)**: Candado por correo (`SignupGuard.lockedAt`); el borrado solo procede si el expediente sigue rechazado. Copia previa en `ProfileArchive` (180 días) y rollback automático si algo falla: el expediente, el rol y el candado vuelven a como estaban.
+- **RNF-REG-06 (Respaldo)**: `signupguards` y `profilearchives` viajan en los respaldos.
+- Cobertura: `tests/signup-reregistration.test.js` (11 casos).

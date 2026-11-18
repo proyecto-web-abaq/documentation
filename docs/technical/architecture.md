@@ -1519,6 +1519,27 @@ flowchart TD
     - Las convocatorias históricas aparecen como convocatorias pasadas con cupo 1.
     - Un servicio cron más en cada entorno.
 
+### ADR-42: Re-registro Silencioso con Prueba de Titularidad `[ACEPTADO 17/11/2026]`
+
+- **Contexto**: Un expediente rechazado podía volver a registrarse con su correo, pero:
+    - el servidor cambiaba la contraseña sin pedir la anterior, así que cualquiera que conociera el correo tomaba la cuenta;
+    - buscaba el expediente viejo también por correo personal o institucional y podía borrar el de otra persona;
+    - mezclaba los datos nuevos con los anteriores;
+    - no tenía topes ni protección ante dos envíos simultáneos;
+    - el rechazo decía "Email already registered".
+- **Decisión**:
+    - `services/signup-guard.service.js` decide la elegibilidad: correo libre → registro nuevo. Cuenta existente → re-registro solo con la misma contraseña, expediente `rejected`, sin historial y sin bloqueos; si no, mensaje genérico.
+    - El re-registro toma un candado por correo, guarda copia en `ProfileArchive`, borra los expedientes rechazados de esa cuenta (por `authId`) y crea el nuevo. Con el mismo tipo conserva `_id`, folio e historial; con otro tipo crea folio del nuevo prefijo. Ante cualquier error restaura todo.
+    - `SignupGuard` por correo: intentos fallidos (5/h → 24 h de bloqueo), re-registros (3 → bloqueo permanente) y candado. Límite por IP con `signupLimiter`.
+    - `POST /auth/signup-precheck` detiene el flujo en el paso de correo y contraseña; los endpoints de envío repiten la validación.
+- **Alternativas descartadas**:
+    - Re-registro sin contraseña: toma de cuenta trivial.
+    - Pantallas de "re-registro": el usuario pidió un flujo silencioso.
+    - Verificación por código al correo: más fuerte, pero requiere cupo de correo y un flujo nuevo. Queda como mejora (ver riesgos).
+- **Consecuencias**:
+    - Quien olvidó su contraseña no puede re-registrarse por sí mismo (no hay recuperación de contraseña); la Coordinación lo atiende.
+    - **Riesgo residual**: el sistema no verifica el correo al registrarse por primera vez, así que alguien puede apartar un correo ajeno antes que su dueño (también con `POST /auth/register`, que el frontend no usa). Mitigación recomendada: verificación por código y retirar `/auth/register`.
+
 ## 4. Atributos de Calidad del Sistema (Quality Attributes)
 
 1. **Mantenibilidad y Comprensibilidad (Maintainability & Understandability)**:
