@@ -806,15 +806,14 @@ Diseño completo en [Convocatorias OP con Acreditación Anidada](ideas/2026-11-1
 - **Folio visible:** en tarjetas, agenda y buscador de *Mis participaciones*, `app-folio-pill` muestra el folio de la convocatoria (`OP-EVE-…`) para toda inscripción. En el detalle de la convocatoria (Coordinación) el folio va en el encabezado, junto al título; las filas de inscritos no muestran folio.
 - **Filtros de la campana por rol:** píldoras "Todas", "No leídas" y tres por categoría con la narrativa de participaciones (ver SRS RF-NOT-17), generadas desde una sola lista (`filtersFor(role)`) para el drawer y la pantalla completa.
 - **Nombre de la sección:** "Mis participaciones" (estudiantes y voluntarios) y "Participaciones" (Coordinación) en la barra, el menú móvil y el título de la vista.
-
----
-
 - **Pie de la tarjeta de aviso** *(17/11/2026)*: ya no se muestra el pie genérico "Notificación oficial ABAQ" en ningún rol. El pie solo aparece cuando aporta información propia (por ejemplo "También lo enviamos a tu correo" o "Reglamento de permanencia ABAQ"); sin pie, la acción queda alineada a la derecha y, sin pie ni acción, no se dibuja el separador.
 - **Historial de participación del admin** *(17/11/2026)*: tabla con Folio, Forma de participar, Participación (título, modalidad y horas), Participantes (fracción evaluados/inscritos de la convocatoria o nombre del titular de la vinculación), Avance, Fecha y **Acciones** fija a la derecha:
     - Vinculación: "Descargar evidencia" (`btn-doc-download`) y "Ver detalle".
     - Convocatoria: "Ver participantes" (detalle de la convocatoria) y "Ver detalle".
     - "Ver detalle" usa `.detail-button`, el mismo botón de la lista de voluntarios (ahora en `src/styles.scss`), y despliega debajo de la fila el mismo cajón de detalle que las tarjetas (`ng-template #itemDetails`).
     - En convocatorias, el Avance del admin es Publicada → Realizada → Evaluada (o "Sin inscritos"). Estudiantes y voluntarios conservan su tabla.
+
+---
 
 ## 22. Campo de Horas al Validar (`app-hours-override-field`) `[IMPLEMENTADO 17/11/2026]`
 
