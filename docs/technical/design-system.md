@@ -809,6 +809,13 @@ Diseño completo en [Convocatorias OP con Acreditación Anidada](ideas/2026-11-1
 
 ---
 
+- **Pie de la tarjeta de aviso** *(17/11/2026)*: ya no se muestra el pie genérico "Notificación oficial ABAQ" en ningún rol. El pie solo aparece cuando aporta información propia (por ejemplo "También lo enviamos a tu correo" o "Reglamento de permanencia ABAQ"); sin pie, la acción queda alineada a la derecha y, sin pie ni acción, no se dibuja el separador.
+- **Historial de participación del admin** *(17/11/2026)*: tabla con Folio, Forma de participar, Participación (título, modalidad y horas), Participantes (fracción evaluados/inscritos de la convocatoria o nombre del titular de la vinculación), Avance, Fecha y **Acciones** fija a la derecha:
+    - Vinculación: "Descargar evidencia" (`btn-doc-download`) y "Ver detalle".
+    - Convocatoria: "Ver participantes" (detalle de la convocatoria) y "Ver detalle".
+    - "Ver detalle" usa `.detail-button`, el mismo botón de la lista de voluntarios (ahora en `src/styles.scss`), y despliega debajo de la fila el mismo cajón de detalle que las tarjetas (`ng-template #itemDetails`).
+    - En convocatorias, el Avance del admin es Publicada → Realizada → Evaluada (o "Sin inscritos"). Estudiantes y voluntarios conservan su tabla.
+
 ## 22. Campo de Horas al Validar (`app-hours-override-field`) `[IMPLEMENTADO 17/11/2026]`
 
 Componente compartido (`components/ui/hours-override-field`) que se usa en los tres puntos donde la Coordinación valida horas: evaluación en el detalle de la convocatoria, modal "Validar participación" de *Mi participación* y modal de aprobación del detalle del estudiante.
