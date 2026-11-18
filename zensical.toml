@@ -67,6 +67,7 @@ nav = [
       "technical/operacion/index.md",
       { "Stack Tecnológico" = "technical/tech-stack.md" },
       { "Tutorial: Despliegue Railway miabaq-abaq (Development)" = "technical/tutorial-despliegue-railway-miabaq-development.md" },
+      { "Guía: Tareas Programadas (Cron) en Railway" = "technical/operacion/cron-tareas-programadas-railway.md" },
       { "Despliegue Real Railway & OpenTofu (Live)" = "technical/despliegue-real-railway-opentofu.md" },
       { "Despliegue en la nube (Azure)" = "technical/cloud-deployment.md" },
       { "Pipelines CI/CD" = "technical/cicd-pipelines-design.md" },

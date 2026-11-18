@@ -1734,7 +1734,7 @@ Con base en la metodología de auditoría de 6 fases del Prof. Ricardo Monroy (O
 - **RF-NOT-01 (Campana y drawer)**: Toda sesión ve una campana con contador de no leídas (barra superior en móvil y escritorio) que abre el drawer de notificaciones (portado de `dev-rivers`): filtros Todas / No leídas / Institucional / Acreditaciones / Actividades, búsqueda, marcar leída/no leída, marcar todas y eliminar.
 - **RF-NOT-02 (Paridad con correos)**: Cada correo transaccional existente deja su notificación en la campana, aun sin correo registrado: aceptación (+ recordatorio de permanencia SS), correcciones de expediente, inactividad/baja, conclusión de Servicio Social y nuevo registro (aviso compartido para la Coordinación).
 - **RF-NOT-03 (Resumen semanal)**: Los voluntarios activos (SS y VG) reciben por correo y en la campana un resumen semanal: arriba, lo nuevo (convocatorias de la semana con cupo, horas que acreditan para SS y si ya están inscritos, más las recién publicadas); abajo, lo hecho la semana pasada (participaciones, estado y horas acreditadas para SS, avance de horas).
-- **RF-NOT-04 (Envío por lotes)**: El resumen se envía el domingo (primera mitad de destinatarios) y el lunes (el resto) con la API batch de Resend, sin superar `WEEKLY_DIGEST_DAILY_CAP` correos por ejecución (default 80) para respetar la cuota diaria.
+- **RF-NOT-04 (Envío por lotes)**: El resumen se envía el domingo (primera mitad de destinatarios) y el lunes (el resto) con la API batch de Resend. *Actualizado el 17/11/2026: el tope fijo `WEEKLY_DIGEST_DAILY_CAP` se sustituye por el cupo diario calculado de RF-NOT-12.*
 
 ### `[SRS 29.2 Requerimientos No Funcionales]`
 
@@ -1743,4 +1743,87 @@ Con base en la metodología de auditoría de 6 fases del Prof. Ricardo Monroy (O
 - **RNF-NOT-SEC-03 (Acciones seguras)**: Las acciones de una notificación solo navegan a rutas internas o abren enlaces `https`.
 - **RNF-NOT-REL-01 (Idempotencia)**: Cada persona se reclama una sola vez por semana (`WeeklyDigestDelivery`, índice único); un fallo de Resend se reintenta en la siguiente ejecución sin duplicar la notificación.
 - **RNF-NOT-REL-02 (Dominios de prueba)**: El resumen no redirige correos de dominios de prueba (`.local`, `.test`, `.example`): esas cuentas solo reciben la notificación en la campana.
+
+---
+
+## 30. Avisos del Ciclo de Convocatorias y Vinculaciones, Cupo Diario de Correo y Folio Visible `[IMPLEMENTADO 17/11/2026]`
+
+### `[SRS 30.1 Requerimientos Funcionales - Avisos solo en la campana]`
+
+Estos avisos no envían correo; solo aparecen en la campana. **Principio: nadie recibe aviso de una acción que acaba de realizar.**
+
+| ID | Evento | Recibe |
+|---|---|---|
+| **RF-NOT-05** | Convocatoria publicada (desde plantilla o alta directa) | Colaboradores con expediente **activo** (SS y voluntarios). Inactivos, pendientes, rechazados y la Coordinación (que la publicó) no lo reciben. |
+| **RF-NOT-06** | Participación en convocatoria finalizada: validada (con horas acreditadas) o inasistencia | Solo el participante. |
+| **RF-NOT-07** | Vinculación **solicitada** por un colaborador | Cada admin (es una solicitud por revisar). El colaborador que la envió no recibe aviso. |
+| **RF-NOT-08** | Vinculación registrada por la Coordinación a nombre de un colaborador | Solo el titular. |
+| **RF-NOT-09** | Vinculación finalizada: aprobada (con horas) o rechazada (con motivo) | Solo el titular. |
+| **RF-NOT-14** | Convocatoria **terminada** (pasó su hora de fin) con inscripciones sin evaluar: "Es momento de validar" | Cada admin, una sola vez por convocatoria. |
+
+- **RF-NOT-10 (Paridad con correos)**: Todo correo a un colaborador o a la Coordinación por una solicitud deja aviso en la campana de quien lo recibe: aceptación, correcciones, inactividad/baja, conclusión, nuevo registro (admins) y resumen semanal. Las constancias de plática van a asistentes externos sin cuenta y no generan aviso.
+- **RF-NOT-15 (Fin de una convocatoria)**: Termina el día de la convocatoria (`dueDate`, o `startDate` si no hay) a su `endTime` en hora de Querétaro (UTC−6); sin `endTime`, al final del día. Solo se avisan convocatorias terminadas en los últimos 7 días; las que no tienen inscripciones pendientes se marcan revisadas sin aviso.
+
+### `[SRS 30.2 Requerimientos Funcionales - Resumen semanal y cupo de correo]`
+
+- **RF-NOT-11 (Horario y reparto)**: El resumen se ejecuta domingo y lunes a las **7:00 de Querétaro** (cron de Railway `0 13 * * 0,1`, UTC). Los destinatarios son los colaboradores activos en ese momento y se reparten mitad y mitad: el domingo `ceil(N/2)` y el lunes el resto.
+- **RF-NOT-12 (Cupo diario)**: El cupo de cada ejecución es `RESEND_DAILY_LIMIT` (100) − correos ya enviados ese día por cualquier motivo (contador `EmailUsage`) − `EMAIL_TRANSACTIONAL_RESERVE` (20, para aceptaciones, constancias y demás del resto del día), nunca negativo.
+- **RF-NOT-13 (Sin cupo)**: Lo que no alcance el domingo pasa al lunes; lo que no alcance el lunes recibe el resumen **solo en la campana**, de modo que nadie se queda sin él.
+
+### `[SRS 30.3 Requerimientos Funcionales - Folio visible]`
+
+- **RF-FOL-01 (Un solo folio por convocatoria)**: El colaborador ve y busca su inscripción con el **folio de la convocatoria** (`OP-EVE-…`). El folio de su acreditación individual se sigue generando y guardando, pero no se le muestra.
+- **RF-FOL-02 (Vista de la Coordinación)**: En "Ver asistentes", el admin conserva el folio individual de cada inscripción para auditoría.
+
+### `[SRS 30.4 Requerimientos No Funcionales - Seguridad de notificaciones]`
+
+- **RNF-NOT-SEC-04 (Copia por admin)**: Cada aviso para la Coordinación se crea una vez por cuenta admin; leer o borrar el propio no afecta a otro admin.
+- **RNF-NOT-SEC-05 (Privacidad del contenido)**: El texto que recibe un colaborador solo menciona su propio registro (título, folio, horas, motivo). El nombre de otras personas aparece únicamente en avisos para admins.
+- **RNF-NOT-SEC-06 (Aislamiento verificado)**: Ninguna sesión lee, marca o borra avisos ajenos (404) y "marcar todas" solo afecta a los propios. Cubierto por `tests/notifications-lifecycle.test.js`.
+- **RNF-NOT-REL-03 (Sin bloqueo)**: Registrar un aviso nunca interrumpe ni retrasa la operación que lo origina; un fallo solo se registra en la bitácora.
+- **RNF-NOT-REL-04 (Recordatorio único)**: El recordatorio de validación lo ejecuta un cron de Railway cada 15 minutos; cada convocatoria se reclama de forma atómica (`Activity.validationReminderAt`) y no altera la huella de cambios que usan los clientes.
+
+---
+
+## 31. Cuentas Inactivas en Solo Consulta y Endurecimiento de Acceso `[IMPLEMENTADO 16/11/2026]`
+
+### `[SRS 31.1 Requerimientos Funcionales - Cuentas inactivas]`
+
+- **RF-INA-01 (Solo consulta)**: Una cuenta inactiva consulta (solo `GET`) las convocatorias en las que ya estaba inscrita y sus vinculaciones existentes, su expediente y sus avisos.
+- **RF-INA-02 (Nada nuevo)**: No ve convocatorias nuevas ni detecta que se publicaron (la huella de cambios se acota a lo vinculado) y no recibe avisos de convocatorias nuevas.
+- **RF-INA-03 (Sin acciones)**: No puede inscribirse, cancelar, registrar o borrar vinculaciones ni editar su perfil.
+- **RF-INA-04 (Coordinación)**: La Coordinación no puede crearle vinculaciones nuevas, pero sí evaluar o aprobar las que ya existían; el inactivo recibe esos cambios de estado.
+- **RF-INA-05 (Pendientes y rechazados)**: Sin acceso a convocatorias ni vinculaciones, ni siquiera de lectura.
+
+### `[SRS 31.2 Requerimientos No Funcionales - Endurecimiento]`
+
+- **RNF-SEC-ACC-01 (Vinculación de cuenta)**: El expediente de una sesión se resuelve por `authId`; el correo solo puede reclamar un expediente **sin dueño** (creado por la Coordinación), de forma atómica, y nunca reasigna uno que ya pertenece a otra cuenta.
+- **RNF-SEC-ACC-02 (Registro)**: El alta descarta del cuerpo los campos que solo fija el servidor o la Coordinación (horas, estado, vínculos, `authId`); el folio propuesto por el onboarding se acepta solo con formato válido.
+- **RNF-SEC-ACC-03 (Datos de terceros)**: `/pet` y `/contact` son exclusivos de la Coordinación.
+- **RNF-SEC-ACC-04 (Dependencias)**: Sin vulnerabilidades críticas en dependencias de producción del backend (`npm audit --omit=dev`).
+- Cobertura: `tests/inactive-readonly-security.test.js` (24 aserciones).
+
+---
+
+## 32. Bitácora de Horas y Captura de Horas al Validar `[IMPLEMENTADO 17/11/2026]`
+
+### `[SRS 32.1 Requerimientos Funcionales]`
+
+- **RF-AUD-01 (Bitácora de horas)**: Cada decisión de la Coordinación sobre horas queda registrada en `HoursAuditLog`:
+    - En convocatorias: participación validada o inasistencia.
+    - En vinculaciones: aprobada, aprobada con ajuste manual o rechazada.
+    - Cada registro guarda tipo, acción, folios (acreditación y convocatoria), titular, si acumula horas, **horas propuestas por el sistema**, **horas finales**, diferencia, si hubo ajuste manual, desempeño, comentario, quién (cuenta y correo) y cuándo.
+- **RF-AUD-02 (Propuesta fija)**: La propuesta del reglamento se guarda al crear la acreditación (`hoursSuggested`) y no cambia al evaluar:
+    - Convocatorias: duración × multiplicador.
+    - Vinculaciones: tabla del reglamento; en adopción de estudiante, cantidad × 100.
+- **RF-AUD-03 (Ajuste manual)**: `overridden` indica que la participación se aceptó con horas distintas a las propuestas. Una inasistencia o un rechazo no es un ajuste: se identifica por su acción, con 0 h finales.
+- **RF-AUD-04 (Consulta)**: La bitácora no se muestra en la interfaz. La Coordinación la consulta con `GET /accreditation/hours-audit` (filtros `accreditation`, `collaborator`, `kind`, `overridden=true`, `from`, `to`, `limit` ≤ 500) y viaja en los respaldos.
+- **RF-VAL-01 (Captura de horas al validar)**: Al validar una convocatoria o una vinculación, la Coordinación ve las horas propuestas por el sistema y puede sobrescribirlas con un clic. Si cambia el valor, el formulario avisa que el ajuste quedará en la bitácora. Para Voluntariado General se explica que el reglamento no acredita horas y solo se evalúa el desempeño.
+
+### `[SRS 32.2 Requerimientos No Funcionales]`
+
+- **RNF-AUD-01 (Solo inserción)**: Ninguna ruta modifica ni borra la bitácora y todos sus campos son inmutables en el modelo.
+- **RNF-AUD-02 (Acceso)**: Solo administradores la consultan (403 para colaboradores). Los parámetros se validan (ObjectId, fecha, tipo) para evitar inyección de operadores.
+- **RNF-AUD-03 (Sin bloqueo)**: Registrar en la bitácora no interrumpe la evaluación; un fallo se reporta en el log del servidor.
+- Cobertura: `tests/hours-audit.test.js`.
 

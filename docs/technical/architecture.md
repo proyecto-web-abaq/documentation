@@ -1452,7 +1452,57 @@ flowchart TD
 - **Contexto**: `dev-rivers` tenía campana, drawer y notificaciones en MongoDB, pero con validación de titularidad defectuosa (`&&`), efectos al consultar (creaba notificaciones y enviaba correos en `GET /my`), exposición de configuración de correo y un panel para forzar envíos. La rama actual solo enviaba correos. Además, el equipo retiró los barridos automáticos con `node-cron` (prueba `no-twelve-month-or-cron`).
 - **Decisión**: Se porta el modelo `Notification`, la campana y el drawer; las notificaciones se crean en `services/notification.service.js` desde `utils/notifications.js`, junto a cada correo existente. El resumen semanal vive en `services/weekly-digest.service.js` y se ejecuta como proceso independiente (`scripts/send-weekly-digest.js`) programado como **cron de Railway** el domingo y el lunes, no dentro del servidor web. Usa la API batch de Resend y la bitácora `WeeklyDigestDelivery` (índice único semana + persona) para repartir la cuota y no repetir envíos.
 - **Alternativas descartadas**: `node-cron` dentro del servidor (duplicaría envíos con varias réplicas o reinicios y contradice la retirada de barridos); enviar todo el domingo (excede la cuota diaria de Resend).
-- **Consecuencias**: La campana refleja todos los avisos aunque falle el correo; el resumen tolera reintentos y caídas; los correos de prueba no consumen cuota. Requiere configurar el servicio cron en Railway (`0 15 * * 0,1`, 9:00 en Querétaro).
+- **Consecuencias**: La campana refleja todos los avisos aunque falle el correo; el resumen tolera reintentos y caídas; los correos de prueba no consumen cuota. Requiere configurar el servicio cron en Railway (`0 13 * * 0,1`, 7:00 en Querétaro; ver ADR-38 y la [guía de tareas programadas](operacion/cron-tareas-programadas-railway.md)).
+
+### ADR-38: Avisos del Ciclo de Convocatorias y Vinculaciones, Cupo Diario de Correo y Folio Visible `[ACEPTADO 17/11/2026]`
+
+- **Contexto**: La campana solo reflejaba los correos existentes; nadie se enteraba dentro del sistema de convocatorias nuevas ni del cierre de sus participaciones o vinculaciones. El resumen semanal usaba un tope fijo (80) que ignoraba los correos ya enviados ese día (por ejemplo, las constancias de una plática salen todas a la vez) y dejaba sin resumen a quien no alcanzaba cupo el lunes. Además, cada inscripción mostraba el folio de su acreditación individual (`OP-EVE-…`), distinto del de la convocatoria, y no quedaba claro cuál buscar.
+- **Decisión**:
+    - `services/activity-notifications.service.js` emite avisos **solo de campana** del ciclo de convocatorias y vinculaciones (SRS §30.1), con la regla de que **nadie recibe aviso de una acción que acaba de realizar**: la Coordinación solo recibe solicitudes (vinculación enviada por un colaborador) y convocatorias terminadas por validar; el colaborador recibe convocatorias nuevas y el cierre de lo suyo, pero no lo que él mismo envía. Se invocan sin `await`: nunca bloquean la respuesta.
+    - El recordatorio "es momento de validar" depende del reloj, no de una acción: lo calcula `convocatoria-reminders.service.js`, ejecutado por un segundo cron de Railway cada 15 minutos (`scripts/send-validation-reminders.js`). Cada convocatoria se reclama una vez con `Activity.validationReminderAt` mediante `collection.updateOne`, que no dispara el gancho de `updated` ni la huella de cambios.
+    - `notification.service.js` crea **una copia por admin** (`notifyAdmins`) y difunde a colaboradores activos (`notifyActiveCollaborators`, `insertMany`).
+    - `utils/email.js` suma cada envío exitoso en `EmailUsage` (un documento por día UTC). `email-quota.service.js` calcula el cupo: límite − enviados − reserva.
+    - El resumen reparte mitad y mitad; el lunes, sin cupo, entrega solo en la campana.
+    - La proyección `assignedActivities[].interactionFolio` guarda el folio de la convocatoria. La acreditación conserva el suyo (vinculado por `accreditationId`), visible solo para la Coordinación. La migración `migrate-convocatorias-op.js` alinea los históricos de forma idempotente.
+- **Alternativas descartadas**:
+    - Aviso compartido para todos los admins: uno lo borraba para todos.
+    - Avisar a la Coordinación cada publicación, validación o aprobación: le informa lo que ella misma acaba de hacer y entierra las solicitudes reales.
+    - Calcular el recordatorio al consultar la campana: un `GET` con efectos (contradice RNF-NOT-SEC-02).
+    - Consultar el uso diario a la API de Resend: no expone un contador por día confiable y añade una dependencia de red al cálculo.
+    - Mostrar ambos folios al colaborador: perpetúa la ambigüedad.
+    - Renombrar o eliminar el folio de la acreditación: rompe índices únicos, respaldos y la auditoría.
+- **Consecuencias**:
+    - Los avisos de convocatoria crecen con el número de colaboradores activos (una inserción en bloque por publicación).
+    - El contador no incluye correos enviados fuera de la plataforma con la misma cuenta de Resend; para eso existe la reserva.
+    - Las búsquedas por folio de inscripción del colaborador coinciden con el folio de la convocatoria.
+
+### ADR-39: Cuentas Inactivas en Solo Consulta y Vinculación de Cuenta por `authId` `[ACEPTADO 16/11/2026]`
+
+- **Contexto**: Una auditoría de caja blanca (OWASP WSTG / Top 10) del dominio de cuentas inactivas mostró que `requireActiveAccount` bloqueaba también la consulta de lo ya vinculado, y que la Coordinación podía crear vinculaciones nuevas a expedientes no activos. En el resto del sistema encontró que el expediente se resolvía por `authId` **o** por correo y reescribía `authId`; además, el alta aceptaba campos protegidos y `/pet` y `/contact` estaban abiertos a cualquier cuenta activa.
+- **Decisión**:
+    - Nuevo middleware `requireActiveOrReadOnly`: deja pasar a cuentas activas; a las inactivas solo `GET`, marcando `req.readOnlyScope`, que los controladores usan para acotar lista, detalle y huella de cambios a lo vinculado.
+    - `utils/linked-profile.js` concentra la resolución del expediente: por `authId` y, solo si el expediente no tiene dueño, por correo con reclamo atómico.
+    - El alta descarta campos protegidos.
+    - `/pet` y `/contact` quedan solo para admins.
+    - `POST /accreditation` exige destinatario activo.
+- **Consecuencias**: Se cumple la regla de negocio de inactivos sin abrir escrituras. El riesgo residual es que un expediente sin dueño puede reclamarlo quien registre primero ese correo; se mitiga con verificación de correo (pendiente). Cobertura en `tests/inactive-readonly-security.test.js`.
+
+### ADR-40: Bitácora de Horas Propuestas frente a Validadas `[ACEPTADO 17/11/2026]`
+
+- **Contexto**: Con ADR-36 el colaborador ya no declara sus horas; el sistema las propone (duración × multiplicador, o la tabla del reglamento) y la Coordinación puede sobrescribirlas al validar. El ajuste no se muestra en la interfaz y `hoursAccredited` se sobrescribe, así que no quedaba rastro de qué se propuso y quién lo cambió.
+- **Decisión**:
+    - Colección `HoursAuditLog`, de solo inserción y con todos los campos `immutable`. Guarda una entrada por decisión de la Coordinación: convocatoria validada o inasistencia; vinculación aprobada, ajustada o rechazada.
+    - La escribe `services/hours-audit.service.js` desde los controladores de evaluación, sin bloquearlos.
+    - Las vinculaciones guardan su propuesta en `hoursSuggested` al crearse, como ya hacían las convocatorias. En las anteriores, la propuesta es el `hoursAccredited` previo a la evaluación.
+    - Consulta solo admin y solo lectura: `GET /accreditation/hours-audit`.
+    - En la interfaz, `app-hours-override-field` (componente compartido en las tres pantallas de validación) muestra la propuesta y avisa del ajuste antes de confirmar.
+- **Alternativas descartadas**:
+    - Campos de auditoría solo en `Accreditation`: un segundo ajuste borra el anterior y mezcla datos operativos con evidencia.
+    - Bitácora genérica de todas las peticiones: ruido y datos personales innecesarios.
+- **Consecuencias**:
+    - Evidencia defendible de cada ajuste (quién, cuándo, de cuánto a cuánto) que sobrevive a respaldos y restauraciones.
+    - Crece una entrada por evaluación (volumen bajo).
+    - No hay interfaz de consulta todavía.
 
 ## 4. Atributos de Calidad del Sistema (Quality Attributes)
 

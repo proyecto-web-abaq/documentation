@@ -168,3 +168,33 @@ Ventajas: no toca los dos buzones de persona ni su licencia; los correos salen "
 - **Elección de la estrategia de correo** entre las 4 opciones de §4.1, dentro del presupuesto de 2,000 USD.
 - Confirmación de la identidad emisora de ABAQ (buzón compartido o dominio verificado en proveedor externo).
 - Persistencia e historial de notificaciones in-app (¿bandeja consultable o solo toasts efímeros?).
+
+---
+
+## 7. Estado implementado (17/11/2026)
+
+!!! success "Vigente"
+    Lo implementado prevalece sobre las propuestas de las secciones anteriores.
+
+- **Requisitos:** [SRS §29](srs.md) (campana y resumen semanal) y [SRS §30](srs.md) (avisos del ciclo de convocatorias y vinculaciones, cupo diario, folio visible).
+- **Decisiones:** ADR-37 y ADR-38 en [Arquitectura](architecture.md).
+- **Correo:** Resend. Transaccionales con `sendEmail`; resumen semanal con la API batch. Todo envío exitoso suma en `EmailUsage`.
+- **Operación:** el resumen semanal y el recordatorio de validación corren como cron de Railway: [Guía: tareas programadas en Railway](operacion/cron-tareas-programadas-railway.md).
+
+**Regla:** nadie recibe aviso de una acción que acaba de realizar.
+
+| Evento | Correo | Campana |
+|---|---|---|
+| Aceptación (+ recordatorio de permanencia SS) | Sí | Titular |
+| Correcciones de expediente | Sí | Titular |
+| Inactividad / baja | Sí | Titular |
+| Conclusión de Servicio Social | Sí | Titular |
+| Nuevo registro (solicitud) | Sí (Coordinación) | Cada admin |
+| Resumen semanal | Sí, por lotes y con cupo | Titular (también sin cupo) |
+| Constancias de plática | Sí (asistentes externos) | — |
+| Convocatoria publicada | No | Colaboradores activos |
+| Convocatoria terminada con inscritos por evaluar | No | Cada admin ("Es momento de validar"), una vez |
+| Participación validada / inasistencia | No | Participante |
+| Vinculación solicitada por un colaborador | No | Cada admin |
+| Vinculación registrada por la Coordinación | No | Titular |
+| Vinculación aprobada / rechazada | No | Titular |

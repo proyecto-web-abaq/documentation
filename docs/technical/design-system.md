@@ -779,3 +779,38 @@ Diseño completo en [Convocatorias OP con Acreditación Anidada](ideas/2026-11-1
 - **Colores de etiqueta:** `green` (aceptado, concluido), `navy` (nuevo registro, resumen semanal), `amber` (correcciones, inactividad, reglamento), `red` (baja, nuevo `.notif-tag-red` / `.notif-icon-red`), `slate` (informativo).
 - **Correo del resumen semanal:** cabecera navy "Tu semana en ABAQ", sección "Lo nuevo esta semana" con tarjetas (categoría en verde, fecha/horario, "Acredita N h" solo SS, cupo o "✓ Ya estás inscrito(a)"), botón verde "Ver convocatorias e inscribirme" y, tras un separador, "Lo que hiciste la semana pasada" en tono secundario.
 
+---
+
+## 21. Avisos del Ciclo de Participación y Folio Visible `[IMPLEMENTADO 17/11/2026]`
+
+- **Avisos nuevos (campana, sin correo):** usan las categorías y colores de §20.
+
+| Aviso (`archetype`) | Categoría | Etiqueta | Color | Icono |
+|---|---|---|---|---|
+| `convocatoria_publicada` | Actividades | Nueva convocatoria | `navy` | `event_available` |
+| `participacion_validada` | Actividades | Validada | `green` | `task_alt` |
+| `participacion_inasistencia` | Actividades | Inasistencia | `red` | `event_busy` |
+| `vinculacion_solicitada` (admins) | Acreditaciones | En revisión | `amber` | `pending_actions` |
+| `vinculacion_registrada` (titular, la registró la Coordinación) | Acreditaciones | En revisión | `amber` | `pending_actions` |
+| `vinculacion_aprobada` | Acreditaciones | Aprobada | `green` | `verified` |
+| `vinculacion_rechazada` | Acreditaciones | Rechazada | `red` | `cancel` |
+| `convocatoria_por_validar` (admins) | Actividades | Por validar | `amber` | `fact_check` |
+
+- **Regla:** nadie recibe aviso de una acción que acaba de hacer. La Coordinación solo ve solicitudes ("Nueva solicitud de vinculación") y convocatorias terminadas por validar ("Es momento de validar: …").
+- **Redacción:** título en segunda persona para el colaborador ("Tu vinculación fue aprobada"); para la Coordinación, el nombre de la persona va en la descripción. La descripción incluye categoría o modalidad, folio y, si aplica, horas ("Se acreditaron 2 h") o motivo. Textos de más de 140 caracteres se recortan con "…".
+- **Acción:** todos llevan a `/activity-list` (ruta interna).
+- **Folio visible:** en tarjetas, agenda y buscador de *Mi participación*, `app-folio-pill` muestra el folio de la convocatoria (`OP-EVE-…`) para toda inscripción. El folio individual de la acreditación solo aparece en "Ver asistentes" (Coordinación).
+
+---
+
+## 22. Campo de Horas al Validar (`app-hours-override-field`) `[IMPLEMENTADO 17/11/2026]`
+
+Componente compartido (`components/ui/hours-override-field`) que se usa en los tres puntos donde la Coordinación valida horas: evaluación en el detalle de la convocatoria, modal "Validar participación" de *Mi participación* y modal de aprobación del detalle del estudiante.
+
+- **Entradas:** `[(value)]` horas finales, `[proposed]` propuesta del sistema, `[max]` tope (horas pendientes) o `null`, `[detail]` cálculo ("1 h × 2, Apoyo a refugio · Paseo"), `[earnsHours]`, `inputId`, `label`.
+- **Campo:** etiqueta en versalitas de 9 px, caja de 150 px (100 % en móvil) con unidad "h"; texto del número a 16 px para evitar el zoom de iOS. Un clic selecciona el valor (`appAutoSelectOnClick`) para sobrescribirlo.
+- **Pista:** "Propuesto por el sistema: N h (cálculo) · tope M h. Da clic en el campo para sobrescribirlo."
+- **Ajuste:** si el valor difiere de la propuesta, aparece en ámbar "Ajuste manual: se registrará N h → M h en la bitácora de auditoría."
+- **Sobre el tope:** borde y texto rojizos (`input-over-limit`).
+- **Voluntariado General:** en lugar del campo, una nota gris "el reglamento no acredita horas. Solo se registra su desempeño".
+

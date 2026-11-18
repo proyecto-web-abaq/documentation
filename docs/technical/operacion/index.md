@@ -9,6 +9,7 @@ Cómo se despliega y opera el sistema en producción.
 
 - **[Stack Tecnológico](../tech-stack.md)**: Inventario de todas las tecnologías actuales, lo que el diseño objetivo añade, brechas y requisitos de despliegue.
 - **[Despliegue en la nube (Azure)](../cloud-deployment.md)**: Tres arquitecturas solo Azure (App Service con contenedor, Container Apps, VM con Docker Compose), costeadas con la Retail Prices API para 100 usuarios sobre el grant de 2,000 USD.
+- **[Guía: tareas programadas (cron) en Railway](cron-tareas-programadas-railway.md)**: Cómo crear, configurar, probar y verificar los servicios cron del resumen semanal por correo y del recordatorio "es momento de validar".
 - **[Pipelines CI/CD](../cicd-pipelines-design.md)**: Idea de diseño de los pipelines de GitHub Actions (frontend, backend, infraestructura) para cada una de las tres arquitecturas.
 
 !!! info "Disponibles en Ideas y Propuestas"
