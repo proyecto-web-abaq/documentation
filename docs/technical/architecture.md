@@ -1504,6 +1504,21 @@ flowchart TD
     - Crece una entrada por evaluación (volumen bajo).
     - No hay interfaz de consulta todavía.
 
+### ADR-41: Reporte Semanal de la Coordinación y Evento ABAQ solo por Convocatoria `[ACEPTADO 17/11/2026]`
+
+- **Contexto**: La Coordinación no tenía una vista semanal del rendimiento por grupo ni por convocatoria. Además, algunos Eventos ABAQ se habían capturado como vinculación, sin convocatoria, y mostraban un folio `OP-EVE-…` individual que no correspondía a ninguna convocatoria.
+- **Decisión**:
+    - `services/admin-weekly-report.service.js` y el cron `admin-weekly-report` (`0 23 * * 0`, domingo 17:00 Querétaro) envían a cada admin un correo con cifras agregadas de SS y VG y el rendimiento de las convocatorias de lunes a domingo. Solo correo; reutiliza `WeeklyDigestDelivery` (`recipientModel: "User"`, `weekKey` `admin-…`) para no duplicar y el cupo diario de `EmailUsage`.
+    - Un Evento ABAQ solo nace de una inscripción: la API rechaza `type: "EVENT"` en vinculaciones. La migración convierte cada Evento ABAQ suelto en una convocatoria histórica con su mismo folio, la liga a la acreditación y a la proyección del perfil, y quita la copia embebida de vinculación.
+- **Alternativas descartadas**:
+    - Ocultar el folio de los eventos sueltos: dejaría filas sin folio y dos formas de registrar el mismo tipo de participación.
+    - Generar un folio nuevo para la convocatoria histórica: rompería la búsqueda de quien ya conocía el folio.
+    - Aviso en la campana para el reporte: la Coordinación pidió solo correo.
+- **Consecuencias**:
+    - Un solo folio visible por participación en un evento en los tres roles.
+    - Las convocatorias históricas aparecen como convocatorias pasadas con cupo 1.
+    - Un servicio cron más en cada entorno.
+
 ## 4. Atributos de Calidad del Sistema (Quality Attributes)
 
 1. **Mantenibilidad y Comprensibilidad (Maintainability & Understandability)**:

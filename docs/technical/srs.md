@@ -1782,6 +1782,7 @@ Estos avisos no envían correo; solo aparecen en la campana. **Principio: nadie 
 
 - **RF-FOL-01 (Un solo folio por convocatoria)**: El colaborador ve y busca su inscripción con el **folio de la convocatoria** (`OP-EVE-…`). El folio de su acreditación individual se sigue generando y guardando, pero no se le muestra.
 - **RF-FOL-02 (Vista de la Coordinación)**: *Actualizado el 17/11/2026:* el detalle de la convocatoria muestra su folio en el encabezado y las filas de inscritos ya no muestran el folio individual. Ese folio solo queda en la base de datos, los respaldos y la bitácora de horas.
+- **RF-FOL-03 (Todo Evento ABAQ pertenece a una convocatoria)**: *17/11/2026.* Un Evento ABAQ solo se registra inscribiéndose a una convocatoria: el formulario de vinculación ya no ofrece "1. Evento ABAQ" y la API rechaza `type: "EVENT"` (400). Los Eventos ABAQ capturados antes como vinculación se migran a una **convocatoria histórica** con su mismo folio (`scripts/migrate-convocatorias-op.js`, paso 3), así que en perfiles, tablas y buscadores de los tres roles solo aparece el folio de una convocatoria. La migración no suma horas y las convocatorias históricas no disparan el aviso "Es momento de validar".
 
 ### `[SRS 30.4 Requerimientos No Funcionales - Seguridad de notificaciones]`
 
@@ -1835,3 +1836,18 @@ Estos avisos no envían correo; solo aparecen en la campana. **Principio: nadie 
 - **RNF-AUD-03 (Sin bloqueo)**: Registrar en la bitácora no interrumpe la evaluación; un fallo se reporta en el log del servidor.
 - Cobertura: `tests/hours-audit.test.js`.
 
+## 33. Reporte Semanal de la Coordinación `[IMPLEMENTADO 17/11/2026]`
+
+### `[SRS 33.1 Requerimientos Funcionales]`
+
+- **RF-REP-01 (Envío)**: Cada domingo a las 17:00 (Querétaro) cada administrador recibe por **correo** un reporte de la semana en curso, de lunes a domingo. No genera aviso en la campana.
+- **RF-REP-02 (Colaboradores)**: Compara **Servicio Social** (estudiantes y voluntarios SS) con **Voluntariado General**: activos, nuevos registros, inscripciones, asistencias, validadas, faltas, por evaluar, vinculaciones solicitadas, aprobadas y rechazadas, solicitudes pendientes, horas acreditadas (solo SS) y desempeño promedio.
+- **RF-REP-03 (Rendimiento de convocatorias)**: Por cada convocatoria de la semana: folio, fecha y hora, inscritos frente a cupo, porcentaje de asistencia, validadas, faltas, por evaluar, horas otorgadas y desempeño promedio.
+- **RF-REP-04 (Prueba)**: `node scripts/send-admin-weekly-report.js --to <correo>` envía el reporte real de la semana con asunto `[Prueba]`, sin registrar la entrega.
+
+### `[SRS 33.2 Requerimientos No Funcionales]`
+
+- **RNF-REP-01 (Privacidad)**: Solo cifras agregadas y títulos de convocatoria; sin nombres ni datos de contacto de colaboradores.
+- **RNF-REP-02 (Sin duplicados)**: Una entrega por admin y semana (`WeeklyDigestDelivery`, `weekKey` `admin-…`, índice único); repetir el job no reenvía.
+- **RNF-REP-03 (Cupo)**: Respeta el cupo diario de correo (RNF de §30); sin cupo, no envía y lo reporta.
+- Cobertura: `tests/admin-weekly-report.test.js`; Evento ABAQ suelto y migración en `tests/convocatoria-op.test.js`.

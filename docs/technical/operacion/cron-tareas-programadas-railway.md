@@ -8,8 +8,8 @@ icon: lucide/alarm-clock
 | Campo | Valor |
 |---|---|
 | Fecha | 17/11/2026 |
-| Decisiones | ADR-37, ADR-38 y ADR-40 en [Arquitectura](../architecture.md) · [SRS §29 y §30](../srs.md) |
-| Tareas | Resumen semanal por correo · Recordatorio "es momento de validar" |
+| Decisiones | ADR-37, ADR-38, ADR-40 y ADR-41 en [Arquitectura](../architecture.md) · [SRS §29, §30 y §33](../srs.md) |
+| Tareas | Resumen semanal por correo · Recordatorio "es momento de validar" · Reporte semanal de la Coordinación |
 
 Las tareas programadas **no** corren dentro del servidor web. Cada una es un servicio aparte de Railway que arranca a su hora, ejecuta un script del backend y termina. Así no se duplican con varias réplicas ni con reinicios del backend. La prueba `no-twelve-month-or-cron` prohíbe usar `node-cron` en `app.js`.
 
@@ -17,6 +17,7 @@ Las tareas programadas **no** corren dentro del servidor web. Cada una es un ser
 |---|---|---|---|---|
 | `weekly-digest` | `node scripts/send-weekly-digest.js` | `0 9,13 * * 0,1` | Domingo y lunes 3:00 (prepara) y 7:00 (envía) | **Sí**, a las 7:00 |
 | `validation-reminders` | `node scripts/send-validation-reminders.js` | `*/15 * * * *` | Cada 15 minutos | No (solo campana) |
+| `admin-weekly-report` | `node scripts/send-admin-weekly-report.js` | `0 23 * * 0` | Domingo 17:00 | **Sí**, solo a los admins (sin campana) |
 
 !!! warning "El resumen semanal envía correos reales"
     Cada ejecución de `weekly-digest` envía correos a los colaboradores activos de la base a la que apunta. Antes de programarlo en un entorno, haz la simulación de la sección 5 contra esa misma base.
@@ -70,6 +71,22 @@ Al terminar imprime:
 ⏰ Convocatorias por validar: revisadas 3 · avisadas 1 · sin pendientes 2 · aún no terminan 0
 ```
 
+### 1.3 Reporte semanal de la Coordinación (`admin-weekly-report`)
+
+1. El domingo a las 17:00 resume la **semana en curso, de lunes a domingo** (hora de Querétaro).
+2. Arma un solo correo con cifras agregadas, sin nombres ni datos de contacto de colaboradores:
+    - Indicadores: convocatorias, inscripciones, horas SS acreditadas y pendientes por evaluar.
+    - Tabla por grupo, **Servicio Social** (estudiantes y voluntarios SS) frente a **Voluntariado General**: activos, nuevos registros, inscripciones, asistencias, validadas, faltas, por evaluar, vinculaciones solicitadas, aprobadas y rechazadas, solicitudes pendientes, horas y desempeño promedio.
+    - Rendimiento de cada convocatoria de la semana: folio, fecha y hora, inscritos frente a cupo, porcentaje de asistencia, validadas, faltas, por evaluar, horas otorgadas y desempeño promedio.
+3. Lo envía a cada usuario admin con correo real. **Solo correo**: no crea aviso en la campana.
+4. Cada admin lo recibe una vez por semana (`weeklydigestdeliveries` con `weekKey` `admin-AAAA-MM-DD`). Si no hay cupo ese día, no lo envía y lo reporta como "sin cupo".
+
+Al terminar imprime:
+
+```text
+📊 Reporte admin admin-2026-11-16: enviados 2 · fallidos 0 · ya enviados 0 · sin cupo 0
+```
+
 ---
 
 ## 2. Horario: Railway usa UTC
@@ -82,10 +99,11 @@ Los cron de Railway se programan en **UTC** y dos ejecuciones deben estar separa
 | Domingo y lunes 7:00 | `0 13 * * 0,1` |
 | Domingo y lunes 6:30 | `30 12 * * 0,1` |
 | Domingo y lunes 9:00 | `0 15 * * 0,1` |
+| Domingo 17:00 (reporte de la Coordinación) | `0 23 * * 0` |
 | Cada 15 minutos | `*/15 * * * *` |
 | Cada 30 minutos | `*/30 * * * *` |
 
-Campos: `minuto hora día-del-mes mes día-de-la-semana` (0 = domingo, 1 = lunes). A las 13:00 UTC sigue siendo domingo o lunes en Querétaro, así que el día de la semana no cambia.
+Campos: `minuto hora día-del-mes mes día-de-la-semana` (0 = domingo, 1 = lunes). A las 13:00 y a las 23:00 UTC sigue siendo el mismo día en Querétaro, así que el día de la semana no cambia. Si mueves el reporte después de las 18:00 de Querétaro (00:00 UTC), el día en UTC pasa a lunes: usa `1` en el último campo.
 
 ---
 
@@ -97,7 +115,7 @@ Repite estos pasos para cada tarea de la tabla inicial:
 
 1. Abre el proyecto en Railway (`miabaq-abaq` para *development*; `abaq-dev-app` para producción) y selecciona el **entorno** correcto en la parte superior.
 2. Elige **+ Create → GitHub Repo** y selecciona el repositorio del backend.
-3. Renombra el servicio (**Settings → Service name**) a `weekly-digest` o `validation-reminders`. Ese nombre se usa en las variables de referencia y en los registros.
+3. Renombra el servicio (**Settings → Service name**) a `weekly-digest`, `validation-reminders` o `admin-weekly-report`. Ese nombre se usa en las variables de referencia y en los registros.
 4. En **Settings → Source**, fija la **rama** del entorno: `dev-rivers2` en *development* y `dev` en producción, la misma que el servicio `backend`.
 5. En **Settings → Deploy**:
     - **Custom Start Command**: el script de la tabla inicial.
@@ -112,7 +130,7 @@ Repite estos pasos para cada tarea de la tabla inicial:
 
 Usa **variables de referencia** al servicio `backend` del mismo entorno para no copiar secretos y para que una rotación se propague sola. En **Variables → New Variable**:
 
-| Variable | Valor | `weekly-digest` | `validation-reminders` | Para qué |
+| Variable | Valor | `weekly-digest` y `admin-weekly-report` | `validation-reminders` | Para qué |
 |---|---|---|---|---|
 | `MONGODB_URI` | `${{backend.MONGODB_URI}}` | Sí | Sí | Conexión. **La base sale de la ruta del URI**: con esta variable los scripts ignoran `--db` y `TARGET_DB`. |
 | `resend` | `${{backend.resend}}` | Sí | — | Llave de la API de Resend (el código también acepta `RESEND_API_KEY`). |
@@ -140,6 +158,9 @@ MONGODB_URI="<uri del entorno>" node scripts/send-weekly-digest.js --dry --previ
 
 # Recordatorio: cuántas convocatorias avisaría ahora
 MONGODB_URI="<uri del entorno>" node scripts/send-validation-reminders.js --dry
+
+# Reporte de la Coordinación: a cuántos admins enviaría; --preview guarda el HTML
+MONGODB_URI="<uri del entorno>" node scripts/send-admin-weekly-report.js --dry --preview ./reporte-admin.html
 ```
 
 `--dry` calcula y reporta **sin escribir ni enviar**. Para la base de *development*, el URI público se obtiene con la CLI de Railway desde una carpeta vinculada (`railway link`), sustituyendo el host interno por el proxy TCP de `MongoDB-GZwo`.
@@ -157,6 +178,8 @@ node scripts/send-weekly-digest.js --to tu-correo@dominio.mx
 - No escribe en `weeklydigestdeliveries` ni crea avisos: el envío programado del domingo y lunes no cambia.
 - Sí suma en `emailusages` y no envía si no hay cupo ese día.
 
+Para el reporte de la Coordinación: `node scripts/send-admin-weekly-report.js --to tu-correo@dominio.mx`. Envía las cifras reales de la semana en curso con asunto `[Prueba]` y no registra la entrega, así que el envío del domingo no cambia.
+
 !!! warning "Ejecutarlo desde la laptop"
     `scripts/helpers/db-connection.js` recarga `backend/.env` con `override: true`, que **pisa** las variables que pases en la línea de comandos (incluidas la base y la llave de Resend). Para apuntar a un entorno de Railway desde la laptop, ejecútalo en el propio servicio (`railway cron run` / `railway ssh`) o en una carpeta sin `.env`. Dentro de Railway no hay `.env` y se usan las variables del servicio.
 
@@ -170,7 +193,7 @@ railway cron list     # ejecuciones recientes y su estado
 railway logs          # salida de la ejecución
 ```
 
-También puedes dispararlo y revisarlo desde el panel del servicio. Repetir una ejecución es seguro: el resumen no reenvía a quien ya se procesó esa semana y el recordatorio no repite convocatorias avisadas. **`weekly-digest` envía correos reales.**
+También puedes dispararlo y revisarlo desde el panel del servicio. Repetir una ejecución es seguro: el resumen no reenvía a quien ya se procesó esa semana y el recordatorio no repite convocatorias avisadas. **`weekly-digest` y `admin-weekly-report` envían correos reales.**
 
 ---
 
@@ -215,6 +238,7 @@ En el panel de Resend aparecen los envíos del lote del resumen.
 - [ ] Simulaciones `--dry` de ambos scripts contra la base del entorno revisadas (sección 5.1).
 - [ ] `weekly-digest`: rama, comando, `0 9,13 * * 0,1`, reinicio `Never`, variables de la sección 4.
 - [ ] `validation-reminders`: rama, comando, `*/15 * * * *`, reinicio `Never`, `MONGODB_URI` por referencia.
+- [ ] `admin-weekly-report`: rama, comando, `0 23 * * 0`, reinicio `Never`, variables de la sección 4.
 - [ ] Sin dominio público en ninguno.
 - [ ] Primeras ejecuciones revisadas en registros, base de datos y campana (sección 6).
 - [ ] Producción solo con autorización explícita y después de validarlo en *development*.
