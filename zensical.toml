@@ -15,7 +15,12 @@ nav = [
   { "Manuales" = [
     { "Índice" = "guias/index.md" },
     { "Usuario" = [
-      { "Manual de usuario" = "guias/usuario/index.md" }
+      { "Manual de usuario" = "guias/usuario/index.md" },
+      { "Manual para Voluntario de Servicio Social" = "guias/usuario/manual-servicio-social.md" },
+      { "Manual para Voluntario General" = "guias/usuario/manual-voluntario-general.md" }
+    ]},
+    { "Administrador" = [
+      { "Manual para Administrador" = "guias/administrador/manual-administrador.md" }
     ]},
     { "Desarrollo" = [
       { "Guía de entorno" = "guias/desarrollo/index.md" }
@@ -23,6 +28,8 @@ nav = [
   ]},
   { "Organizador ABAQ" = [
     { "Visión General" = "organizador-abaq/index.md" },
+    { "Manual del Colaborador" = "organizador-abaq/manual-colaborador.md" },
+    { "Manual del Administrador" = "organizador-abaq/manual-administrador.md" },
     { "Arquitectura y Stack" = "organizador-abaq/arquitectura-y-stack.md" },
     { "Tablero Kanban" = "organizador-abaq/kanban.md" },
     { "Notificaciones y Resend" = "organizador-abaq/notificaciones-y-resend.md" },
@@ -33,11 +40,18 @@ nav = [
     { "Implementación M5 (Ciclo de Vida y Folios)" = "technical/implementacion-m5-ciclo-vida.md" },
     { "Ideas y Propuestas" = [
       "technical/ideas/index.md",
+      { "Estadísticas Duales, Costos Railway, Respaldo Tri-Modal y Auditoría OWASP (2026-11-15)" = "technical/ideas/2026-11-15-estadisticas-costos-railway-respaldo-dual-bd-bucket-s3-seguridad.md" },
+      { "Carta Oficial, Constancias y Notificaciones en Pláticas (2026-11-15)" = "technical/ideas/2026-11-15-carta-oficial-constancias-notificaciones-platicas.md" },
+      { "Convocatorias OP con Acreditación Anidada (2026-11-15)" = "technical/ideas/2026-11-15-convocatorias-op-con-acreditacion-anidada.md" },
+      { "Narrativa: Participación Individual vs. Actividades Colectivas y Roles (2026-11-15)" = "technical/ideas/2026-11-15-narrativa-participacion-vs-actividades-roles.md" },
+      { "Reutilización de Carga Drag & Drop, Acreditación y Borrado en Formularios (2026-11-15)" = "technical/ideas/2026-11-15-reutilizacion-carga-archivos-drag-drop-acreditacion-borrado-formularios.md" },
+      { "Retroalimentación en Foco de Acción (appActionFeedback) (2026-11-14)" = "technical/ideas/2026-11-14-retroalimentacion-en-foco-de-accion-appActionFeedback.md" },
       { "Migración de Documentos a Bucket Railway (2026-11-13)" = "technical/ideas/2026-11-13-migracion-documentos-bucket-railway.md" },
       { "Vista Unificada de Participación, Agenda 2 Semanas y Pipeline 3 Fases (2026-11-13)" = "technical/ideas/2026-11-13-vista-unificada-participacion-agenda-dos-semanas-pipeline-tres-fases.md" },
       { "Homologación Visual de Encabezados, Borrado Validado y Acreditación de Voluntarios (2026-11-12)" = "technical/ideas/2026-11-12-homologacion-heroes-borrado-formularios-acreditacion-voluntarios-responsividad.md" },
       { "Tablero Kanban y Notificaciones Mínimas con Resend (2026-11-09)" = "technical/ideas/2026-11-09-estrategia-kanban-notificaciones-resend.md" },
       { "Turnstile Anti-Bot en Superficies Públicas y Despliegue Railway (2026-11-06)" = "technical/ideas/2026-11-06-turnstile-antibot-todas-las-superficies-publicas.md" },
+      { "Usabilidad Táctil: Pestañas, Tablas y Constancias PNG (2026-11-05)" = "technical/ideas/2026-11-05-usabilidad-tactil-pestanas-tablas-constancias-png.md" },
       { "Deshidratación, Manifiesto Dual y Rehidratación (2026-11-04)" = "technical/ideas/2026-11-04-deshidratacion-respaldos-rehidratacion.md" },
       { "Paginación UI/UX y Datos Relacionales (2026-11-04)" = "technical/ideas/2026-11-04-paginacion-datos-relacionales.md" },
       { "Transiciones de Estatus, Modal y Comentarios (2026-11-04)" = "technical/ideas/2026-11-04-transiciones-estatus-inactivacion.md" },
@@ -58,6 +72,7 @@ nav = [
     { "Arquitectura y Diseño" = [
       "technical/arquitectura-y-diseno/index.md",
       { "Arquitectura" = "technical/architecture.md" },
+      { "Backend: API y Servicios" = "technical/backend.md" },
       { "Sistema de Diseño (DESIGN.md)" = "technical/design-system.md" },
       { "Diseño de Autenticación (Login y Registro)" = "technical/auth-design.md" },
       { "Contrato de Datos: Folios y Desacoplamiento" = "technical/contrato-folios-desacoplamiento.md" },
@@ -104,6 +119,7 @@ nav = [
       { "Documentos de referencia" = [
         "reports/referencia/index.md",
         { "Reglamento de Voluntarios ABAQ (6 may 2026)" = "reports/reglamento-voluntarios-2026-05-06.md" },
+        { "Formato de Solicitud de Adopción ABAQ (5 sep 2024)" = "reports/formato-adopcion-2024-09-05.md" },
       ]},
     ]}
 ]

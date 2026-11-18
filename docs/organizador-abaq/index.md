@@ -33,6 +33,8 @@ flowchart TD
     E --> E1["Contenedor, Puertos y Red Interna"]
 ```
 
+- [**Manual del Colaborador**](manual-colaborador.md): Guía paso a paso para activar la cuenta, iniciar y finalizar tareas, comentar y atender notificaciones.
+- [**Manual del Administrador**](manual-administrador.md): Invitación y gestión de usuarios, creación y seguimiento de tareas, Kanban, estadísticas e historial.
 - [**Arquitectura y Stack Tecnológico**](arquitectura-y-stack.md): Componentes de backend, base de datos relacional MySQL, contenedorización Docker y configuración de variables de entorno (`.env`).
 - [**Tablero Kanban y Flujos de Estado**](kanban.md): Mecanismos de interacción visual, compatibilidad móvil/táctil, resolución de condiciones de carrera y sincronización con MySQL.
 - [**Notificaciones y Servicio de Correo Resend**](notificaciones-y-resend.md): Estrategia híbrida de avisos (campana en navegador vs. correos críticos transaccionales con plantillas ABAQ).
