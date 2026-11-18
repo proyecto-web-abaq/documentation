@@ -778,7 +778,7 @@ Diseño completo en [Convocatorias OP con Acreditación Anidada](ideas/2026-11-1
 - **Drawer:** `<app-notifications-center [isDrawer]="true">` montado en el shell; estilos en `abaq-design.css` (`.notifications-drawer`, `.notification-card`, píldoras `.filter-pill`). Escape cierra; botón de expandir a pantalla completa.
 - **Colores de etiqueta:** `green` (aceptado, concluido), `navy` (nuevo registro, resumen semanal), `amber` (correcciones, inactividad, reglamento), `red` (baja, nuevo `.notif-tag-red` / `.notif-icon-red`), `slate` (informativo).
 - **Correo del resumen semanal:** cabecera navy "Tu semana en ABAQ".
-    - "Lo que viene esta semana": primero "Tus inscripciones" (en verde) y luego "Convocatorias disponibles". Cada tarjeta lleva la categoría en verde, el título, "📅 día, fecha · 🕒 hora", "Acredita N h" (solo SS) y el cupo o "✓ Ya estás inscrito(a)".
+    - "Lo que viene esta semana": todas las convocatorias de la semana en una sola lista, sin separar inscripciones (el admin publica a más tardar el sábado en la tarde o el domingo temprano para que la preparación de las 3:00 las recoja, así que aún no hay inscritos). Cada tarjeta lleva la categoría en verde, el título, "📅 día, fecha · 🕒 hora", "Acredita N h" (solo SS) y el cupo.
     - Botón verde "Ver convocatorias e inscribirme".
     - Tras un separador, "Lo que hiciste la semana pasada": título y tipo, fecha y hora de la actividad, estado en color (verde "Validada", rojo "No validada", ámbar "Pendiente de validar"), horas asignadas (SS) y "el <fecha de validación>".
 

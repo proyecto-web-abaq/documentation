@@ -46,7 +46,7 @@ Sin cupo, el domingo deja la entrada en cola para el lunes; el lunes la entrega 
 
 **Contenido:**
 
-- Arriba, lo que viene esta semana: sus inscripciones y las convocatorias disponibles, con día, fecha, hora y horas que acredita (SS).
+- Arriba, lo que viene esta semana: todas las convocatorias de la semana en una sola lista, con día, fecha, hora y horas que acredita (SS). No separa inscripciones: para que la preparación de las 3:00 del domingo las recoja, el admin publica a más tardar el sábado en la tarde o el domingo temprano.
 - Abajo, lo que hizo la semana pasada: fecha y hora de la actividad, validada / no validada / pendiente, horas asignadas (SS) y fecha de validación.
 - No incluye la bitácora de horas.
 
