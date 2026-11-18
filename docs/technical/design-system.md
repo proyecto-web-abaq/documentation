@@ -799,6 +799,7 @@ Diseño completo en [Convocatorias OP con Acreditación Anidada](ideas/2026-11-1
 - **Regla:** nadie recibe aviso de una acción que acaba de hacer. La Coordinación solo ve solicitudes ("Nueva solicitud de vinculación") y convocatorias terminadas por validar ("Es momento de validar: …").
 - **Redacción:** título en segunda persona para el colaborador ("Tu vinculación fue aprobada"); para la Coordinación, el nombre de la persona va en la descripción. La descripción incluye categoría o modalidad, folio y, si aplica, horas ("Se acreditaron 2 h") o motivo. Textos de más de 140 caracteres se recortan con "…".
 - **Acción:** todos llevan a `/activity-list` (ruta interna).
+- **Chip de participantes (admin):** `.participant-chip` muestra "evaluados/inscritos participantes" (título accesible "Evaluados / inscritos"); `.eval-pending` en ámbar `#b45309` mientras falten evaluaciones, `.eval-complete` en verde `#15803d` al completar; `.full` (rojo) se conserva para cupo lleno.
 - **Folio visible:** en tarjetas, agenda y buscador de *Mi participación*, `app-folio-pill` muestra el folio de la convocatoria (`OP-EVE-…`) para toda inscripción. El folio individual de la acreditación solo aparece en "Ver asistentes" (Coordinación).
 
 ---

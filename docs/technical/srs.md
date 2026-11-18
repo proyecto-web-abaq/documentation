@@ -1762,6 +1762,7 @@ Estos avisos no envían correo; solo aparecen en la campana. **Principio: nadie 
 | **RF-NOT-14** | Convocatoria **terminada** (pasó su hora de fin) con inscripciones sin evaluar: "Es momento de validar" | Cada admin, una sola vez por convocatoria. |
 
 - **RF-NOT-10 (Paridad con correos)**: Todo correo a un colaborador o a la Coordinación por una solicitud deja aviso en la campana de quien lo recibe: aceptación, correcciones, inactividad/baja, conclusión, nuevo registro (admins) y resumen semanal. Las constancias de plática van a asistentes externos sin cuenta y no generan aviso.
+- **RF-VAL-02 (Avance de evaluación)**: En la vista de la Coordinación, el chip de participantes de cada convocatoria muestra la fracción **evaluados / inscritos** ("0/2 participantes"), en ámbar mientras falten evaluaciones y en verde al completar. Evaluado = validado o inasistencia; las inscripciones canceladas no cuentan. Con cupo limitado añade "· N/M lugares". Los colaboradores siguen viendo inscritos y cupo.
 - **RF-NOT-15 (Fin de una convocatoria)**: Termina el día de la convocatoria (`dueDate`, o `startDate` si no hay) a su `endTime` en hora de Querétaro (UTC−6); sin `endTime`, al final del día. Solo se avisan convocatorias terminadas en los últimos 7 días; las que no tienen inscripciones pendientes se marcan revisadas sin aviso.
 
 ### `[SRS 30.2 Requerimientos Funcionales - Resumen semanal y cupo de correo]`
