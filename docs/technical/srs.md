@@ -1733,7 +1733,7 @@ Con base en la metodología de auditoría de 6 fases del Prof. Ricardo Monroy (O
 
 - **RF-NOT-01 (Campana y drawer)**: Toda sesión ve una campana con contador de no leídas (barra superior en móvil y escritorio) que abre el drawer de notificaciones (portado de `dev-rivers`): filtros Todas / No leídas / Institucional / Acreditaciones / Actividades, búsqueda, marcar leída/no leída, marcar todas y eliminar.
 - **RF-NOT-02 (Paridad con correos)**: Cada correo transaccional existente deja su notificación en la campana, aun sin correo registrado: aceptación (+ recordatorio de permanencia SS), correcciones de expediente, inactividad/baja, conclusión de Servicio Social y nuevo registro (aviso compartido para la Coordinación).
-- **RF-NOT-03 (Resumen semanal)**: Los voluntarios activos (SS y VG) reciben por correo y en la campana un resumen semanal: arriba, lo nuevo (convocatorias de la semana con cupo, horas que acreditan para SS y si ya están inscritos, más las recién publicadas); abajo, lo hecho la semana pasada (participaciones, estado y horas acreditadas para SS, avance de horas).
+- **RF-NOT-03 (Resumen semanal)**: Los voluntarios activos (SS y VG) reciben por correo y en la campana un resumen semanal: arriba, lo nuevo (convocatorias de la semana con cupo, horas que acreditan para SS y si ya están inscritos, más las recién publicadas); abajo, lo hecho la semana pasada (qué y cuándo: convocatorias a las que asistió y vinculaciones que envió, más el avance total de horas SS). *Actualizado el 17/11/2026: el correo no muestra decisiones de la Coordinación (validada, no aprobada, inasistencia, horas acreditadas) ni datos de la bitácora de horas.*
 - **RF-NOT-04 (Envío por lotes)**: El resumen se envía el domingo (primera mitad de destinatarios) y el lunes (el resto) con la API batch de Resend. *Actualizado el 17/11/2026: el tope fijo `WEEKLY_DIGEST_DAILY_CAP` se sustituye por el cupo diario calculado de RF-NOT-12.*
 
 ### `[SRS 29.2 Requerimientos No Funcionales]`
@@ -1768,6 +1768,7 @@ Estos avisos no envían correo; solo aparecen en la campana. **Principio: nadie 
 
 - **RF-NOT-11 (Horario y reparto)**: El resumen se ejecuta domingo y lunes a las **7:00 de Querétaro** (cron de Railway `0 13 * * 0,1`, UTC). Los destinatarios son los colaboradores activos en ese momento y se reparten mitad y mitad: el domingo `ceil(N/2)` y el lunes el resto.
 - **RF-NOT-12 (Cupo diario)**: El cupo de cada ejecución es `RESEND_DAILY_LIMIT` (100) − correos ya enviados ese día por cualquier motivo (contador `EmailUsage`) − `EMAIL_TRANSACTIONAL_RESERVE` (20, para aceptaciones, constancias y demás del resto del día), nunca negativo.
+- **RF-NOT-16 (Envío de prueba)**: `send-weekly-digest.js --to <correo>` envía el resumen de la semana a un solo correo con un destinatario de muestra ("Prueba ABAQ"), sin datos personales; no reclama destinatarios ni crea avisos, de modo que no altera el envío programado, y respeta el cupo del día.
 - **RF-NOT-13 (Sin cupo)**: Lo que no alcance el domingo pasa al lunes; lo que no alcance el lunes recibe el resumen **solo en la campana**, de modo que nadie se queda sin él.
 
 ### `[SRS 30.3 Requerimientos Funcionales - Folio visible]`

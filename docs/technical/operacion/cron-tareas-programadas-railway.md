@@ -36,6 +36,8 @@ Las tareas programadas **no** corren dentro del servidor web. Cada una es un ser
 
 Sin cupo, el domingo deja pendientes para el lunes; el lunes entrega el resumen **solo en la campana**. Las cuentas de dominios de prueba (`.local`, `.test`, `.example`) nunca reciben correo, solo campana.
 
+El correo no muestra decisiones de la Coordinación (validada, no aprobada, inasistencia, horas acreditadas) ni datos de la bitácora de horas; "Lo que hiciste la semana pasada" solo lista qué y cuándo.
+
 Al terminar imprime:
 
 ```text
@@ -128,7 +130,23 @@ MONGODB_URI="<uri del entorno>" node scripts/send-validation-reminders.js --dry
 
 `--dry` calcula y reporta **sin escribir ni enviar**. Para la base de *development*, el URI público se obtiene con la CLI de Railway desde una carpeta vinculada (`railway link`), sustituyendo el host interno por el proxy TCP de `MongoDB-GZwo`.
 
-### 5.2 Ejecución manual en Railway
+### 5.2 Envío de prueba a un solo correo
+
+Para revisar cómo se ve el correo sin tocar a los destinatarios reales:
+
+```bash
+node scripts/send-weekly-digest.js --to tu-correo@dominio.mx
+```
+
+- Arma el resumen de la semana con las convocatorias reales y un destinatario de muestra ("Prueba ABAQ"), sin datos personales de nadie.
+- Asunto con prefijo `[Prueba]`.
+- No escribe en `weeklydigestdeliveries` ni crea avisos: el envío programado del domingo y lunes no cambia.
+- Sí suma en `emailusages` y no envía si no hay cupo ese día.
+
+!!! warning "Ejecutarlo desde la laptop"
+    `scripts/helpers/db-connection.js` recarga `backend/.env` con `override: true`, que **pisa** las variables que pases en la línea de comandos (incluidas la base y la llave de Resend). Para apuntar a un entorno de Railway desde la laptop, ejecútalo en el propio servicio (`railway cron run` / `railway ssh`) o en una carpeta sin `.env`. Dentro de Railway no hay `.env` y se usan las variables del servicio.
+
+### 5.3 Ejecución manual en Railway
 
 Con la CLI vinculada al proyecto, al entorno y al servicio cron:
 

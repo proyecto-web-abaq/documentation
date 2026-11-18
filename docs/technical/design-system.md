@@ -777,7 +777,7 @@ Diseño completo en [Convocatorias OP con Acreditación Anidada](ideas/2026-11-1
 - **Campana:** `.hnav-bell-btn` (44 px en móvil, junto al botón hamburguesa; 40 px en escritorio, antes de "Cerrar sesión") con `.hnav-badge` rojo (máx. "99+"). `aria-label` con el número de no leídas.
 - **Drawer:** `<app-notifications-center [isDrawer]="true">` montado en el shell; estilos en `abaq-design.css` (`.notifications-drawer`, `.notification-card`, píldoras `.filter-pill`). Escape cierra; botón de expandir a pantalla completa.
 - **Colores de etiqueta:** `green` (aceptado, concluido), `navy` (nuevo registro, resumen semanal), `amber` (correcciones, inactividad, reglamento), `red` (baja, nuevo `.notif-tag-red` / `.notif-icon-red`), `slate` (informativo).
-- **Correo del resumen semanal:** cabecera navy "Tu semana en ABAQ", sección "Lo nuevo esta semana" con tarjetas (categoría en verde, fecha/horario, "Acredita N h" solo SS, cupo o "✓ Ya estás inscrito(a)"), botón verde "Ver convocatorias e inscribirme" y, tras un separador, "Lo que hiciste la semana pasada" en tono secundario.
+- **Correo del resumen semanal:** cabecera navy "Tu semana en ABAQ", sección "Lo nuevo esta semana" con tarjetas (categoría en verde, fecha/horario, "Acredita N h" solo SS, cupo o "✓ Ya estás inscrito(a)"), botón verde "Ver convocatorias e inscribirme" y, tras un separador, "Lo que hiciste la semana pasada" en tono secundario: título, fecha y tipo ("Convocatoria" / "Vinculación enviada"), sin estados ni horas validadas por la Coordinación.
 
 ---
 
