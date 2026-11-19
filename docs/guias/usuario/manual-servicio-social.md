@@ -11,7 +11,7 @@ Este manual está dirigido a estudiantes universitarios que realizan su **Servic
 
     - Los nombres de botones, pestañas y etiquetas aparecen entre comillas exactamente como se muestran en la interfaz.
     - Las cifras y folios que aparecen en las capturas pertenecen a una cuenta de demostración; en su cuenta verá sus propios datos.
-    - El **folio institucional** (formato `SS-YYMMDD-XX`, por ejemplo `SS-260818-01`) identifica de forma única su expediente y se utiliza en constancias y comunicaciones con la Coordinación.
+    - El **folio institucional** (formato `SS-YYMMDD-XX`, por ejemplo `SS-260818-01`) identifica de forma única su expediente y se utiliza en constancias y comunicaciones con la Coordinación. Los folios de participación siguen el formato `OP-CAT-YYMMDD-XXXX`. La sección 1.1 explica ambos tipos y su uso.
 
 ## Índice de capturas de pantalla
 
@@ -56,6 +56,25 @@ Como **Voluntario de Servicio Social**, su objetivo en la plataforma es completa
 !!! warning "Regla institucional importante"
 
     Dos meses de inactividad no previamente notificada causarán la **baja automática del programa**. Si no podrá participar durante un periodo prolongado, comuníquelo con antelación a la Coordinación de Voluntariado.
+
+### 1.1 Folios del expediente y de las participaciones
+
+La plataforma utiliza dos familias de folios. Ambos son identificadores únicos y la referencia más segura para localizar información o comunicarse con la Coordinación.
+
+| Folio | Formato | Qué identifica | Dónde aparece |
+|-------|---------|----------------|---------------|
+| **Folio de expediente** | `SS-YYMMDD-XX` | Su expediente de Servicio Social | Encabezado del panel y de **Mi perfil**, constancias, correos, notificaciones y búsquedas |
+| **Folio de participación** | `OP-CAT-YYMMDD-XXXX` | Cada vinculación individual o actividad grupal | **Mis participaciones**, **Mi historial**, notificaciones y comprobantes |
+
+El **folio de expediente** se asigna al crear su cuenta y se conserva sin cambios durante todo su servicio social. En el folio operativo `SS-YYMMDD-XX`, el bloque `YYMMDD` registra la fecha de emisión y los dos caracteres finales distinguen su registro; por ejemplo, `SS-260818-01` se emitió el 18 de agosto de 2026. Este folio aparece en su **Constancia de Inicio**, en la **Constancia de Término** y en la correspondencia oficial.
+
+El **folio de participación** se genera para cada registro. El segmento `CAT` indica la modalidad: `EVE` para convocatorias y eventos, `TLK` para pláticas, `MED` para difusión en medios, `SOC` para redes sociales, `ADO` para adopciones, `MOD` para módulos de adopción, `DON` para donativos, `STE` para esterilizaciones, `CAM` para campañas, entre otras. En una convocatoria, el folio `OP-EVE-…` identifica la actividad y es el que se muestra a todos los inscritos; en una vinculación individual, el folio `OP-CAT-…` identifica su registro.
+
+!!! tip "Cómo usar los folios"
+
+    - Use el botón de copia (⧉) que aparece junto al folio para llevarlo al portapapeles.
+    - En **Mis participaciones** puede buscar por folio para localizar una actividad o vinculación concreta (sección 5.2); en **Mi historial** cada registro muestra su folio (sección 5.6).
+    - Al escribir a la Coordinación, indique primero su **folio de expediente** y, si el asunto se refiere a una participación específica, agregue el **folio de participación**.
 
 ## 2. Acceso a la plataforma
 
@@ -366,6 +385,7 @@ La sección **Mi perfil** presenta el expediente institucional del estudiante: e
 
 El encabezado del expediente muestra:
 
+- **Folio de expediente** (`SS-…`), el identificador institucional descrito en la sección 1.1.
 - **Estatus** de la cuenta (por ejemplo, **Activo**) y el resultado de la última revisión (**Expediente aprobado «Documentación completa.»**).
 - **Fecha de aceptación** con la validación oficial de ABAQ.
 - **Participaciones individuales**, **actividades grupales** y **total registrado**.

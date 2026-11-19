@@ -13,7 +13,7 @@ El perfil administrativo concentra la operación institucional: valida expedient
 
     - Los nombres de botones, pestañas, campos y etiquetas aparecen entre comillas exactamente como se muestran en la interfaz.
     - Las cifras, folios, nombres y fechas de las capturas corresponden a un entorno de demostración con datos simulados; en su operación verá los registros reales de ABAQ.
-    - El **folio institucional** identifica de forma única a cada voluntario y participante. Los folios de Servicio Social siguen el formato `SS-XXXXXXXX-XX`; los de Voluntariado General, `VG-XXXXXXXX-XX`.
+    - El **folio institucional** identifica de forma única a cada voluntario y participante. Los folios de Servicio Social siguen el formato `SS-XXXXXXXX-XX`; los de Voluntariado General, `VG-XXXXXXXX-XX`. Los folios de participación siguen el formato `OP-CAT-YYMMDD-XXXX`. La sección 1.3 explica ambos tipos y su uso.
     - Las acciones marcadas como **irreversibles** requieren confirmación expresa y, cuando aplica, quedan registradas en la bitácora institucional.
 
 ## Índice de capturas de pantalla
@@ -103,6 +103,23 @@ La barra superior concentra las secciones del panel:
 | **Campana de notificaciones** | Centro de notificaciones con contador de no leídas. |
 | **Cerrar sesión** | Cierre seguro de la sesión administrativa. |
 
+### 1.3 Folios institucionales y de participación
+
+La plataforma utiliza folios para identificar de forma única los expedientes y las participaciones. Son la referencia más segura en constancias, correos, notificaciones y búsquedas, y evitan confusiones entre personas con nombres similares.
+
+| Tipo de folio | Formato | Qué identifica | Dónde se utiliza |
+|---------------|---------|----------------|------------------|
+| **Folio de expediente** | `SS-YYMMDD-XX` para Servicio Social; `VG-YYMMDD-XX` para Voluntariado General | A la persona y a su expediente institucional | Encabezado del expediente, constancias, correos, notificaciones y búsqueda del padrón |
+| **Folio de participación** | `OP-CAT-YYMMDD-XXXX` | Cada vinculación individual o actividad grupal | Historial de participación, validaciones, notificaciones, comprobantes y búsqueda |
+
+El **folio de expediente** se asigna al concluir el registro y se conserva sin cambios durante toda la vida del voluntario. Los folios operativos son `SS-YYMMDD-XX` y `VG-YYMMDD-XX`: el bloque `YYMMDD` registra la fecha de emisión y los dos caracteres finales distinguen el registro; por ejemplo, `SS-260818-01` corresponde a un expediente de Servicio Social emitido el 18 de agosto de 2026. Este folio aparece en las constancias y acreditaciones que emite la plataforma, así como en la correspondencia oficial.
+
+El **folio de participación** se genera para cada registro. El segmento `CAT` indica la modalidad: `EVE` para convocatorias y eventos, `TLK` para pláticas, `MED` para difusión en medios, `SOC` para redes sociales, `ADO` para adopciones, `MOD` para módulos de adopción, `DON` para donativos, `STE` para esterilizaciones, `CAM` para campañas, `IND` para inducción, `IDE` para identificación y `ADM` para registros administrativos. En una convocatoria, el folio `OP-EVE-…` identifica la actividad y es el que se muestra a todos los inscritos; en una vinculación individual, el folio `OP-CAT-…` identifica el registro de esa persona.
+
+!!! tip "Búsqueda y copia de folios"
+
+    El buscador del padrón (sección 4.1) y el de participaciones (sección 5.1) aceptan el folio como criterio de búsqueda. Junto a cada folio, el botón de copia (⧉) lo lleva al portapapeles para pegarlo en correos, constancias o reportes sin errores de transcripción.
+
 ## 2. Acceso al panel
 
 ### 2.1 Iniciar sesión
@@ -184,7 +201,12 @@ La pantalla ofrece las siguientes herramientas:
 
 1. **Buscar voluntario**: acepta folio, nombre, universidad, carrera, correo o teléfono.
 2. **Filtrar por estatus**: **Todos**, **Activos**, **Solicitan ingresar** e **Inactivos**.
-3. **Ordenar por**: **Más recientes primero**, entre otras opciones.
+3. **Ordenar por**: el selector ofrece cinco criterios. Salvo en **Por estatus**, los registros inactivos y rechazados se mantienen al final de la lista. En los criterios de fecha y horas, cuando dos registros coinciden, el desempate es por nombre de A a Z.
+    - **Más recientes primero** (opción predeterminada): ordena de la fecha de inicio más reciente a la más antigua. Se toma la fecha de inicio del voluntariado y, si no está registrada, la de inicio del periodo.
+    - **Más antiguos primero**: invierte el criterio anterior; primero aparecen los expedientes con la fecha de inicio más antigua.
+    - **Nombre (A-Z)**: orden alfabético por nombre completo. Si el nombre no está disponible, se usa el correo o el folio.
+    - **Por estatus (por aprobar primero)**: agrupa los registros en el orden **Pendiente**, **Activo**, **Inactivo** y **Rechazado**. Dentro de cada grupo, el más reciente aparece primero. En este criterio, los inactivos y rechazados conservan el lugar que les corresponde por estatus, sin enviarse al final.
+    - **Más horas validadas**: ordena de mayor a menor por horas acreditadas. Si dos registros tienen las mismas horas, se ordenan por nombre de A a Z.
 4. **Pestañas de programa**: **Todos**, **Servicio Social** y **Voluntariado General**.
 5. **Contador de resultados**: muestra cuántos voluntarios cumplen los filtros.
 
@@ -202,16 +224,35 @@ Para atender las solicitudes, seleccione el filtro **Solicitan ingresar**. La pl
 
 ![Solicitudes de ingreso pendientes con acciones de aceptar, rechazar y ver detalle](attachments/adm-05-voluntarios-por-aprobar.png)
 
-Cada registro pendiente presenta el folio, el programa, la carrera o adscripción, el correo, el teléfono y el estado **Pendiente**. Antes de decidir, abra **Ver detalle** y revise:
+Cada registro pendiente presenta el folio, el programa, la carrera o adscripción, el correo, el teléfono y el estado **Pendiente**. Antes de decidir, abra **Ver detalle** y recorra el expediente completo. Los criterios de evaluación se agrupan en las mismas categorías que muestra el expediente; el detalle de cada categoría se describe en la sección 4.4 para Servicio Social y en la sección 4.5 para Voluntariado General.
 
-- La documentación de identidad y el currículum.
-- Los datos académicos, en el caso de Servicio Social.
-- Los módulos de inducción y los consentimientos firmados.
-- La documentación del expediente y el reglamento aceptado.
+**Categorías del expediente de Servicio Social**
+
+1. **Datos generales**: folio de expediente, fecha de emisión, fecha de aceptación, nombre completo, matrícula, correos, teléfono, CURP, escuela, carrera, periodo o avance académico y cómo se enteró de ABAQ. Confirme que los datos coincidan con la identificación oficial y, en su caso, con la constancia de estudios.
+2. **Expediente digital**: identificación oficial (INE o escolar), currículum vitae o semblanza y los documentos que el aspirante haya cargado. Las constancias de inicio, el reporte de actividades y la constancia de término se generan o habilitan conforme avanza el expediente. Verifique que los archivos estén completos, legibles y correspondan a la persona.
+3. **Sobre mí**: semblanza, intereses, talentos, habilidades, aportes esperados a ABAQ, experiencia con animales de compañía y motivación institucional. Valore la coherencia del perfil y su afinidad con la misión de ABAQ.
+4. **Inducción**: respuestas a los seis módulos formativos sobre rescate, valores y misión de ABAQ. Confirme que las reflexiones estén completas.
+5. **Reglamento y normativa**: reglamento firmado a mano en PDF, aviso de privacidad y términos y condiciones aceptados. Verifique que las aceptaciones estén registradas y que el reglamento corresponda a la persona.
+
+**Categorías del expediente de Voluntariado General**
+
+1. **Datos generales**: folio de expediente, nombre completo, correo, teléfono, CURP, ocupación u oficio, fecha de nacimiento, inicio del voluntariado, WhatsApp, contacto de emergencia y cómo se enteró de ABAQ.
+2. **Formación**: grados académicos, instituciones, títulos o carreras y estado de cada registro.
+3. **Sobre mí**: semblanza, intereses, talentos, aportes esperados a ABAQ, experiencia con animales de compañía y motivación institucional.
+4. **Inducción**: respuestas a los seis módulos formativos sobre rescate, valores y misión de ABAQ.
+5. **Expediente digital**: identificación oficial, currículum vitae o semblanza y demás documentos del expediente.
+6. **Reglamento y normativa**: reglamento firmado, aviso de privacidad y términos y condiciones.
+7. **Comunidad y redes**: canales oficiales y redes de difusión registrados.
+
+!!! note "Criterio de aceptación"
+
+    Un expediente puede aceptarse cuando las categorías obligatorias están completas, los documentos son legibles y los datos coinciden entre sí. Si falta un documento o existe una incongruencia, rechace la solicitud con observaciones para que el aspirante pueda corregir (sección 4.7).
 
 Con esa revisión, proceda conforme a la sección 4.6 (aceptar) o 4.7 (rechazar).
 
 ### 4.3 Historial y bitácora
+
+Los folios que aparecen en esta pantalla identifican expedientes (`SS-…` o `VG-…`) y participaciones (`OP-…`). La estructura y el uso de ambos se explican en la sección 1.3; el folio del expediente de Servicio Social se detalla al inicio de la sección 4.4.
 
 El botón **Ver Voluntarios Pasados** abre el **Historial de Voluntarios**, que reúne a las personas que ya no están activas y la bitácora de cambios de estado.
 
@@ -228,12 +269,17 @@ La tabla de estudiantes y voluntarios muestra **Folio**, **Nombre completo**, **
 
 ### 4.4 Expediente de Servicio Social
 
+El expediente de Voluntario Servicio Social lleva un conteo de horas desde 0 a 480 horas; al cumplirlas se le genera una carta por término de servicio. El encabezado muestra el folio `SS-XXXXXXXX-XX`, el estatus de la cuenta, la fecha de aceptación, las participaciones individuales, las actividades grupales y el total registrado.
+
+El **folio de expediente** es el identificador institucional del estudiante. En el folio operativo `SS-YYMMDD-XX`, el bloque `YYMMDD` registra la fecha de emisión y los dos caracteres finales distinguen el registro; por ejemplo, `SS-260818-01` se emitió el 18 de agosto de 2026. El folio no cambia, se conserva en constancias y notificaciones y puede copiarse con el botón (⧉) que aparece junto a él. Es, además, el criterio de búsqueda más preciso en el padrón (sección 4.1) y en el historial (sección 4.3).
+
 Al pulsar **Ver detalle** en un estudiante, se abre el **Expediente del estudiante** con la modalidad **Servicio Social**. El encabezado resume la situación del expediente:
 
-- **Estatus**: **Activo**, **Pendiente** o **Inactivo**, con la leyenda del estado.
-- **Fecha de aceptación** y validación oficial ABAQ.
-- **Fin de periodo (est.)**, calculado con el calendario escolar universitario.
-- **Participaciones individuales**, **actividades grupales** y **total registrado**.
+- **Estatus**: **Activo**, **Pendiente**, **Rechazado**, **Inactivo** o **Concluido**, con la leyenda del estado y, cuando existe, el motivo del último cambio.
+- **Fecha de aceptación**: fecha y hora en que la Coordinación aprobó el expediente. Mientras la solicitud siga pendiente, el encabezado muestra **Pendiente**.
+- **Fin de periodo (est.)**: fecha estimada de conclusión conforme al calendario escolar universitario. Es una referencia para planear el servicio social, no una fecha de término oficial.
+- **Fecha de término**: cuando el estudiante completa las 480 horas o se emite la constancia de término, el encabezado sustituye el fin de periodo estimado por la fecha real de conclusión, con la leyenda **Conclusión oficial ABAQ**.
+- **Participaciones individuales**, **actividades grupales** y **total registrado**: conteo de vinculaciones, eventos ABAQ y la suma de ambos.
 
 ![Expediente de Servicio Social con estatus, fechas y resumen de horas](attachments/adm-07-detalle-voluntario.png)
 
@@ -264,6 +310,15 @@ Finalmente, el bloque **Participaciones y actividades grupales** presenta la vis
 ### 4.5 Expediente de Voluntario General
 
 El expediente de **Voluntariado General** comparte la estructura del expediente de Servicio Social, con las diferencias propias del perfil: no existe conteo de horas ni constancia de término por 480 horas. El encabezado muestra el folio `VG-XXXXXXXX-XX`, el estatus de la cuenta, la fecha de aceptación, las participaciones individuales, las actividades grupales y el total registrado.
+
+El **folio de expediente** `VG-YYMMDD-XX` se asigna al concluir el registro, no cambia y es el identificador institucional del voluntario. Al igual que en Servicio Social, el bloque `YYMMDD` registra la fecha de emisión y los dos caracteres finales distinguen el registro; por ejemplo, `VG-260818-01` se emitió el 18 de agosto de 2026. Puede copiarse con el botón (⧉) y es el criterio de búsqueda más preciso en el padrón (sección 4.1).
+
+La diferencia principal está en el encabezado y en el conteo:
+
+- **Estatus**: **Activo**, **Pendiente**, **Rechazado**, **Inactivo** o **Concluido**, con la leyenda del estado y, cuando existe, el motivo del último cambio.
+- **Fecha de aceptación**: se registra cuando la Coordinación aprueba el expediente; mientras esté pendiente, se muestra **Pendiente**.
+- **Fecha de término**: solo aparece cuando se registra la conclusión del voluntariado. A diferencia del Servicio Social, no existe un **Fin de periodo (est.)** calculado con el calendario escolar, porque este perfil no está sujeto a las 480 horas curriculares.
+- **Participaciones individuales**, **actividades grupales** y **total registrado**: contabilizan registros, no horas curriculares.
 
 ![Expediente de Voluntario General con estatus y datos de contacto](attachments/adm-39-detalle-voluntario-general.png)
 

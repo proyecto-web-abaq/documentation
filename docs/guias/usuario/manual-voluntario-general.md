@@ -11,7 +11,7 @@ Este manual está dirigido a personas que participan en ABAQ Querétaro como **V
 
     - Los nombres de botones, pestañas y etiquetas aparecen entre comillas exactamente como se muestran en la interfaz.
     - Las cifras y folios que aparecen en las capturas pertenecen a una cuenta de demostración; en su cuenta verá sus propios datos.
-    - El **folio institucional** (formato `VG-YYMMDD-XX`, por ejemplo `VG-260818-01`) identifica de forma única su expediente y se utiliza en constancias y comunicaciones con la Coordinación.
+    - El **folio institucional** (formato `VG-YYMMDD-XX`, por ejemplo `VG-260818-01`) identifica de forma única su expediente y se utiliza en constancias y comunicaciones con la Coordinación. Los folios de participación siguen el formato `OP-CAT-YYMMDD-XXXX`. La sección 1.1 explica ambos tipos y su uso.
 
 ## Índice de capturas de pantalla
 
@@ -44,6 +44,25 @@ Este manual incluye las siguientes capturas de pantalla, en el orden en que apar
 ABAQ es la plataforma institucional de gestión de voluntariado de ABAQ Querétaro. Permite inscribirse a convocatorias de actividades, registrar vinculaciones (adopciones, pláticas, campañas, difusión, recaudaciones, entre otras) y dar seguimiento a cada participación.
 
 Como **Voluntario General**, su participación no está sujeta a un conteo de horas curriculares: el sistema registra sus actividades y validaciones para reconocer su labor comunitaria y, cuando corresponda, emitir la acreditación de impacto correspondiente. Todas las participaciones requieren la validación de la Coordinación de Voluntariado.
+
+### 1.1 Folios del expediente y de las participaciones
+
+La plataforma utiliza dos familias de folios. Ambos son identificadores únicos y la referencia más segura para localizar información o comunicarse con la Coordinación.
+
+| Folio | Formato | Qué identifica | Dónde aparece |
+|-------|---------|----------------|---------------|
+| **Folio de expediente** | `VG-YYMMDD-XX` | Su expediente de Voluntariado General | Encabezado del panel y de **Mi perfil**, constancias o acreditaciones, correos, notificaciones y búsquedas |
+| **Folio de participación** | `OP-CAT-YYMMDD-XXXX` | Cada vinculación individual o actividad grupal | **Mis participaciones**, historial institucional, notificaciones y comprobantes |
+
+El **folio de expediente** se asigna al crear su cuenta y se conserva sin cambios durante toda su participación. En el folio operativo `VG-YYMMDD-XX`, el bloque `YYMMDD` registra la fecha de emisión y los dos caracteres finales distinguen su registro; por ejemplo, `VG-260818-01` se emitió el 18 de agosto de 2026. Este folio aparece en sus constancias o acreditaciones y en la correspondencia oficial.
+
+El **folio de participación** se genera para cada registro. El segmento `CAT` indica la modalidad: `EVE` para convocatorias y eventos, `TLK` para pláticas, `MED` para difusión en medios, `SOC` para redes sociales, `ADO` para adopciones, `MOD` para módulos de adopción, `DON` para donativos, `STE` para esterilizaciones, `CAM` para campañas, entre otras. En una convocatoria, el folio `OP-EVE-…` identifica la actividad y es el que se muestra a todos los inscritos; en una vinculación individual, el folio `OP-CAT-…` identifica su registro.
+
+!!! tip "Cómo usar los folios"
+
+    - Use el botón de copia (⧉) que aparece junto al folio para llevarlo al portapapeles.
+    - En **Mis participaciones** puede buscar por folio para localizar una actividad o vinculación concreta (sección 5.2); en el **Historial** de **Mi perfil** puede consultar la tabla de trazabilidad con todos los folios de su expediente (sección 7.3).
+    - Al escribir a la Coordinación, indique primero su **folio de expediente** y, si el asunto se refiere a una participación específica, agregue el **folio de participación**.
 
 ## 2. Acceso a la plataforma
 
