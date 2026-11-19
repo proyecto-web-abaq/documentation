@@ -11,7 +11,7 @@ Este manual está dirigido a estudiantes universitarios que realizan su **Servic
 
     - Los nombres de botones, pestañas y etiquetas aparecen entre comillas exactamente como se muestran en la interfaz.
     - Las cifras y folios que aparecen en las capturas pertenecen a una cuenta de demostración; en su cuenta verá sus propios datos.
-    - El **folio institucional** (formato `SS-XXXXXXXX-XX`) identifica de forma única su expediente y se utiliza en constancias y comunicaciones con la Coordinación.
+    - El **folio institucional** (formato `SS-YYMMDD-XX`, por ejemplo `SS-260818-01`) identifica de forma única su expediente y se utiliza en constancias y comunicaciones con la Coordinación.
 
 ## Índice de capturas de pantalla
 
@@ -227,7 +227,7 @@ El encabezado ofrece:
 
 - Los botones **Ver actividades para inscribirme** y **Registrar vinculación**.
 - Las píldoras de resumen: **participaciones en total**, **próximas en mi agenda**, **en revisión**, **validadas** y **horas acumuladas de 480 h**.
-- **Tu agenda de participación**: las convocatorias a las que se inscribió y las vinculaciones programadas para la semana en curso y la siguiente, organizadas por bloques **ESTA SEMANA** y la semana posterior. Cada tarjeta indica la fecha (por ejemplo, **HOY Mar 17 Nov**), el horario, el botón **Agregar al calendario**, el folio con su identificador `OP-…`, la categoría de la actividad, el cupo y el avance de su trámite, con los botones **Ver detalles**, **Ver asistentes** y **Cancelar asistencia**.
+- **Tu agenda de participación**: las convocatorias a las que se inscribió y las vinculaciones programadas para la semana en curso y la siguiente, organizadas por bloques **ESTA SEMANA** y la semana posterior. Cada tarjeta indica la fecha (por ejemplo, **Sáb 21 Nov**), el horario, el botón **Agregar al calendario**, el folio con su identificador `OP-…`, la categoría de la actividad, el cupo y el avance de su trámite, con los botones **Ver detalles**, **Ver asistentes** y **Cancelar asistencia**.
 
 ### 5.2 Búsqueda, filtros e inscripción
 
@@ -252,7 +252,7 @@ Cada tarjeta de convocatoria abierta muestra el folio, la etiqueta de estado (po
 
 ### 5.3 Estados de una participación
 
-![Tarjetas de participación con barras de avance de inscrito a validada y de enviada a revisión](attachments/compartido-01-estado-inscrito.png)
+![Tarjeta de una vinculación enviada con la barra de avance de enviada a validada](attachments/compartido-01-estado-inscrito.png)
 
 Cada participación muestra una barra de avance con su etapa actual:
 
@@ -261,7 +261,7 @@ Cada participación muestra una barra de avance con su etapa actual:
 | **Convocatorias** | 1. **Inscrito** → 2. **Asistencia** (o **No asistió**) → 3. **Validada** |
 | **Vinculaciones** | 1. **Enviada** → 2. **En revisión** → 3. **Validada** (o **Rechazada**) |
 
-Las vinculaciones muestran además la nota registrada para la Coordinación («Tu nota para la Coordinación: …») y el botón **Cancelar envío**, disponible mientras la solicitud no ha sido validada. En convocatorias inscritas, el botón **Cancelar asistencia** libera su lugar.
+Las vinculaciones muestran además la nota registrada para la Coordinación («Tu nota para la Coordinación: …») y el botón **Cancelar envío**, disponible mientras la solicitud no ha sido validada. En convocatorias inscritas, el botón **Cancelar asistencia** libera su lugar. La captura de esta sección ilustra la vinculación `OP-MED-261114-3C9A`, con la etapa **2. En revisión** activa.
 
 ### 5.4 Cancelar asistencia
 
@@ -287,7 +287,7 @@ La pestaña **Mi historial** presenta la tabla **Mi historial de participación*
 
 | Columna | Contenido |
 |---------|-----------|
-| **Folio** | Identificador único de la participación (por ejemplo, `OP-TLK-261110-ED49`). |
+| **Folio** | Identificador único de la participación (por ejemplo, `OP-EVE-261108-4EB1`). |
 | **Forma de participar** | Convocatoria o vinculación. |
 | **Participación** | Nombre de la actividad y descripción breve. |
 | **Horas** | Horas asociadas a la participación. |
@@ -308,7 +308,7 @@ Una **vinculación** es cualquier apoyo concreto que ofrece a ABAQ fuera de una 
 Abra el formulario con el botón **Registrar vinculación** (disponible en el encabezado de **Mis participaciones** y en el menú móvil). El formulario incluye:
 
 1. **Proceso de verificación institucional**: aviso de que el registro no se acredita de forma automática; al enviarlo, la Coordinación de Voluntariado revisará su evidencia y emitirá su acreditación oficial sumando horas curriculares.
-2. **Identificación del expediente**: la tarjeta azul confirma el expediente activo con conteo de horas curriculares, por ejemplo **[SS-261103-AC] Estudiante SS Regular Activo**.
+2. **Identificación del expediente**: la tarjeta azul confirma el expediente activo y su folio institucional, con la leyenda «Estudiante de Servicio Social — Participación con conteo de horas curriculares»; por ejemplo, **[SS-260818-01] Andrea Sofía Martínez Ruiz**.
 3. **¿Cómo participaste?**: lista de opciones de participación.
 4. **Documento comprobante (.PDF)**: área para arrastrar y soltar el archivo, o el botón **Examinar archivo**. El documento debe ser oficial, en formato `.PDF` con un máximo de 15 MB, y se envía a resguardo cifrado en el repositorio institucional.
 5. **Nota para la Coordinación (opcional)**: descripción breve de la labor realizada.
@@ -366,7 +366,7 @@ La sección **Mi perfil** presenta el expediente institucional del estudiante: e
 
 El encabezado del expediente muestra:
 
-- **Estatus** de la cuenta (por ejemplo, **Activo**) y el resultado de la última revisión (**Expediente aprobado «Aceptado»**).
+- **Estatus** de la cuenta (por ejemplo, **Activo**) y el resultado de la última revisión (**Expediente aprobado «Documentación completa.»**).
 - **Fecha de aceptación** con la validación oficial de ABAQ.
 - **Participaciones individuales**, **actividades grupales** y **total registrado**.
 
@@ -397,7 +397,7 @@ La sección **Expediente digital** organiza los documentos oficiales:
 
 ## 8. Notificaciones
 
-![Centro de notificaciones con búsqueda, filtros y estado vacío](attachments/ss-11-notificaciones.png)
+![Centro de notificaciones con avisos de nueva convocatoria y de vinculación validada](attachments/ss-11-notificaciones.png)
 
 El ícono de campana de la barra de navegación abre el **Centro de Notificaciones ABAQ**, un panel lateral con:
 
@@ -406,7 +406,7 @@ El ícono de campana de la barra de navegación abre el **Centro de Notificacion
 - **Filtros**: **Todas**, **No leídas**, **Convocatorias** y **Vinculaciones**.
 - La acción **Marcar todas como leídas**.
 
-En este centro recibirá sus aceptaciones de expediente, constancias, avisos institucionales y el resumen semanal de actividades. Las notificaciones le informan, por ejemplo, de la validación de una vinculación, de la aprobación de su expediente o de la emisión de una constancia.
+En este centro recibirá sus aceptaciones de expediente, constancias, avisos institucionales y el resumen semanal de actividades. Las notificaciones le informan, por ejemplo, de la validación de una vinculación, de la aprobación de su expediente o de la emisión de una constancia. La captura muestra una **nueva convocatoria** y la **validación de la vinculación** `OP-SOC-261027-77C3`, con 8 horas acreditadas.
 
 !!! note "Filtros por rol"
 
