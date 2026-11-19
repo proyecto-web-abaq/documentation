@@ -11,7 +11,7 @@ Este manual está dirigido a personas que participan en ABAQ Querétaro como **V
 
     - Los nombres de botones, pestañas y etiquetas aparecen entre comillas exactamente como se muestran en la interfaz.
     - Las cifras y folios que aparecen en las capturas pertenecen a una cuenta de demostración; en su cuenta verá sus propios datos.
-    - El **folio institucional** (formato `VG-XXXXXXXX-XX`) identifica de forma única su expediente y se utiliza en constancias y comunicaciones con la Coordinación.
+    - El **folio institucional** (formato `VG-YYMMDD-XX`, por ejemplo `VG-260818-01`) identifica de forma única su expediente y se utiliza en constancias y comunicaciones con la Coordinación.
 
 ## Índice de capturas de pantalla
 
@@ -131,7 +131,7 @@ El encabezado ofrece:
 
 - Los botones **Ver actividades para inscribirme** y **Registrar vinculación**.
 - Las píldoras de resumen: **participaciones en total**, **próximas en mi agenda**, **en revisión** y **validadas**. A diferencia del perfil de Servicio Social, no existe la píldora de horas acumuladas.
-- **Tu agenda de participación**: las convocatorias a las que se inscribió y las vinculaciones programadas para la semana en curso y la siguiente, organizadas por bloques **ESTA SEMANA** y la semana posterior. Cada tarjeta indica la fecha (por ejemplo, **Jue 12 Nov**), el tipo de participación (**Vinculación**), el botón **Agregar al calendario**, el folio con su identificador `OP-…`, la categoría de la actividad y la nota registrada para la Coordinación, con el botón **Ver detalles**.
+- **Tu agenda de participación**: las convocatorias a las que se inscribió y las vinculaciones programadas para la semana en curso y la siguiente, organizadas por bloques **ESTA SEMANA** y la semana posterior. Cada tarjeta indica la fecha (por ejemplo, **Sáb 21 Nov**), el tipo de participación (**Convocatoria**), el botón **Agregar al calendario**, el folio con su identificador `OP-…`, la categoría de la actividad y las indicaciones de la Coordinación, con los botones **Ver detalles**, **Ver asistentes** y **Cancelar asistencia**.
 
 ### 5.2 Búsqueda, filtros e inscripción
 
@@ -158,7 +158,7 @@ Cada tarjeta de convocatoria abierta muestra el folio, la etiqueta de estado (po
 
 ### 5.3 Estados de una participación
 
-![Tarjetas de participación con barras de avance de inscrito a validada y de enviada a revisión](attachments/compartido-01-estado-inscrito.png)
+![Tarjeta de una vinculación enviada con la barra de avance de enviada a validada](attachments/compartido-01-estado-inscrito.png)
 
 Cada participación muestra una barra de avance con su etapa actual:
 
@@ -167,7 +167,7 @@ Cada participación muestra una barra de avance con su etapa actual:
 | **Convocatorias** | 1. **Inscrito** → 2. **Asistencia** (o **No asistió**) → 3. **Validada** |
 | **Vinculaciones** | 1. **Enviada** → 2. **En revisión** → 3. **Validada** (o **Rechazada**) |
 
-Las vinculaciones muestran además la nota registrada para la Coordinación («Tu nota para la Coordinación: …») y el botón **Cancelar envío**, disponible mientras la solicitud no ha sido validada. En convocatorias inscritas, el botón **Cancelar asistencia** libera su lugar.
+Las vinculaciones muestran además la nota registrada para la Coordinación («Tu nota para la Coordinación: …») y el botón **Cancelar envío**, disponible mientras la solicitud no ha sido validada. En convocatorias inscritas, el botón **Cancelar asistencia** libera su lugar. La captura de esta sección ilustra una vinculación en revisión, con la etapa **2. En revisión** activa.
 
 ### 5.4 Cancelar asistencia
 
@@ -186,7 +186,7 @@ Una **vinculación** es cualquier apoyo concreto que ofrece a ABAQ fuera de una 
 Abra el formulario con el botón **Registrar vinculación** (disponible en el encabezado de **Mis participaciones** y en el menú móvil). El formulario incluye:
 
 1. **Proceso de verificación institucional**: aviso de que el registro no se acredita de forma automática; al enviarlo, la Coordinación de Voluntariado revisará su evidencia para verificarla y emitir su acreditación oficial.
-2. **Identificación del expediente**: la tarjeta verde confirma el expediente de Voluntario General como registro de labor social comunitaria, por ejemplo **[VG-261103-AC] Voluntario VG Colaborador Activo**.
+2. **Identificación del expediente**: la tarjeta verde confirma el expediente de Voluntario General como registro de labor social comunitaria, con la leyenda «Voluntario General — Registro de labor social comunitaria»; por ejemplo, **[VG-260818-01] Mariana López Serrano**.
 3. **¿Cómo participaste?**: lista de opciones de participación.
 4. **Documento comprobante (.PDF)**: área para arrastrar y soltar el archivo. El documento debe ser oficial, en formato `.PDF`, y se envía a resguardo cifrado en el repositorio institucional.
 5. Los botones **Cancelar** y **Enviar a revisión de Coordinación**.
@@ -225,7 +225,7 @@ La sección **Mi perfil** presenta el expediente institucional del voluntario: e
 El encabezado del expediente, identificado como **MI EXPEDIENTE DE VOLUNTARIO · VOLUNTARIO GENERAL**, muestra:
 
 - Su nombre y **folio institucional**.
-- **Estatus** de la cuenta (por ejemplo, **Activo**) y el resultado de la última revisión (**Expediente aprobado «Aceptado»**).
+- **Estatus** de la cuenta (por ejemplo, **Activo**) y el resultado de la última revisión (**Expediente aprobado «Documentación completa.»**).
 - **Fecha de aceptación** con la validación oficial de ABAQ.
 - **Participaciones individuales**, **actividades grupales** y **total registrado**.
 
@@ -233,7 +233,7 @@ La tarjeta **Información personal y de contacto** presenta, entre otros, los si
 
 | Dato | Descripción |
 |------|-------------|
-| **Folio de expediente** | Identificador institucional (por ejemplo, `VG-261103-AC`). |
+| **Folio de expediente** | Identificador institucional (por ejemplo, `VG-260818-01`). |
 | **Nombre completo**, **correo electrónico** y **teléfono** | Datos de contacto registrados. |
 | **¿Tiene WhatsApp?** | Indicador del canal de contacto. |
 | **CURP** y **ocupación / profesión** | Datos capturados en el onboarding. |
@@ -264,11 +264,11 @@ La sección **Consentimientos y reglamento** incluye:
 
 La sección **Comunidad y redes — Canales oficiales y difusión** muestra las cuentas registradas para comunicación institucional y difusión de actividades (Facebook, Instagram, TikTok, X (Twitter), YouTube y LinkedIn), con el botón **Modificar datos** para actualizarlas.
 
-Finalmente, la sección **Trazabilidad institucional — Historial** presenta la tabla de folios únicos asignados a su expediente, actividades grupales y participaciones individuales, organizada por las columnas **Folio**, **Concepto**, **Detalle**, **Estado** y **Fecha**. Cada folio (por ejemplo, `VG-261103-AC` para el expediente o `OP-EVE-…` para una acreditación institucional) puede copiarse para referencias ante la Coordinación.
+Finalmente, la sección **Trazabilidad institucional — Historial** presenta la tabla de folios únicos asignados a su expediente, actividades grupales y participaciones individuales, organizada por las columnas **Folio**, **Concepto**, **Detalle**, **Estado** y **Fecha**. Cada folio (por ejemplo, `VG-260818-01` para el expediente o `OP-EVE-261121-4EA3` para una actividad asignada) puede copiarse para referencias ante la Coordinación.
 
 ## 8. Notificaciones
 
-![Centro de notificaciones con búsqueda, filtros y estado vacío](attachments/vg-12-notificaciones.png)
+![Centro de notificaciones con avisos de nueva convocatoria y de participación validada](attachments/vg-12-notificaciones.png)
 
 El ícono de campana de la barra de navegación abre el **Centro de Notificaciones ABAQ**, un panel lateral con:
 
@@ -277,7 +277,7 @@ El ícono de campana de la barra de navegación abre el **Centro de Notificacion
 - **Filtros**: **Todas**, **No leídas**, **Convocatorias** y **Vinculaciones**.
 - La acción **Marcar todas como leídas**.
 
-En este centro recibirá sus aceptaciones de expediente, constancias, avisos institucionales y el resumen semanal de actividades. Las notificaciones le informan, por ejemplo, de la validación de una vinculación o de la aprobación de su expediente.
+En este centro recibirá sus aceptaciones de expediente, constancias, avisos institucionales y el resumen semanal de actividades. Las notificaciones le informan, por ejemplo, de la validación de una participación o de la aprobación de su expediente. La captura muestra una **nueva convocatoria** y la **participación validada** por la Recolecta de alimento y cobijas del 12 de noviembre.
 
 !!! note "Filtros por rol"
 
