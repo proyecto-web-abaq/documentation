@@ -1417,6 +1417,129 @@ flowchart TD
 
 ---
 
+### ADR-34: Actualización Automática por Huella de Cambios, Caché Compartida de Actividades, Primera Carga Escalonada y Selectores Ligeros (2026-11-15)
+
+- **Contexto**: Las vistas de voluntario (Inicio y Participación) cargaban todo una sola vez al abrir: una actividad publicada después solo aparecía al recargar. La lista de actividades es la consulta más costosa del backend (`$lookup` sobre las actividades asignadas de todos los estudiantes y voluntarios), por lo que repetirla periódicamente no era viable. Inicio pedía el perfil dos veces (plantilla `| async` y `subscribe` sin compartir) y el modal de participación descargaba expedientes completos solo para armar "[folio] Nombre".
+- **Decisión**:
+  1. **Huella de cambios** `GET /activity/changes`: agregación mínima (`count`, `max(_id)`, `max(updated)`) que devuelve un token corto. Las ediciones (hook `pre findOneAndUpdate/updateOne` en el modelo) y las inscripciones, cancelaciones y evaluaciones (`touchActivity`) actualizan `updated`.
+  2. **`ActivityService` con caché en memoria** (`getActivitiesCached`), fusión de peticiones simultáneas (`shareReplay`) y `prefetchActivities()`. El flujo `changes$` revisa la huella cada 60 s solo con `document.visibilityState === 'visible'` y al recuperar foco; usa `exhaustMap` (sin peticiones solapadas) y `share()` (se activa con el primer suscriptor y se apaga con el último).
+  3. **Primera carga escalonada**: pintado inmediato desde caché y revalidación posterior; perfil compartido con `shareReplay({ refCount: true })`; precarga de actividades con `requestIdleCallback`; esqueleto CSS (`.abaq-skeleton`) sin JavaScript.
+  4. **Selectores ligeros** `GET /student/options` y `GET /volunteer/options` (proyección `folio`, `nombreCompleto`), con respaldo a las rutas completas.
+- **Alternativas descartadas**: WebSocket/SSE (conexiones persistentes más costosas y frágiles detrás del proxy de Railway para cambios que ocurren pocas veces al día) y sondeo directo de la lista completa (multiplicaría la consulta más pesada).
+- **Consecuencias**: Una actividad nueva aparece en menos de 60 s (o al volver a la pestaña) con un costo de una consulta indexada mínima por cliente activo; con la pestaña oculta no hay tráfico. Se eliminó el registro verboso de la lista en consola.
+
+### ADR-35: Evaluación Unificada de Participantes, Acciones Directas desde el Hub Móvil, Calendario `.ics` en Cliente y Entorno de Desarrollo Aislado (2026-11-15)
+
+- **Contexto**: La administración de actividad usaba tarjetas con botones "Asistió / No asistió" sin evaluación y un modal separado para validar; la inasistencia descartaba desempeño y comentario. Las acciones rápidas del hub móvil solo navegaban a secciones. El frontend de desarrollo en Railway llamaba al backend de producción.
+- **Decisión**:
+  1. **Evaluación unificada**: tabla con el patrón `.students-table` y un modal (`validate` | `absent`) que reutiliza los controles de desempeño; el cliente encadena `attended → validated`. El backend conserva la calificación y el comentario en `absent` y los expone en `GET /activity/:id/participants`.
+  2. **Acciones directas** (`?accion=` + `onMenuAction()`/`whenElementReady()`): la vista destino ejecuta la acción y limpia el parámetro de la URL.
+  3. **Calendario en cliente** (`services/calendar-ics.ts`): generación RFC 5545 sin backend (UTC, plegado a 75 bytes UTF-8, alarma de 1 h); `data:` URL en iOS/iPadOS y descarga `Blob` en el resto.
+  4. **Entorno de desarrollo aislado**: `frontend-development-*.up.railway.app` resuelve a `backend-development-a4fa8bc3.up.railway.app` (proyecto `miabaq-abaq`, rama `dev-rivers2`, base `MongoDB-GZwo`); producción (`dev` → `api.hypercoreqro.lat`) no cambia. La CSP (`connect-src`, modo report-only) incluye ambos backends de Railway.
+  5. **`ActionFeedbackDirective`**: con `feedbackOnClick`, el estado de éxito se aplica después del clic; deshabilitar el botón durante el clic cancelaba el envío de formularios (`type="submit"`).
+- **Consecuencias**: Menos pasos para la coordinación, datos de prueba aislados de producción y registro de voluntarios funcional.
+
+### ADR-36: Convocatorias OP con Acreditación Anidada y Vía Única de Horas `[ACEPTADO 15/11/2026]`
+
+- **Contexto**: Actividades grupales (`AC`) y participaciones individuales (`OP`) duplican conceptos para ABAQ y para los voluntarios; las horas se suman por dos caminos (`updateParticipationStatus` y `approveAccreditation`) y las reglas de horas no estaban centralizadas. La revisión del flujo encontró además IDOR y asignación masiva en `/accreditation`.
+- **Decisión**: Toda convocatoria publicada es una oportunidad `OP-EVE`; cada inscripción crea en el servidor una `Accreditation` con `activityRef` (referencia, no copia embebida en la convocatoria); la evaluación y la suma de horas ocurren solo sobre la acreditación; la duración y las horas sugeridas se calculan en el servidor; el titular se toma de la sesión y los campos de evaluación quedan reservados al admin.
+- **Proyección**: `assignedActivities[]` del expediente se conserva como proyección de solo lectura (con `accreditationId`) escrita únicamente por el servidor, para no romper las vistas existentes; las horas se suman solo en `services/hours.service.js` con `$inc` atómico.
+- **Alternativa descartada**: embeber la acreditación completa dentro de la convocatoria (crecimiento sin límite del documento, duplicación de datos y contención de escrituras al evaluar en paralelo).
+- **Consecuencias**: Un solo concepto en la interfaz (oportunidades `OP` distinguidas por categoría), sin doble conteo de horas y con los riesgos S-1 a S-6 cerrados. Requiere migración idempotente con `--dry-run` de las inscripciones históricas. Detalle en [Convocatorias OP con Acreditación Anidada](ideas/2026-11-15-convocatorias-op-con-acreditacion-anidada.md).
+
+### ADR-37: Centro de Notificaciones y Resumen Semanal por Lotes `[ACEPTADO 15/11/2026]`
+
+- **Contexto**: `dev-rivers` tenía campana, drawer y notificaciones en MongoDB, pero con validación de titularidad defectuosa (`&&`), efectos al consultar (creaba notificaciones y enviaba correos en `GET /my`), exposición de configuración de correo y un panel para forzar envíos. La rama actual solo enviaba correos. Además, el equipo retiró los barridos automáticos con `node-cron` (prueba `no-twelve-month-or-cron`).
+- **Decisión**: Se porta el modelo `Notification`, la campana y el drawer; las notificaciones se crean en `services/notification.service.js` desde `utils/notifications.js`, junto a cada correo existente. El resumen semanal vive en `services/weekly-digest.service.js` y se ejecuta como proceso independiente (`scripts/send-weekly-digest.js`) programado como **cron de Railway** el domingo y el lunes, no dentro del servidor web. Usa la API batch de Resend y la bitácora `WeeklyDigestDelivery` (índice único semana + persona) para repartir la cuota y no repetir envíos.
+- **Alternativas descartadas**: `node-cron` dentro del servidor (duplicaría envíos con varias réplicas o reinicios y contradice la retirada de barridos); enviar todo el domingo (excede la cuota diaria de Resend).
+- **Consecuencias**: La campana refleja todos los avisos aunque falle el correo; el resumen tolera reintentos y caídas; los correos de prueba no consumen cuota. Requiere configurar el servicio cron en Railway (`0 9,13 * * 0,1`: prepara la cola a las 3:00 y envía a las 7:00 en Querétaro; ver ADR-38 y la [guía de tareas programadas](operacion/cron-tareas-programadas-railway.md)).
+
+### ADR-38: Avisos del Ciclo de Convocatorias y Vinculaciones, Cupo Diario de Correo y Folio Visible `[ACEPTADO 17/11/2026]`
+
+- **Contexto**: La campana solo reflejaba los correos existentes; nadie se enteraba dentro del sistema de convocatorias nuevas ni del cierre de sus participaciones o vinculaciones. El resumen semanal usaba un tope fijo (80) que ignoraba los correos ya enviados ese día (por ejemplo, las constancias de una plática salen todas a la vez) y dejaba sin resumen a quien no alcanzaba cupo el lunes. Además, cada inscripción mostraba el folio de su acreditación individual (`OP-EVE-…`), distinto del de la convocatoria, y no quedaba claro cuál buscar.
+- **Decisión**:
+    - `services/activity-notifications.service.js` emite avisos **solo de campana** del ciclo de convocatorias y vinculaciones (SRS §30.1), con la regla de que **nadie recibe aviso de una acción que acaba de realizar**: la Coordinación solo recibe solicitudes (vinculación enviada por un colaborador) y convocatorias terminadas por validar; el colaborador recibe convocatorias nuevas y el cierre de lo suyo, pero no lo que él mismo envía. Se invocan sin `await`: nunca bloquean la respuesta.
+    - El recordatorio "es momento de validar" depende del reloj, no de una acción: lo calcula `convocatoria-reminders.service.js`, ejecutado por un segundo cron de Railway cada 15 minutos (`scripts/send-validation-reminders.js`). Cada convocatoria se reclama una vez con `Activity.validationReminderAt` mediante `collection.updateOne`, que no dispara el gancho de `updated` ni la huella de cambios.
+    - `notification.service.js` crea **una copia por admin** (`notifyAdmins`) y difunde a colaboradores activos (`notifyActiveCollaborators`, `insertMany`).
+    - `utils/email.js` suma cada envío exitoso en `EmailUsage` (un documento por día UTC). `email-quota.service.js` calcula el cupo: límite − enviados − reserva.
+    - El resumen reparte mitad y mitad; el lunes, sin cupo, entrega solo en la campana.
+    - La proyección `assignedActivities[].interactionFolio` guarda el folio de la convocatoria. La acreditación conserva el suyo (vinculado por `accreditationId`), visible solo para la Coordinación. La migración `migrate-convocatorias-op.js` alinea los históricos de forma idempotente.
+- **Alternativas descartadas**:
+    - Aviso compartido para todos los admins: uno lo borraba para todos.
+    - Avisar a la Coordinación cada publicación, validación o aprobación: le informa lo que ella misma acaba de hacer y entierra las solicitudes reales.
+    - Calcular el recordatorio al consultar la campana: un `GET` con efectos (contradice RNF-NOT-SEC-02).
+    - Consultar el uso diario a la API de Resend: no expone un contador por día confiable y añade una dependencia de red al cálculo.
+    - Mostrar ambos folios al colaborador: perpetúa la ambigüedad.
+    - Renombrar o eliminar el folio de la acreditación: rompe índices únicos, respaldos y la auditoría.
+- **Consecuencias**:
+    - Los avisos de convocatoria crecen con el número de colaboradores activos (una inserción en bloque por publicación).
+    - El contador no incluye correos enviados fuera de la plataforma con la misma cuenta de Resend; para eso existe la reserva.
+    - Las búsquedas por folio de inscripción del colaborador coinciden con el folio de la convocatoria.
+
+### ADR-39: Cuentas Inactivas en Solo Consulta y Vinculación de Cuenta por `authId` `[ACEPTADO 16/11/2026]`
+
+- **Contexto**: Una auditoría de caja blanca (OWASP WSTG / Top 10) del dominio de cuentas inactivas mostró que `requireActiveAccount` bloqueaba también la consulta de lo ya vinculado, y que la Coordinación podía crear vinculaciones nuevas a expedientes no activos. En el resto del sistema encontró que el expediente se resolvía por `authId` **o** por correo y reescribía `authId`; además, el alta aceptaba campos protegidos y `/pet` y `/contact` estaban abiertos a cualquier cuenta activa.
+- **Decisión**:
+    - Nuevo middleware `requireActiveOrReadOnly`: deja pasar a cuentas activas; a las inactivas solo `GET`, marcando `req.readOnlyScope`, que los controladores usan para acotar lista, detalle y huella de cambios a lo vinculado.
+    - `utils/linked-profile.js` concentra la resolución del expediente: por `authId` y, solo si el expediente no tiene dueño, por correo con reclamo atómico.
+    - El alta descarta campos protegidos.
+    - `/pet` y `/contact` quedan solo para admins.
+    - `POST /accreditation` exige destinatario activo.
+- **Consecuencias**: Se cumple la regla de negocio de inactivos sin abrir escrituras. El riesgo residual es que un expediente sin dueño puede reclamarlo quien registre primero ese correo; se mitiga con verificación de correo (pendiente). Cobertura en `tests/inactive-readonly-security.test.js`.
+
+### ADR-40: Bitácora de Horas Propuestas frente a Validadas `[ACEPTADO 17/11/2026]`
+
+- **Contexto**: Con ADR-36 el colaborador ya no declara sus horas; el sistema las propone (duración × multiplicador, o la tabla del reglamento) y la Coordinación puede sobrescribirlas al validar. El ajuste no se muestra en la interfaz y `hoursAccredited` se sobrescribe, así que no quedaba rastro de qué se propuso y quién lo cambió.
+- **Decisión**:
+    - Colección `HoursAuditLog`, de solo inserción y con todos los campos `immutable`. Guarda una entrada por decisión de la Coordinación: convocatoria validada o inasistencia; vinculación aprobada, ajustada o rechazada.
+    - La escribe `services/hours-audit.service.js` desde los controladores de evaluación, sin bloquearlos.
+    - Las vinculaciones guardan su propuesta en `hoursSuggested` al crearse, como ya hacían las convocatorias. En las anteriores, la propuesta es el `hoursAccredited` previo a la evaluación.
+    - Consulta solo admin y solo lectura: `GET /accreditation/hours-audit`.
+    - En la interfaz, `app-hours-override-field` (componente compartido en las tres pantallas de validación) muestra la propuesta y avisa del ajuste antes de confirmar.
+- **Alternativas descartadas**:
+    - Campos de auditoría solo en `Accreditation`: un segundo ajuste borra el anterior y mezcla datos operativos con evidencia.
+    - Bitácora genérica de todas las peticiones: ruido y datos personales innecesarios.
+- **Consecuencias**:
+    - Evidencia defendible de cada ajuste (quién, cuándo, de cuánto a cuánto) que sobrevive a respaldos y restauraciones.
+    - Crece una entrada por evaluación (volumen bajo).
+    - No hay interfaz de consulta todavía.
+
+### ADR-41: Reporte Semanal de la Coordinación y Evento ABAQ solo por Convocatoria `[ACEPTADO 17/11/2026]`
+
+- **Contexto**: La Coordinación no tenía una vista semanal del rendimiento por grupo ni por convocatoria. Además, algunos Eventos ABAQ se habían capturado como vinculación, sin convocatoria, y mostraban un folio `OP-EVE-…` individual que no correspondía a ninguna convocatoria.
+- **Decisión**:
+    - `services/admin-weekly-report.service.js` y el cron `admin-weekly-report` (`0 23 * * 0`, domingo 17:00 Querétaro) envían a cada admin un correo con cifras agregadas de SS y VG y el rendimiento de las convocatorias de lunes a domingo. Solo correo; reutiliza `WeeklyDigestDelivery` (`recipientModel: "User"`, `weekKey` `admin-…`) para no duplicar y el cupo diario de `EmailUsage`.
+    - Un Evento ABAQ solo nace de una inscripción: la API rechaza `type: "EVENT"` en vinculaciones. La migración convierte cada Evento ABAQ suelto en una convocatoria histórica con su mismo folio, la liga a la acreditación y a la proyección del perfil, y quita la copia embebida de vinculación.
+- **Alternativas descartadas**:
+    - Ocultar el folio de los eventos sueltos: dejaría filas sin folio y dos formas de registrar el mismo tipo de participación.
+    - Generar un folio nuevo para la convocatoria histórica: rompería la búsqueda de quien ya conocía el folio.
+    - Aviso en la campana para el reporte: la Coordinación pidió solo correo.
+- **Consecuencias**:
+    - Un solo folio visible por participación en un evento en los tres roles.
+    - Las convocatorias históricas aparecen como convocatorias pasadas con cupo 1.
+    - Un servicio cron más en cada entorno.
+
+### ADR-42: Re-registro Silencioso con Prueba de Titularidad `[ACEPTADO 17/11/2026]`
+
+- **Contexto**: Un expediente rechazado podía volver a registrarse con su correo, pero:
+    - el servidor cambiaba la contraseña sin pedir la anterior, así que cualquiera que conociera el correo tomaba la cuenta;
+    - buscaba el expediente viejo también por correo personal o institucional y podía borrar el de otra persona;
+    - mezclaba los datos nuevos con los anteriores;
+    - no tenía topes ni protección ante dos envíos simultáneos;
+    - el rechazo decía "Email already registered".
+- **Decisión**:
+    - `services/signup-guard.service.js` decide la elegibilidad: correo libre → registro nuevo. Cuenta existente → re-registro solo con la misma contraseña, expediente `rejected`, sin historial y sin bloqueos; si no, mensaje genérico.
+    - El re-registro toma un candado por correo, guarda copia en `ProfileArchive`, borra los expedientes rechazados de esa cuenta (por `authId`) y crea el nuevo. Con el mismo tipo conserva `_id`, folio e historial; con otro tipo crea folio del nuevo prefijo. Ante cualquier error restaura todo.
+    - `SignupGuard` por correo: intentos fallidos (5/h → 24 h de bloqueo), re-registros (3 → bloqueo permanente) y candado. Límite por IP con `signupLimiter`.
+    - `POST /auth/signup-precheck` detiene el flujo en el paso de correo y contraseña; los endpoints de envío repiten la validación.
+- **Alternativas descartadas**:
+    - Re-registro sin contraseña: toma de cuenta trivial.
+    - Pantallas de "re-registro": el usuario pidió un flujo silencioso.
+    - Verificación por código al correo: más fuerte, pero requiere cupo de correo y un flujo nuevo. Queda como mejora (ver riesgos).
+- **Consecuencias**:
+    - Quien olvidó su contraseña no puede re-registrarse por sí mismo (no hay recuperación de contraseña); la Coordinación lo atiende.
+    - **Riesgo residual**: el sistema no verifica el correo al registrarse por primera vez, así que alguien puede apartar un correo ajeno antes que su dueño (también con `POST /auth/register`, que el frontend no usa). Mitigación recomendada: verificación por código y retirar `/auth/register`.
+
 ## 4. Atributos de Calidad del Sistema (Quality Attributes)
 
 1. **Mantenibilidad y Comprensibilidad (Maintainability & Understandability)**:

@@ -354,8 +354,8 @@ El correo arribó con formato responsivo, tipografía institucional y botón int
 ## 📚 11. Referencias Cruzadas y Enlaces
 
 - [`seed.sh`](file:///Users/riosisraelg/dev/abaq/seed.sh): Motor unificado de sembrado en raíz.
-- [`documentation/docs/scripts/seed-db.md`](file:///Users/riosisraelg/dev/abaq/documentation/docs/scripts/seed-db.md): Manual técnico de colecciones y opciones del sembrador.
+- [`documentation/docs/scripts/seed-db.md`](../scripts/seed-db.md): Manual técnico de colecciones y opciones del sembrador.
 - [`backend/utils/email.js`](file:///Users/riosisraelg/dev/abaq/backend/utils/email.js): Proveedor de correo transaccional Resend.
 - [`backend/utils/url-helper.js`](file:///Users/riosisraelg/dev/abaq/backend/utils/url-helper.js): Orquestador de URLs canónicas parametrizadas.
-- [`documentation/docs/technical/architecture.md`](file:///Users/riosisraelg/dev/abaq/documentation/docs/technical/architecture.md): Arquitectura del sistema y ADR-27 de botones de retroalimentación.
-- [`documentation/docs/technical/design-system.md`](file:///Users/riosisraelg/dev/abaq/documentation/docs/technical/design-system.md): Especificación de diseño de tokens y estados transitorios.
+- [`documentation/docs/technical/architecture.md`](architecture.md): Arquitectura del sistema y ADR-27 de botones de retroalimentación.
+- [`documentation/docs/technical/design-system.md`](design-system.md): Especificación de diseño de tokens y estados transitorios.

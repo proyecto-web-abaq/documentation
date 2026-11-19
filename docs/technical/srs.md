@@ -1314,7 +1314,7 @@ abaq-backup-YYYY-MM-DD-HHmmss.zip
 |---|---|---|---|
 | **1. Expedientes y Perfiles** | `volunteer-detail`, `student-detail`, `volunteer-profile`, `student-profile` | `.status-feedback-alert`, `.profile-message`, `.document-success-alert`, `.document-error`, `.feedback-toast` | Modificar/Guardar datos, Aceptar/Rechazar aspirante, Inactivar cuenta, Guardar semblanza/redes, Guardar enlace reporte, Aprobar/Rechazar acreditación, Descargar PDF/Constancia, Copiar folio. |
 | **2. Directorio y Participación** | `student`, `activity-list`, `activity-detail`, `quick-activities`, `activity` | `.table-action-feedback`, `.participation-feedback-banner`, `.doc-fallback-alert`, `.success-toast`, `.form-error` | Links de invitación, Aceptar/Rechazar/Inactivar en tabla, Inscribirme, Cancelar asistencia/envío, Validar/Rechazar participación, Eliminar actividad, Pase de lista (`Asistió`/`No asistió`), Crear/Actualizar/Publicar/Eliminar plantilla, Descargar comprobante. |
-| **3. Módulos Operativos y Públicos** | `adoption-list`, `adoption-detail`, `campaign-list`, `campaign-detail`, `identification-list`, `identification-detail`, `talk-list`, `talk-detail`, `public-*-form` (x4) | Todas las llamadas `window.alert(...)` de copiado, borrado y descarga de PDF | Copiar formulario (`.btn-copy-form`), Actualizar datos (`.btn-refresh-data`), Guardar campaña/placa/plática, Confirmar adopción, Marcar placa completada, Descargar PDF de adopción, Enviar formulario público. |
+| **3. Módulos Operativos y Públicos** | `adoption-list`, `adoption-detail`, `campaign-list`, `campaign-detail`, `identification-list`, `identification-detail`, `talk-list`, `talk-detail`, `public-*-form` (x4) | Todas las llamadas `window.alert(...)` de copiado, borrado y descarga de PDF | Copiar formulario (`.btn-copy-form`), Guardar campaña/placa/plática, Confirmar adopción, Marcar placa completada, Descargar PDF de adopción, Enviar formulario público. |
 | **4. Modales Compartidos** | `decision-volunteer-modal`, `inactivate-volunteer-modal`, `delete-confirm-modal`, `update-confirm-modal`, `new-accreditation-modal`, `file-upload-modal`, `folio-pill` | `.alert-error-box`, `.alert-error-banner`, `.upload-alert-danger` y `alert()` de padres | Aceptar y Activar, Confirmar Rechazo, Inactivar Cuenta Definitivamente, Eliminar definitivamente, Confirmar y actualizar, Enviar a revisión, Copiar folio con feedback interactivo. |
 | **5. Auth, Onboarding y Backups** | `login`, `signup`, `onboarding-phase`, `sobre-mi`, `backup` | `.auth-alert-error`, `.validation-alert-banner`, `.enter-error`, `.unified-success-banner`, `.alert-danger`, `.alert-success` | Iniciar sesión, Continuar a Fase 1, Guardar y continuar fase, Finalizar expediente, Guardar sobre mí, Descargar ZIP/XLSX, Analizar/Descargar/Purgar deshidratación, Ejecutar rollback/restauración/rehidratación. |
 
@@ -1359,9 +1359,7 @@ abaq-backup-YYYY-MM-DD-HHmmss.zip
   - El modal debe obligar al usuario a teclear exactamente la palabra `"borrar"` antes de habilitar el botón de confirmación destructiva.
   - Al confirmarse, el sistema consume el endpoint RESTful protegido del backend (`DELETE /:id`) sobre la colección respectiva, cerrando el modal y refrescando el listado.
 
-- **RF-ADM-SYNC-01 (Botón de Actualización Reactiva de Datos - "Actualizar datos")**:
-  - En la cabecera `.hero-actions-row` de los 4 módulos administrativos se debe proveer el botón `.btn-refresh-data` con ícono `sync` y texto *"Actualizar datos"*.
-  - Mientras la petición HTTP de recarga esté en tránsito (`isLoading = true`), el ícono debe rotar continuamente mediante animación CSS (`@keyframes abaqSpin`) y el botón debe deshabilitarse para evitar tormentas de peticiones concurrentes.
+- **RF-ADM-SYNC-01 (Botón "Actualizar datos") `[DEROGADA — 15/11/2026]`**: ~~Botón `.btn-refresh-data` en la cabecera de los 4 módulos administrativos~~. Retirado junto con el modal de confirmación `"yes"` del detalle: solo recargaba datos sin modificarlos. Las listas se recargan al crear o borrar un registro.
 
 ### `[SRS 22.2 Requerimientos No Funcionales - Responsividad y Ergonomía Multidispositivo]`
 
@@ -1370,7 +1368,7 @@ abaq-backup-YYYY-MM-DD-HHmmss.zip
   - **Tableta (`641px – 1024px`)**: Envoltura fluida (`flex-wrap: wrap`) de los botones en el héroe con separación uniforme de 10px a 12px. Disposición de tarjetas en 1 o 2 columnas según la densidad de información.
   - **Móvil (`320px – 640px`)**:
     - La fila `.hero-actions-row` muta a columna vertical (`flex-direction: column; width: 100%`).
-    - Todos los botones de acción (`.btn-copy-form`, `.btn-refresh-data`, `.btn-new-accreditation`, `.btn-create-item`) se dimensionan al **100% del ancho del viewport** con texto centrado y una altura táctil accesible no menor a 44px (WCAG AAA).
+    - Todos los botones de acción (`.btn-copy-form`, `.btn-create-item`) se dimensionan al **100% del ancho del viewport** con texto centrado y una altura táctil accesible no menor a 44px (WCAG AAA).
     - Las acciones de las tarjetas (`.adoption-card-actions`, `.card-action-buttons`, `.talk-card-actions`, `.card-footer`) se apilan verticalmente ocupando el ancho total (`width: 100%`).
     - El área de `<app-file-dropzone>` apila la previsualización del archivo de forma vertical y ajusta los botones *"Cambiar"* y *"Quitar"* al 50% cada uno para pulsación táctil con una sola mano.
 
@@ -1431,7 +1429,7 @@ abaq-backup-YYYY-MM-DD-HHmmss.zip
     - Botón para registrar otra plática.
 
 - **RF-TLK-UI-02 (Acciones de Documentación en Detalle de Plática - `TalkDetailComponent`)**:
-  - En la vista administrativa de detalle (`/admin/talks/:id`), el encabezado `.admin-hero` debe incorporar botones de acción para descargar la Carta Oficial en Word (.DOCX), ver la carta en PDF y copiar el enlace oficial.
+  - En la vista administrativa de detalle (`/admin/talks/:id`), el encabezado `.admin-hero` expone únicamente `Borrar registro`. Los botones de Carta Oficial (.DOCX / .PDF / copiar enlace) se retiraron de esta vista (15/11/2026) y se reubicarán en otra sección.
   - En cada tarjeta de asistente de la lista de participantes se debe incluir el folio de constancia, el estatus de notificación por correo y los botones *"Ver constancia"* y *"Copiar link"*.
 
 ### `[SRS 23.4 Requerimientos No Funcionales - Eficiencia y Seguridad]`
@@ -1650,7 +1648,7 @@ Con base en la metodología de auditoría de 6 fases del Prof. Ricardo Monroy (O
 
 - **RF-NAV-MOB-02 (Matriz de Acciones Rápidas y Módulos por Rol)**:
   - El hub organiza la información en 4 bloques prioritarios:
-    1. **Acciones Más Requeridas**: Grid 2x2 táctil con tarjetas interactivas de alto contraste adaptadas al rol (`admin`: Invitar Voluntario, Registrar Actividad, Respaldos & Métricas, Pláticas; `student`: Inscribirme, Registrar Participación, Mis Acreditaciones, Mi Perfil; `volunteer`: Actividades Abiertas, Registrar Participación, Historial, Mi Perfil; `public`: Iniciar Sesión, Convocatoria, Actividades Públicas, Acerca de ABAQ).
+    1. **Acciones Más Requeridas**: Grid táctil con tarjetas que **ejecutan la acción** (no solo navegan a la sección), vía parámetro `?accion=` (ver RF-NAV-MOB-03): `admin`: Nueva Actividad (elegir plantilla), Nueva Acreditación (registrar participación), Buscar Voluntario, Respaldar Sistema; `student` y `volunteer` (misma narrativa): Inscribirme a Actividades, Registrar Participación; `public`: Iniciar Sesión, Registrarse. Las constancias y acreditaciones no forman parte de las acciones rápidas.
     2. **Vistas Más Utilizadas**: Fila horizontal de chips píldora táctiles (`.hub-chip-pill`) para salto directo a 1-tap.
     3. **Secciones del Sistema**: Lista estructurada y agrupada de módulos con iconografía Material Symbols.
     4. **Acción de Sesión**: Botón accesible al pie del contenedor para iniciar o cerrar sesión (`logout()`).
@@ -1667,16 +1665,209 @@ Con base en la metodología de auditoría de 6 fases del Prof. Ricardo Monroy (O
     - `● Concluido`: `#67e8f9` (Ratio > 11:1).
   - Las clases de insignias con fondo pastel (`.status-pending`, `.status-rejected`, etc.) deben quedar estrictamente encapsuladas dentro del contenedor de acreditaciones (`.accreditation-status`), impidiendo cualquier fuga hacia el hero o encabezados principales.
 
+---
 
+## 27. Refinamientos Operativos del 15/11/2026 (v2026.11.15.1): Acciones Directas, Evaluación de Actividades, Rendimiento de Carga y Vocabulario Institucional
 
+### `[SRS 27.1 Requerimientos Funcionales - Navegación y Acciones Directas]`
 
+- **RF-NAV-MOB-03 (Acciones rápidas que ejecutan la acción)**: Cada tarjeta de "Acciones Más Requeridas" navega con `?accion=<clave>` y la vista destino ejecuta la acción al cargar mediante el helper `onMenuAction()` (`services/menu-action.ts`), que además limpia el parámetro de la URL para que recargar o volver atrás no la repita. Claves vigentes: `plantillas` (listado de plantillas en `/admin/quick-activities`), `acreditar` (abre `<app-new-accreditation-modal>` en `/activity-list`; se omite para cuentas inactivas), `buscar` (enfoca el buscador de `/student`), `respaldar` (desplaza al panel de descarga de `/admin/backups`) e `inscribirme` (pestaña de actividades abiertas). `whenElementReady()` espera a que el elemento destino exista cuando depende de una carga de datos.
+- **RF-NAV-MOB-04 (Narrativa común de voluntarios)**: El hub de Servicio Social y el de Voluntariado General usan las mismas etiquetas ("Inscribirme a Actividades", "Convocatorias Disponibles", "Convocatorias y Participación"); se prohíbe el término "Jornadas" en el hub.
+- **RF-VOL-SEARCH-01 (Búsqueda de voluntarios por universidad)**: El buscador de `/student` ignora acentos y mayúsculas e incluye la escuela y sus **siglas oficiales** tomadas del catálogo `QUERETARO_UNIVERSITIES` del registro (p. ej. "uaq", "uteq"). No se generan siglas por iniciales (colisiones como Anáhuac/Autónoma = "UAQ").
 
+### `[SRS 27.2 Requerimientos Funcionales - Participación Individual y Evaluación de Actividades]`
 
+- **RF-PART-OPT-01 (Catálogo de opciones de participación individual)**: El menú de "Registrar participación" ofrece 10 opciones numeradas: 1. Evento ABAQ · 2. Vinculación · Placas de identificación · 3. Vinculación · Campaña de esterilización y/o vacunación · 4. Vinculación · Adopción de animal de compañía · 5. Vinculación · Coordinar módulo de adopción · 6. Vinculación · Plática de bienestar animal · 7. Vinculación · Difusión en medios · 8. Publicación en redes sociales · 9. Recaudación de fondos o donación en especie · 10. Apoyo administrativo. "Inducción completada" y "Campaña de esterilización" ya no se ofrecen; los registros históricos de esos tipos conservan su etiqueta. Las reglas de horas y las categorías de "Evento ABAQ" no cambian.
+- **RF-PART-ADMIN-01 (Registro de participación solo por el voluntario)**: Conforme a lo acordado con ABAQ (15/11/2026), los detalles administrativos de voluntario (`/student/:id`, `/volunteer-detail/:id`) no exponen el botón "Registrar participación"; el voluntario registra y la coordinación valida.
+- **RF-ACT-EVAL-01 (Evaluación de participantes en actividades grupales)**: `/activity-list/:id` presenta a los participantes en tabla (`.students-table` con columna fija de acciones) con dos acciones por fila que abren un único modal de evaluación:
+  - **Validar**: registra asistencia y desempeño (5 niveles) con comentario opcional. Para Servicio Social acredita horas, con valor sugerido igual al de la actividad y editable hasta el tope permitido; Voluntariado General se valida sin horas. El frontend encadena `attended → validated`, como exige la API.
+  - **No asistió**: registra desempeño y **motivo obligatorio**. El backend conserva la calificación (o `absent` si no se envía) y el comentario en `assignedActivities.$.performance` / `performanceComment`.
+  - `GET /activity/:id/participants` incluye `performance` y `performanceComment`. Una evaluación validada no puede modificarse.
+- **RF-ACT-EVAL-02 (Visibilidad del desempeño)**: El desempeño y su comentario se muestran en el detalle administrativo de ambos tipos de voluntario (pestañas "Todas" y "Actividades"), en los perfiles y en ambos Inicio. Las inasistencias muestran su calificación como "Inasistencia · <calificación>".
 
+### `[SRS 27.3 Requerimientos Funcionales - Registro, Inducción y Agenda]`
 
+- **RF-ONB-VIDEO-01 (Temporizador de videos de inducción)**: Los módulos 3 a 6 declaran su duración real (`durationSeconds`: 22:32, 2:32, 6:58 y 54:55). Al abrir el video inicia una cuenta regresiva mostrada en su propio botón; el módulo no puede certificarse ni la fase avanzar hasta que termine. El inicio se guarda en el borrador (`phase2.videoStartedAt`) para que recargar no lo reinicie.
+- **RF-ONB-SOCIAL-01 (Validación de clics en redes oficiales)**: Cada red del Módulo 1 registra el clic (`phase2.visitedChannels`) y se marca "✓ Visitada". La validación de la fase reporta las redes no abiertas como error independiente del de la casilla de confirmación.
+- **RF-AGENDA-ICS-01 (Exportar a calendario)**: En "Tu agenda de participación", tocar la tarjeta (fecha o información) entrega el evento como archivo `.ics` (RFC 5545, compatible con Google Calendar, Apple Calendar y Outlook): horas en UTC, día completo cuando no hay horario y recordatorio 1 h antes. En iOS/iPadOS abre la hoja nativa "Añadir a Calendario"; en Android, macOS, Windows y Linux se descarga para la app de calendario predeterminada. Los botones de la tarjeta conservan su acción.
+- **RF-TPL-HOURS-01 (Valor en horas desde el horario)**: En la creación, edición y publicación de plantillas, "Valor en horas" se calcula del rango de horario (redondeo a 0.5 h) y queda de solo lectura mientras el rango esté completo; sin rango se captura manualmente. Cada campo de hora ofrece un botón que abre el selector de hora nativo del sistema.
 
+### `[SRS 27.4 Requerimientos No Funcionales - Rendimiento de Carga y Actualización Automática]`
 
+- **RNF-PERF-LOAD-01 (Primera carga escalonada)**: Inicio (Servicio Social y Voluntariado General) y Participación muestran un esqueleto de carga (`.abaq-skeleton`) en lugar de áreas vacías; Inicio solicita el perfil una sola vez (flujo compartido con `shareReplay`) y, con el navegador desocupado (`requestIdleCallback`), precarga la lista de actividades para que Participación se pinte al instante.
+- **RNF-PERF-LIVE-01 (Actividades nuevas sin recarga manual)**: El cliente consulta `GET /activity/changes` (huella: total, último id y última modificación) cada 60 s **solo con la pestaña visible**, y de inmediato al volver a ella; la lista completa (consulta con `$lookup`) se descarga únicamente si la huella cambió. Ediciones, inscripciones, cancelaciones y evaluaciones actualizan `updated` para invalidar la huella.
+- **RNF-PERF-OPTIONS-01 (Selectores ligeros)**: El selector de voluntarios del modal de participación usa `GET /student/options` y `GET /volunteer/options` (solo id, folio y nombre) en lugar de expedientes completos, con respaldo a las rutas completas.
+- **RNF-SEC-GUARD-UI-01 (Límite de descargas invisible)**: El contador del límite anti-abuso de descargas (3 por ventana) es interno y no se muestra en ningún botón.
 
+### `[SRS 27.5 Vocabulario Institucional]`
 
+- **RNF-VOCAB-01**: En toda la interfaz se usa "voluntario(s)" en lugar de "colaborador(es)" y "animal(es) de compañía" en lugar de "mascota(s)" o "animal(es)" cuando se refiere a los animales; "Bienestar Animal", "Rescate Animal" y los identificadores de código no cambian.
 
+---
 
+## 28. Convocatorias OP con Acreditación Anidada `[VALIDADO 15/11/2026 — IMPLEMENTADO EN RAMA DE FEATURE]`
+
+!!! success "Validado"
+    Diseño completo, decisiones validadas e implementación en [Convocatorias OP con Acreditación Anidada](ideas/2026-11-15-convocatorias-op-con-acreditacion-anidada.md).
+
+### `[SRS 28.1 Requerimientos Funcionales Propuestos]`
+
+- **RF-OP-UNI-01 (Todo es oportunidad OP)**: Las plantillas publicadas son convocatorias con folio `OP-EVE-YYMMDD-HEX`; no se emiten nuevos folios `AC`. Los `AC` históricos se conservan como solo lectura.
+- **RF-OP-UNI-02 (Categoría de evento en la plantilla)**: La plantilla define la categoría: Campaña de esterilización, Apoyo a refugio (paseo o limpieza), Módulo de adopción, Plática de bienestar animal u Otro.
+- **RF-OP-UNI-03 (Acreditación anidada por inscripción)**: Al inscribirse, el servidor crea la acreditación `OP-EVE` del voluntario, ligada a la convocatoria (`activityRef`), con horas sugeridas `duración × multiplicador de la categoría` (× 4 limpieza de refugio, × 2 el resto) para Servicio Social y 0 h para Voluntariado General.
+- **RF-OP-UNI-04 (Evaluación sobre la acreditación)**: Validar aprueba la acreditación con las horas propuestas, que el admin puede sobrescribir hasta las horas pendientes (SS), desempeño y comentario; "No asistió" la rechaza con desempeño y motivo obligatorio. Cancelar la inscripción la marca `cancelled`.
+- **RF-OP-UNI-05 (Vinculaciones sin cambio)**: Las opciones 2–10 de "Registrar participación" conservan sus horas fijas del reglamento.
+
+### `[SRS 28.2 Requerimientos No Funcionales Propuestos - Seguridad e Integridad]`
+
+- **RNF-OP-SEC-01 (Titularidad)**: El titular de una acreditación creada por un no-admin sale siempre de la sesión (`req.user`); consulta y borrado solo para el titular o el admin (corrige IDOR en `POST`, `GET /student/:id` y `DELETE /:id`).
+- **RNF-OP-SEC-02 (Campos protegidos)**: `performance`, `hoursAccredited`, `status` y `activityRef` solo los fija el servidor o el admin al evaluar.
+- **RNF-OP-SEC-03 (Cupo e idempotencia)**: Reserva de cupo con incremento atómico condicionado e índices únicos parciales `{ activityRef, studentRef }` / `{ activityRef, volunteerRef }`.
+- **RNF-OP-SEC-04 (Una sola vía de horas)**: Las horas se suman al expediente únicamente al aprobar la acreditación, calculadas en el servidor y auditadas (`evaluatedBy`, `evaluatedAt`, horas sugeridas frente a finales).
+
+---
+
+## 29. Centro de Notificaciones y Resumen Semanal `[IMPLEMENTADO 15/11/2026]`
+
+### `[SRS 29.1 Requerimientos Funcionales]`
+
+- **RF-NOT-01 (Campana y drawer)**: Toda sesión ve una campana con contador de no leídas (barra superior en móvil y escritorio) que abre el drawer de notificaciones (portado de `dev-rivers`): filtros Todas / No leídas / Institucional / Acreditaciones / Actividades, búsqueda, marcar leída/no leída, marcar todas y eliminar.
+- **RF-NOT-02 (Paridad con correos)**: Cada correo transaccional existente deja su notificación en la campana, aun sin correo registrado: aceptación (+ recordatorio de permanencia SS), correcciones de expediente, inactividad/baja, conclusión de Servicio Social y nuevo registro (aviso compartido para la Coordinación).
+- **RF-NOT-03 (Resumen semanal)**: Los voluntarios activos (SS y VG) reciben por correo y en la campana un resumen semanal. *Actualizado el 17/11/2026:* arriba, **lo que viene esta semana**: todas las convocatorias de la semana en una sola lista (sin separar inscripciones, porque el admin publica a más tardar el fin de semana y aún no hay inscritos), con día, fecha, hora, horas que acredita (SS) y cupo, más las recién publicadas para semanas siguientes. Abajo, **lo que hizo la semana pasada**: por cada convocatoria o vinculación, la fecha (y hora) de la actividad, si quedó validada, no validada o pendiente, las horas asignadas (SS) y la fecha de validación, más el avance total de horas SS. No incluye la bitácora de horas (propuesta original, ajustes ni quién validó).
+- **RF-NOT-04 (Envío por lotes)**: El resumen se envía el domingo (primera mitad de destinatarios) y el lunes (el resto) con la API batch de Resend. *Actualizado el 17/11/2026: el tope fijo `WEEKLY_DIGEST_DAILY_CAP` se sustituye por el cupo diario calculado de RF-NOT-12.*
+
+### `[SRS 29.2 Requerimientos No Funcionales]`
+
+- **RNF-NOT-SEC-01 (Titularidad)**: Las notificaciones se consultan, marcan y eliminan solo por su titular (`recipientAuthId` = sesión); los avisos compartidos de la Coordinación solo los ven administradores. Una notificación ajena responde 404.
+- **RNF-NOT-SEC-02 (Sin efectos al consultar)**: Consultar la campana no crea notificaciones ni envía correos, y no expone configuración del proveedor de correo.
+- **RNF-NOT-SEC-03 (Acciones seguras)**: Las acciones de una notificación solo navegan a rutas internas o abren enlaces `https`.
+- **RNF-NOT-REL-01 (Idempotencia)**: Cada persona se reclama una sola vez por semana (`WeeklyDigestDelivery`, índice único); un fallo de Resend se reintenta en la siguiente ejecución sin duplicar la notificación.
+- **RNF-NOT-REL-02 (Dominios de prueba)**: El resumen no redirige correos de dominios de prueba (`.local`, `.test`, `.example`): esas cuentas solo reciben la notificación en la campana.
+
+---
+
+## 30. Avisos del Ciclo de Convocatorias y Vinculaciones, Cupo Diario de Correo y Folio Visible `[IMPLEMENTADO 17/11/2026]`
+
+### `[SRS 30.1 Requerimientos Funcionales - Avisos solo en la campana]`
+
+Estos avisos no envían correo; solo aparecen en la campana. **Principio: nadie recibe aviso de una acción que acaba de realizar.**
+
+| ID | Evento | Recibe |
+|---|---|---|
+| **RF-NOT-05** | Convocatoria publicada (desde plantilla o alta directa) | Colaboradores con expediente **activo** (SS y voluntarios). Inactivos, pendientes, rechazados y la Coordinación (que la publicó) no lo reciben. |
+| **RF-NOT-06** | Participación en convocatoria finalizada: validada (con horas acreditadas) o inasistencia | Solo el participante. |
+| **RF-NOT-07** | Vinculación **solicitada** por un colaborador | Cada admin (es una solicitud por revisar). El colaborador que la envió no recibe aviso. |
+| **RF-NOT-08** | Vinculación registrada por la Coordinación a nombre de un colaborador | Solo el titular. |
+| **RF-NOT-09** | Vinculación finalizada: aprobada (con horas) o rechazada (con motivo) | Solo el titular. |
+| **RF-NOT-14** | Convocatoria **terminada** (pasó su hora de fin) con inscripciones sin evaluar: "Es momento de validar" | Cada admin, una sola vez por convocatoria. |
+
+- **RF-NOT-10 (Paridad con correos)**: Todo correo a un colaborador o a la Coordinación por una solicitud deja aviso en la campana de quien lo recibe: aceptación, correcciones, inactividad/baja, conclusión, nuevo registro (admins) y resumen semanal. Las constancias de plática van a asistentes externos sin cuenta y no generan aviso.
+- **RF-VAL-02 (Avance de evaluación)**: En la vista de la Coordinación, el chip de participantes de cada convocatoria muestra la fracción **evaluados / inscritos** ("0/2 participantes"), en ámbar mientras falten evaluaciones y en verde al completar. Evaluado = validado o inasistencia; las inscripciones canceladas no cuentan. Con cupo limitado añade "· N/M lugares". Los colaboradores siguen viendo inscritos y cupo.
+- **RF-NOT-15 (Fin de una convocatoria)**: Termina el día de la convocatoria (`dueDate`, o `startDate` si no hay) a su `endTime` en hora de Querétaro (UTC−6); sin `endTime`, al final del día. Solo se avisan convocatorias terminadas en los últimos 7 días; las que no tienen inscripciones pendientes se marcan revisadas sin aviso.
+
+### `[SRS 30.2 Requerimientos Funcionales - Resumen semanal y cupo de correo]`
+
+- **RF-NOT-11 (Cola, horario y reparto)**: El resumen funciona como cola en dos tiempos, domingo y lunes (cron de Railway `0 9,13 * * 0,1`, UTC):
+    - **3:00 de Querétaro, preparar:** valida destinatarios activos y contenido, arma cada correo y lo deja en cola (`WeeklyDigestDelivery` `queued`) sin enviar ni consumir cuota.
+    - **7:00, enviar:** prepara lo que falte y despacha la cola dentro del cupo; el contenido se borra tras enviarse.
+    - Los destinatarios son los colaboradores activos en ese momento y se reparten mitad y mitad: el domingo `ceil(N/2)` y el lunes el resto.
+    - La cola se reclama de forma atómica (`queued → sending`), así que dos ejecuciones simultáneas no duplican envíos.
+- **RF-NOT-12 (Cupo diario)**: El cupo de cada ejecución es `RESEND_DAILY_LIMIT` (100) − correos ya enviados ese día por cualquier motivo (contador `EmailUsage`) − `EMAIL_TRANSACTIONAL_RESERVE` (20, para aceptaciones, constancias y demás del resto del día), nunca negativo.
+- **RF-NOT-16 (Envío de prueba)**: `send-weekly-digest.js --to <correo>` envía el resumen de la semana a un solo correo con un destinatario de muestra ("Prueba ABAQ"), sin datos personales; no usa la cola ni crea avisos, de modo que no altera el envío programado, y respeta el cupo del día.
+- **RF-NOT-17 (Filtros por rol)**: Los filtros de la campana usan la narrativa de participaciones según el rol: estudiante SS "Convocatorias / Vinculaciones / Mi Servicio Social"; voluntario "Convocatorias / Vinculaciones / Mi voluntariado"; Coordinación "Por validar / Solicitudes / Nuevos registros" (más "Todas" y "No leídas").
+- **RF-NAV-01 (Sección de participaciones)**: La sección se llama "Mis participaciones" para estudiantes y voluntarios y "Participaciones" para la Coordinación (navegación, menú móvil y título).
+- **RF-NOT-13 (Sin cupo)**: Lo que no alcance el domingo queda en cola para el lunes; lo que no alcance el lunes recibe el resumen **solo en la campana**, de modo que nadie se queda sin él. Un envío fallido vuelve a la cola en la siguiente preparación.
+
+### `[SRS 30.3 Requerimientos Funcionales - Folio visible]`
+
+- **RF-FOL-01 (Un solo folio por convocatoria)**: El colaborador ve y busca su inscripción con el **folio de la convocatoria** (`OP-EVE-…`). El folio de su acreditación individual se sigue generando y guardando, pero no se le muestra.
+- **RF-FOL-02 (Vista de la Coordinación)**: *Actualizado el 17/11/2026:* el detalle de la convocatoria muestra su folio en el encabezado y las filas de inscritos ya no muestran el folio individual. Ese folio solo queda en la base de datos, los respaldos y la bitácora de horas.
+- **RF-FOL-03 (Todo Evento ABAQ pertenece a una convocatoria)**: *17/11/2026.* Un Evento ABAQ solo se registra inscribiéndose a una convocatoria: el formulario de vinculación ya no ofrece "1. Evento ABAQ" y la API rechaza `type: "EVENT"` (400). Los Eventos ABAQ capturados antes como vinculación se migran a una **convocatoria histórica** con su mismo folio (`scripts/migrate-convocatorias-op.js`, paso 3), así que en perfiles, tablas y buscadores de los tres roles solo aparece el folio de una convocatoria. La migración no suma horas y las convocatorias históricas no disparan el aviso "Es momento de validar".
+
+### `[SRS 30.4 Requerimientos No Funcionales - Seguridad de notificaciones]`
+
+- **RNF-NOT-SEC-04 (Copia por admin)**: Cada aviso para la Coordinación se crea una vez por cuenta admin; leer o borrar el propio no afecta a otro admin.
+- **RNF-NOT-SEC-05 (Privacidad del contenido)**: El texto que recibe un colaborador solo menciona su propio registro (título, folio, horas, motivo). El nombre de otras personas aparece únicamente en avisos para admins.
+- **RNF-NOT-SEC-06 (Aislamiento verificado)**: Ninguna sesión lee, marca o borra avisos ajenos (404) y "marcar todas" solo afecta a los propios. Cubierto por `tests/notifications-lifecycle.test.js`.
+- **RNF-NOT-REL-03 (Sin bloqueo)**: Registrar un aviso nunca interrumpe ni retrasa la operación que lo origina; un fallo solo se registra en la bitácora.
+- **RNF-NOT-REL-04 (Recordatorio único)**: El recordatorio de validación lo ejecuta un cron de Railway cada 15 minutos; cada convocatoria se reclama de forma atómica (`Activity.validationReminderAt`) y no altera la huella de cambios que usan los clientes.
+
+---
+
+## 31. Cuentas Inactivas en Solo Consulta y Endurecimiento de Acceso `[IMPLEMENTADO 16/11/2026]`
+
+### `[SRS 31.1 Requerimientos Funcionales - Cuentas inactivas]`
+
+- **RF-INA-01 (Solo consulta)**: Una cuenta inactiva consulta (solo `GET`) las convocatorias en las que ya estaba inscrita y sus vinculaciones existentes, su expediente y sus avisos.
+- **RF-INA-02 (Nada nuevo)**: No ve convocatorias nuevas ni detecta que se publicaron (la huella de cambios se acota a lo vinculado) y no recibe avisos de convocatorias nuevas.
+- **RF-INA-03 (Sin acciones)**: No puede inscribirse, cancelar, registrar o borrar vinculaciones ni editar su perfil.
+- **RF-INA-04 (Coordinación)**: La Coordinación no puede crearle vinculaciones nuevas, pero sí evaluar o aprobar las que ya existían; el inactivo recibe esos cambios de estado.
+- **RF-INA-05 (Pendientes y rechazados)**: Sin acceso a convocatorias ni vinculaciones, ni siquiera de lectura.
+
+### `[SRS 31.2 Requerimientos No Funcionales - Endurecimiento]`
+
+- **RNF-SEC-ACC-01 (Vinculación de cuenta)**: El expediente de una sesión se resuelve por `authId`; el correo solo puede reclamar un expediente **sin dueño** (creado por la Coordinación), de forma atómica, y nunca reasigna uno que ya pertenece a otra cuenta.
+- **RNF-SEC-ACC-02 (Registro)**: El alta descarta del cuerpo los campos que solo fija el servidor o la Coordinación (horas, estado, vínculos, `authId`); el folio propuesto por el onboarding se acepta solo con formato válido.
+- **RNF-SEC-ACC-03 (Datos de terceros)**: `/pet` y `/contact` son exclusivos de la Coordinación.
+- **RNF-SEC-ACC-04 (Dependencias)**: Sin vulnerabilidades críticas en dependencias de producción del backend (`npm audit --omit=dev`).
+- Cobertura: `tests/inactive-readonly-security.test.js` (24 aserciones).
+
+---
+
+## 32. Bitácora de Horas y Captura de Horas al Validar `[IMPLEMENTADO 17/11/2026]`
+
+### `[SRS 32.1 Requerimientos Funcionales]`
+
+- **RF-AUD-01 (Bitácora de horas)**: Cada decisión de la Coordinación sobre horas queda registrada en `HoursAuditLog`:
+    - En convocatorias: participación validada o inasistencia.
+    - En vinculaciones: aprobada, aprobada con ajuste manual o rechazada.
+    - Cada registro guarda tipo, acción, folios (acreditación y convocatoria), titular, si acumula horas, **horas propuestas por el sistema**, **horas finales**, diferencia, si hubo ajuste manual, desempeño, comentario, quién (cuenta y correo) y cuándo.
+- **RF-AUD-02 (Propuesta fija)**: La propuesta del reglamento se guarda al crear la acreditación (`hoursSuggested`) y no cambia al evaluar:
+    - Convocatorias: duración × multiplicador.
+    - Vinculaciones: tabla del reglamento; en adopción de estudiante, cantidad × 100.
+- **RF-AUD-03 (Ajuste manual)**: `overridden` indica que la participación se aceptó con horas distintas a las propuestas. Una inasistencia o un rechazo no es un ajuste: se identifica por su acción, con 0 h finales.
+- **RF-AUD-04 (Consulta)**: La bitácora no se muestra en la interfaz. La Coordinación la consulta con `GET /accreditation/hours-audit` (filtros `accreditation`, `collaborator`, `kind`, `overridden=true`, `from`, `to`, `limit` ≤ 500) y viaja en los respaldos.
+- **RF-VAL-01 (Captura de horas al validar)**: Al validar una convocatoria o una vinculación, la Coordinación ve las horas propuestas por el sistema y puede sobrescribirlas con un clic. Si cambia el valor, el formulario avisa que el ajuste quedará en la bitácora. Para Voluntariado General se explica que el reglamento no acredita horas y solo se evalúa el desempeño.
+
+### `[SRS 32.2 Requerimientos No Funcionales]`
+
+- **RNF-AUD-01 (Solo inserción)**: Ninguna ruta modifica ni borra la bitácora y todos sus campos son inmutables en el modelo.
+- **RNF-AUD-02 (Acceso)**: Solo administradores la consultan (403 para colaboradores). Los parámetros se validan (ObjectId, fecha, tipo) para evitar inyección de operadores.
+- **RNF-AUD-03 (Sin bloqueo)**: Registrar en la bitácora no interrumpe la evaluación; un fallo se reporta en el log del servidor.
+- Cobertura: `tests/hours-audit.test.js`.
+
+## 33. Reporte Semanal de la Coordinación `[IMPLEMENTADO 17/11/2026]`
+
+### `[SRS 33.1 Requerimientos Funcionales]`
+
+- **RF-REP-01 (Envío)**: Cada domingo a las 17:00 (Querétaro) cada administrador recibe por **correo** un reporte de la semana en curso, de lunes a domingo. No genera aviso en la campana.
+- **RF-REP-02 (Colaboradores)**: Compara **Servicio Social** (estudiantes y voluntarios SS) con **Voluntariado General**: activos, nuevos registros, inscripciones, asistencias, validadas, faltas, por evaluar, vinculaciones solicitadas, aprobadas y rechazadas, solicitudes pendientes, horas acreditadas (solo SS) y desempeño promedio.
+- **RF-REP-03 (Rendimiento de convocatorias)**: Por cada convocatoria de la semana: folio, fecha y hora, inscritos frente a cupo, porcentaje de asistencia, validadas, faltas, por evaluar, horas otorgadas y desempeño promedio.
+- **RF-REP-04 (Prueba)**: `node scripts/send-admin-weekly-report.js --to <correo>` envía el reporte real de la semana con asunto `[Prueba]`, sin registrar la entrega.
+
+### `[SRS 33.2 Requerimientos No Funcionales]`
+
+- **RNF-REP-01 (Privacidad)**: Solo cifras agregadas y títulos de convocatoria; sin nombres ni datos de contacto de colaboradores.
+- **RNF-REP-02 (Sin duplicados)**: Una entrega por admin y semana (`WeeklyDigestDelivery`, `weekKey` `admin-…`, índice único); repetir el job no reenvía.
+- **RNF-REP-03 (Cupo)**: Respeta el cupo diario de correo (RNF de §30); sin cupo, no envía y lo reporta.
+- Cobertura: `tests/admin-weekly-report.test.js`; Evento ABAQ suelto y migración en `tests/convocatoria-op.test.js`.
+
+## 34. Re-registro Silencioso tras Rechazo `[IMPLEMENTADO 17/11/2026]`
+
+### `[SRS 34.1 Requerimientos Funcionales]`
+
+- **RF-REG-01 (Mismo flujo)**: Quien fue rechazado se registra de nuevo en `/auth/signup` con el mismo correo y **la misma contraseña**, sin pantallas especiales. El servidor reconoce la cuenta y sustituye el expediente rechazado por el nuevo; queda en "pendiente" y la Coordinación recibe el aviso de nuevo registro.
+- **RF-REG-02 (Cambio de tipo)**: Si elige el otro tipo de voluntario, el expediente anterior se borra y se crea el del nuevo tipo (folio `SS-` o `VG-`), sin avisos. Con el mismo tipo se conservan `_id`, folio e historial de estatus, y el contenido se reemplaza completo (no se mezcla con el anterior).
+- **RF-REG-03 (Verificación temprana)**: Al pulsar "Continuar a Fase 1", `POST /auth/signup-precheck` confirma que el correo puede registrarse. Si no, el mensaje aparece bajo el campo de correo y no puede avanzar al formulario.
+- **RF-REG-04 (Texto para el rechazado)**: La pantalla de expediente rechazado indica que puede registrarse de nuevo con el mismo correo y la misma contraseña, y elegir otra modalidad.
+- **RF-REG-05 (Desbloqueo)**: La Coordinación libera un correo bloqueado con `node scripts/unblock-signup.js --email <correo> [--reset-count]`.
+
+### `[SRS 34.2 Requerimientos No Funcionales - Seguridad]`
+
+- **RNF-REG-01 (Titularidad)**: El re-registro exige la contraseña de la cuenta. Sin ella, cualquiera que conociera el correo de una persona rechazada tomaría su cuenta y vería sus datos.
+- **RNF-REG-02 (Alcance)**: Solo expedientes `rejected` sin historial (inscripciones ni vinculaciones). Nunca cuentas admin, activas, pendientes ni inactivas. Los expedientes se ubican solo por `authId`; el de otra persona con el mismo correo personal no se toca.
+- **RNF-REG-03 (Topes)**: 5 contraseñas equivocadas en 1 h bloquean el correo 24 h; 3 re-registros lo bloquean de forma permanente; 20 intentos de registro por IP cada 15 min (`signupLimiter`), además de Turnstile en el envío final.
+- **RNF-REG-04 (Sin enumeración de motivos)**: Cualquier rechazo responde el mismo mensaje: "No es posible continuar el registro con este correo. Si ya tienes cuenta, inicia sesión o comunícate con la Coordinación."
+- **RNF-REG-05 (Concurrencia y rollback)**: Candado por correo (`SignupGuard.lockedAt`); el borrado solo procede si el expediente sigue rechazado. Copia previa en `ProfileArchive` (180 días) y rollback automático si algo falla: el expediente, el rol y el candado vuelven a como estaban.
+- **RNF-REG-06 (Respaldo)**: `signupguards` y `profilearchives` viajan en los respaldos.
+- Cobertura: `tests/signup-reregistration.test.js` (11 casos).

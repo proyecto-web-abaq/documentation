@@ -177,3 +177,22 @@ sequenceDiagram
 2. **Las 9 Vistas Críticas Autorizadas:**
    - Consultar la matriz exhaustiva de vistas en la [Sección 5.4 de la Propuesta Técnica](ciclo-vida-voluntarios-deshidratacion-design.md#54-mapeo-y-definicion-visual-de-vistas-ubicacion-exacta-de-los-folios).
 3. **Regla de Ocultamiento:** No mostrar folios en dashboards macro (`/admin/home`), edición de biografía (`/sobre-mi`), formularios en campo (`/survey/form`) ni vistas públicas.
+
+---
+
+## 6. Folio Visible de una Inscripción a Convocatoria `[VIGENTE 17/11/2026]`
+
+Cada inscripción a una convocatoria genera dos folios con el mismo formato `OP-EVE-YYMMDD-HEX`:
+
+| Folio | Dónde vive | Quién lo ve |
+|---|---|---|
+| **Folio de la convocatoria** | `Activity.folio` y la proyección `Student/Volunteer.assignedActivities[].interactionFolio` | Todos: es el que se muestra y se busca. |
+| **Folio de la acreditación individual** | `Accreditation.interactionFolio` (índice único), ligado por `assignedActivities[].accreditationId` | Nadie en la interfaz; solo base de datos, respaldos y bitácora de horas. |
+
+Reglas:
+
+1. El servidor escribe el folio de la convocatoria en la proyección al inscribir y al reinscribir; el cliente no lo envía.
+2. El folio de la acreditación no se elimina ni se renombra: mantiene el índice único, la deshidratación/rehidratación y la trazabilidad de la evaluación.
+3. Las vinculaciones (acreditaciones sin `activityRef`) siguen mostrando su propio folio (`OP-DIF-…`, `OP-STE-…`, etc.).
+4. Migración de históricos: `node scripts/migrate-convocatorias-op.js [--dry]` (idempotente; reporta "folios visibles alineados").
+

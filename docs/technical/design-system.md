@@ -507,10 +507,9 @@ Estructura unificada que gobierna todas las vistas de detalle de Base de Datos:
    - Bloque de texto con fila de insignias (`.hero-eyebrow-row`), título institucional (`.hero-title`) y subtítulo (`.hero-subtitle`).
    - Botón interactivo de folio (`.hero-folio-btn`): fondo ámbar `#fef3c7`, borde `#fde68a`, texto `#92400e`, que al presionarse copia el código al portapapeles y activa el micro-toast `¡Copiado!`.
 2. **Layout Estandarizado de Botones de Acción (`.hero-actions-row`)**:
-   - `btn-hero-update`: Actualizar datos (`background: #0284c7; color: #fff;` con ícono `sync` animado en carga).
-   - `btn-hero-accreditation`: Nueva acreditación (`background: #1d3d69; color: #fff;` con ícono `assignment_turned_in`).
-   - `btn-hero-pdf` y `btn-hero-docx`: Enlaces translúcidos a documentos oficiales en PDF y Word.
-   - `btn-hero-delete`: Acción destructiva de borrado (`background: #dc2626; color: #fff;`).
+   - En los 4 módulos de Base de Datos (`talks`, `campaigns`, `adoptions`, `identifications`) el detalle solo expone acciones básicas del registro: `btn-hero-delete` (Borrar registro, `background: #dc2626; color: #fff;`) alineado arriba a la derecha.
+   - **Retirados (15/11/2026)**: `btn-hero-update` (Actualizar datos con confirmación `"yes"`, solo recargaba el registro), `btn-hero-accreditation` (Registrar participación, pertenece a `/activity-list`) y `btn-hero-pdf` / `btn-hero-docx` (Carta Oficial, se reubicará en otra sección).
+   - Los cambios de estado propios de cada módulo se conservan en el cuerpo de la vista (`Completar adopción`, `Marcar placa como completada`), así como las acciones de documentos de Adopciones y las constancias por participante de Pláticas.
 3. **Fila de Métricas Integradas en el Gradiente (`.hero-stats-row`)**:
    - Tarjetas translúcidas con desenfoque (`backdrop-filter: blur(8px)`) que resumen fecha, participantes, género y estatus en una sola composición visual armónica.
 
@@ -519,11 +518,12 @@ Estructura unificada que gobierna todas las vistas de detalle de Base de Datos:
 - Provee un resumen ejecutivo de alta densidad (*Super Brief*) estructurado en:
   - Fila de insignias con categoría, estatus y botón de folio copiable.
   - Título y subtítulo descriptivo del registro.
-  - Clúster de acciones reflejadas directamente en la tarjeta (actualizar, acreditar, documentos, borrar).
+  - Sin botonera propia: las acciones del registro viven únicamente en el `.admin-hero` para no duplicarlas.
   - Cuadrícula de métricas clave (`.brief-metrics-panel`).
   - Etiquetas temáticas (`.brief-tags-row`) y caja de notas oficiales (`.brief-notes-box`).
 
-### 12.3 Modal Validador con Confirmación Escrita `"yes"` (`<app-update-confirm-modal>`)
+### 12.3 Modal Validador con Confirmación Escrita `"yes"` (`<app-update-confirm-modal>`) `[RETIRADO DE LAS VISTAS — 15/11/2026]`
+- Ya no se usa en ninguna vista: acompañaba al botón "Actualizar datos", que solo recargaba el registro. El componente se conserva porque lo cubre una prueba unitaria.
 - Ubicado en `src/app/components/shared/update-confirm-modal/`.
 - Mecanismo de seguridad deliberado para autorizar actualizaciones de expedientes:
   - Muestra la tarjeta Super Brief del registro dentro del cuerpo del modal.
@@ -537,8 +537,9 @@ Estructura unificada que gobierna todas las vistas de detalle de Base de Datos:
 ### 13.1 Vocabulario Oficial y Micro-copy de Botones de Acción
 - **Prohibición de "Nueva acreditación"**: Se prohíbe el uso de la etiqueta "Nueva acreditación" en botones porque sugiere falsamente una resolución inmediata sin auditoría.
 - **Prohibición de Jerga Técnica en UI (p. ej. "1:1")**: Las relaciones arquitectónicas o ratios técnicos (como "1:1") no deben exponerse al usuario final. La interfaz debe usar terminología humana y transparente: *"Registrar participación individual"* o *"Registrar participación"*.
-- **Botón Canónico para Colaboradores**: `Registrar participación` (ícono `assignment_turned_in` o `add_circle`).
-- **Botón Canónico para Coordinación**: `Registrar participación a colaborador` o `Registrar participación` (ícono `assignment_turned_in` o `verified`).
+- **Botón Canónico para Voluntarios**: `Registrar participación` (ícono `assignment_turned_in` o `add_circle`).
+- **Botón Canónico para Coordinación**: `Registrar participación a voluntario` o `Registrar participación` (ícono `assignment_turned_in` o `verified`).
+- **Términos institucionales (15/11/2026)**: "voluntario(s)" en lugar de "colaborador(es)"; "animal(es) de compañía" en lugar de "mascota(s)" o "animal(es)" cuando se refiere a los animales ("Bienestar Animal" no cambia).
 - **Navegación Canónica**: La pestaña `/activity-list` se titula en el Navbar como `Actividades y Participación`, englobando ambos componentes de forma transparente.
 
 ### 13.2 Banner Informativo de Verificación Institucional (`.accreditation-audit-banner`)
@@ -626,11 +627,11 @@ Para pantallas móviles (`< 992px`), se abandona el menú desplegable tipo acord
 +-------------------------------------------------------------------+
 | ⚡ ACCIONES MÁS REQUERIDAS (Grid Táctil 2x2)                       |
 | +-------------------------------+ +-----------------------------+ |
-| | [+] Invitar Voluntario        | | [📅] Registrar Actividad    | |
-| |     Nuevo expediente          | |      Convocatoria en campo  | |
+| | [+] Nueva Actividad           | | [✓] Nueva Acreditación      | |
+| |     Elegir plantilla          | |     Registrar participación | |
 | +-------------------------------+ +-----------------------------+ |
-| | [💾] Respaldos & Métricas     | | [📢] Pláticas & Difusión    | |
-| |      Infraestructura y nube   | |      Eventos informativos   | |
+| | [🔍] Buscar Voluntario        | | [💾] Respaldar Sistema      | |
+| |      Por nombre o folio       | |      Descargar copia        | |
 | +-------------------------------+ +-----------------------------+ |
 |                                                                   |
 | 🔗 VISTAS MÁS UTILIZADAS (Chips Horizontales con Scroll 1-Tap)    |
@@ -658,10 +659,11 @@ Para pantallas móviles (`< 992px`), se abandona el menú desplegable tipo acord
 
 1. **Bloque 1: Acciones Más Requeridas (`.hub-action-grid`)**:
    - Cuadrícula táctil 2x2 de botones tipo tarjeta (`.hub-action-card`) con tamaño mínimo de toque de `48px`, elevación sutil, ícono con contenedor contrastado, título legible en negrita y bajada descriptiva de contexto.
-   - **Administrador**: *Invitar Voluntario*, *Registrar Actividad*, *Respaldos & Métricas*, *Pláticas & Difusión*.
-   - **Estudiante**: *Inscribirme a Actividad*, *Registrar Participación*, *Mis Acreditaciones*, *Mi Perfil*.
-   - **Voluntario General**: *Ver Actividades Abiertas*, *Registrar Participación*, *Mi Historial*, *Mi Perfil*.
-   - **Público / Sin Sesión**: *Iniciar Sesión*, *Convocatoria / Registro*, *Actividades Públicas*, *Acerca de ABAQ*.
+   - Cada tarjeta **ejecuta la acción** en la vista destino (`?accion=` + `onMenuAction()`), no solo navega a la sección.
+   - **Administrador**: *Nueva Actividad* (elegir plantilla), *Nueva Acreditación* (registrar participación), *Buscar Voluntario* (enfoca el buscador), *Respaldar Sistema*.
+   - **Servicio Social y Voluntariado General** (misma narrativa, sin "Jornadas"): *Inscribirme a Actividades*, *Registrar Participación*.
+   - **Público / Sin Sesión**: *Iniciar Sesión*, *Registrarse*.
+   - Constancias y acreditaciones no son acciones rápidas.
 2. **Bloque 2: Vistas Más Utilizadas (`.hub-chips-scroll`)**:
    - Píldoras horizontales (`.hub-chip-pill`) con scroll fluido de 1-tap que llevan de inmediato a las vistas de consulta más frecuentes sin necesidad de abrir submenús.
 3. **Bloque 3: Secciones del Sistema (`.hub-modules-stack`)**:
@@ -726,5 +728,101 @@ Para maximizar la velocidad de captura por teclado y aprovechar los selectores n
 - **Excepción Protegida**: Únicamente el flujo de **Registro / Onboarding** (`onboarding-phase`) y la vista de **Expediente** (`student-detail`) conservan los componentes personalizados `CustomDatepickerComponent` (`<app-custom-datepicker>`) y `CustomSelectComponent` (`<app-custom-select>`).
 - **Estándar Nativo en el Resto del Sistema**: Todas las demás vistas y modales (`NewAccreditationModalComponent`, `activity`, `activity-list`, `quick-activities`, `campaign-list`, `talk-list`, `adoption-detail`, `identification-list`, `backup`) utilizan controles nativos `<input type="date">`, `<input type="time">` y `<select>` estilizados con `.custom-form-control`, permitiendo tanto la escritura manual directa con teclado como la apertura del selector nativo del sistema operativo.
 
+---
 
+## 18. Patrones del 15/11/2026: Esqueleto de Carga, Evaluación de Participantes, Agenda Exportable y Selectores de Hora
+
+### 18.1 Esqueleto de Carga Reutilizable (`.abaq-skeleton`, `styles.scss`)
+- Sustituye áreas vacías y textos "Cargando…" en la primera carga de Inicio (Servicio Social y Voluntariado General) y Participación.
+- Piezas: `.abaq-skeleton-stack` (columna con `gap: 14px`), `.abaq-skeleton-card` (tarjeta blanca con borde `#e2e8f0`) y `.abaq-skeleton` con variantes `is-title`, `is-line`, `is-short` e `is-block`.
+- Brillo con gradiente `#eef2f7 → #f8fafc` animado solo con CSS (`abaqSkeletonShimmer`, 1.4 s); sin animación con `prefers-reduced-motion: reduce`. Lleva `aria-busy="true"` y una etiqueta descriptiva.
+
+### 18.2 Tabla de Evaluación de Participantes (`/activity-list/:id`)
+- Reutiliza `.table-wrapper` + `.students-table` (y su transformación a tarjetas en `≤ 900px`) con columna de acciones fija a la derecha (`.actions-th` / `.actions-cell`, `232px`).
+- Columnas: Participante (nombre, correo, folio), Programa (`.program-badge` SS/VG), Escuela / Carrera, Estado (`.badge-status`: Por validar, Asistió, No asistió, Validada), Horas, Desempeño (calificación y comentario) y Acciones.
+- Acciones `.btn-arrow-action` **Validar** (verde) y **No asistió** (rojo); una evaluación validada muestra "Evaluación cerrada". Filas con inasistencia y validadas llevan un tinte de fondo; en móvil el tinte se aplica a la tarjeta completa.
+- Un solo modal (`.confirmation-modal.evaluation-modal`) con los 5 niveles de desempeño; en Servicio Social agrega "Horas a acreditar" con valor sugerido y tope. El botón de confirmación usa estados transitorios (`appActionFeedback`) y, mientras falte algo, indica en su propio texto qué falta.
+- El texto de los botones se fija en `.action-btn-text` porque la regla global anti-zoom de iOS fuerza `font-size: 16px !important` en `<button>`.
+
+### 18.3 Agenda Exportable a Calendario
+- Las tarjetas `section.next-activity-spotlight.is-calendar-link` son interactivas (cursor de mano, foco visible `3px #7bbf4f`) y muestran la pista `.stub-calendar-hint` ("Agregar al calendario") en el recuadro de fecha.
+- `.split-prep-box` y `.record-details-drawer` conservan su propia interacción.
+
+### 18.4 Selectores Nativos de Hora y Valor en Horas Calculado
+- Cada campo de hora de las plantillas lleva un botón `.btn-native-picker` con ícono `schedule` que abre el selector nativo (`input type="time"` + `showPicker()`), igual que el botón de calendario de las fechas.
+- "Valor en horas" se calcula del rango de horario, queda de solo lectura y muestra la pista "Calculado del horario: 09:00–13:00 = 4 h". Se retiró la pista "Escribe corrido (ej. 25122026…)" de las fechas.
+
+### 18.5 Retroalimentación en Botones: Casos Especiales
+- **Botones `type="submit"` con `feedbackOnClick`**: el estado de éxito se aplica después del clic; aplicarlo durante el clic deshabilitaba el botón y cancelaba el envío del formulario.
+- **Login**: todo fallo se muestra en el propio botón con texto corto ("Espera la verificación anti-bot", "Correo o contraseña incorrectos", "Sin conexión con el servidor"); un error repetido vuelve a animarse pasando por `idle`.
+- **Límite de descargas**: el contador anti-abuso es interno; los botones dicen "✓ Comprobante descargado" o "✓ Documento descargado", sin "(n/3)".
+
+---
+
+## 19. Convocatorias OP con Acreditación Anidada `[VALIDADO 15/11/2026]`
+
+Diseño completo en [Convocatorias OP con Acreditación Anidada](ideas/2026-11-15-convocatorias-op-con-acreditacion-anidada.md). Lineamientos visuales, reutilizando componentes existentes:
+
+- **Plantillas:** el selector "Tipo de actividad" se reemplaza por "Categoría de evento" (cada opción muestra su multiplicador, p. ej. "Apoyo a refugio · Limpieza · 4× por hora"); bajo el valor en horas, `.field-hint` "Acredita N h de Servicio Social por persona · Voluntariado General no acumula horas". La insignia de la tarjeta muestra la categoría y su multiplicador.
+- **Narrativa:** "Convocatoria" (lo principal: asistir y ayudar) y "Vinculación" (lo excepcional: "si consigues para ABAQ…"). Menú móvil: "Registrar Vinculación" (voluntarios) y "Nueva Vinculación" (admin).
+- **Evaluación:** el campo de horas usa `appAutoSelectOnClick` (clic selecciona para sobrescribir) y el texto "Sugerido: N h (duración × multiplicador, categoría) · tope X h".
+- **Participación (voluntario):** una sola lista de oportunidades `OP`; se retiran las insignias "Actividad grupal" / "Participación individual" y la categoría ("Evento · Campaña de esterilización", "Vinculación · Placas…") identifica cada registro. La barra `.step-pipeline` usa las fases `1. Inscrito → 2. Asistencia → 3. Validada` para convocatorias y `1. Enviada → 2. En revisión → 3. Validada` para vinculaciones.
+- **Detalle de convocatoria (admin):** la tabla de evaluación de §18.2 se conserva; opera sobre la acreditación anidada.
+- **Folios:** `app-folio-pill` toma el color del prefijo del folio (`OP-` naranja, `AC-` azul); tras la migración todas las convocatorias e inscripciones son `OP-EVE`.
+
+---
+
+## 20. Centro de Notificaciones `[IMPLEMENTADO 15/11/2026]`
+
+- **Campana:** `.hnav-bell-btn` (44 px en móvil, junto al botón hamburguesa; 40 px en escritorio, antes de "Cerrar sesión") con `.hnav-badge` rojo (máx. "99+"). `aria-label` con el número de no leídas.
+- **Drawer:** `<app-notifications-center [isDrawer]="true">` montado en el shell; estilos en `abaq-design.css` (`.notifications-drawer`, `.notification-card`, píldoras `.filter-pill`). Escape cierra; botón de expandir a pantalla completa.
+- **Colores de etiqueta:** `green` (aceptado, concluido), `navy` (nuevo registro, resumen semanal), `amber` (correcciones, inactividad, reglamento), `red` (baja, nuevo `.notif-tag-red` / `.notif-icon-red`), `slate` (informativo).
+- **Correo del resumen semanal:** cabecera navy "Tu semana en ABAQ".
+    - "Lo que viene esta semana": todas las convocatorias de la semana en una sola lista, sin separar inscripciones (el admin publica a más tardar el sábado en la tarde o el domingo temprano para que la preparación de las 3:00 las recoja, así que aún no hay inscritos). Cada tarjeta lleva la categoría en verde, el título, "📅 día, fecha · 🕒 hora", "Acredita N h" (solo SS) y el cupo.
+    - Botón verde "Ver convocatorias e inscribirme".
+    - Tras un separador, "Lo que hiciste la semana pasada": título y tipo, fecha y hora de la actividad, estado en color (verde "Validada", rojo "No validada", ámbar "Pendiente de validar"), horas asignadas (SS) y "el <fecha de validación>".
+
+---
+
+## 21. Avisos del Ciclo de Participación y Folio Visible `[IMPLEMENTADO 17/11/2026]`
+
+- **Avisos nuevos (campana, sin correo):** usan las categorías y colores de §20.
+
+| Aviso (`archetype`) | Categoría | Etiqueta | Color | Icono |
+|---|---|---|---|---|
+| `convocatoria_publicada` | Actividades | Nueva convocatoria | `navy` | `event_available` |
+| `participacion_validada` | Actividades | Validada | `green` | `task_alt` |
+| `participacion_inasistencia` | Actividades | Inasistencia | `red` | `event_busy` |
+| `vinculacion_solicitada` (admins) | Acreditaciones | En revisión | `amber` | `pending_actions` |
+| `vinculacion_registrada` (titular, la registró la Coordinación) | Acreditaciones | En revisión | `amber` | `pending_actions` |
+| `vinculacion_aprobada` | Acreditaciones | Aprobada | `green` | `verified` |
+| `vinculacion_rechazada` | Acreditaciones | Rechazada | `red` | `cancel` |
+| `convocatoria_por_validar` (admins) | Actividades | Por validar | `amber` | `fact_check` |
+
+- **Regla:** nadie recibe aviso de una acción que acaba de hacer. La Coordinación solo ve solicitudes ("Nueva solicitud de vinculación") y convocatorias terminadas por validar ("Es momento de validar: …").
+- **Redacción:** título en segunda persona para el colaborador ("Tu vinculación fue aprobada"); para la Coordinación, el nombre de la persona va en la descripción. La descripción incluye categoría o modalidad, folio y, si aplica, horas ("Se acreditaron 2 h") o motivo. Textos de más de 140 caracteres se recortan con "…".
+- **Acción:** todos llevan a `/activity-list` (ruta interna).
+- **Chip de participantes (admin):** `.participant-chip` muestra "evaluados/inscritos participantes" (título accesible "Evaluados / inscritos"); `.eval-pending` en ámbar `#b45309` mientras falten evaluaciones, `.eval-complete` en verde `#15803d` al completar; `.full` (rojo) se conserva para cupo lleno.
+- **Folio visible:** en tarjetas, agenda y buscador de *Mis participaciones*, `app-folio-pill` muestra el folio de la convocatoria (`OP-EVE-…`) para toda inscripción. En el detalle de la convocatoria (Coordinación) el folio va en el encabezado, junto al título; las filas de inscritos no muestran folio.
+- **Filtros de la campana por rol:** píldoras "Todas", "No leídas" y tres por categoría con la narrativa de participaciones (ver SRS RF-NOT-17), generadas desde una sola lista (`filtersFor(role)`) para el drawer y la pantalla completa.
+- **Nombre de la sección:** "Mis participaciones" (estudiantes y voluntarios) y "Participaciones" (Coordinación) en la barra, el menú móvil y el título de la vista.
+- **Pie de la tarjeta de aviso** *(17/11/2026)*: ya no se muestra el pie genérico "Notificación oficial ABAQ" en ningún rol. El pie solo aparece cuando aporta información propia (por ejemplo "También lo enviamos a tu correo" o "Reglamento de permanencia ABAQ"); sin pie, la acción queda alineada a la derecha y, sin pie ni acción, no se dibuja el separador.
+- **Historial de participación del admin** *(17/11/2026)*: tabla con Folio, Forma de participar, Participación (título, modalidad y horas), Participantes (fracción evaluados/inscritos de la convocatoria o nombre del titular de la vinculación), Avance, Fecha y **Acciones** fija a la derecha:
+    - Vinculación: "Descargar evidencia" (`btn-doc-download`) y "Ver detalle".
+    - Convocatoria: "Ver participantes" (detalle de la convocatoria) y "Ver detalle".
+    - "Ver detalle" usa `.detail-button`, el mismo botón de la lista de voluntarios (ahora en `src/styles.scss`), y despliega debajo de la fila el mismo cajón de detalle que las tarjetas (`ng-template #itemDetails`).
+    - En convocatorias, el Avance del admin es Publicada → Realizada → Evaluada (o "Sin inscritos"). Estudiantes y voluntarios conservan su tabla.
+
+---
+
+## 22. Campo de Horas al Validar (`app-hours-override-field`) `[IMPLEMENTADO 17/11/2026]`
+
+Componente compartido (`components/ui/hours-override-field`) que se usa en los tres puntos donde la Coordinación valida horas: evaluación en el detalle de la convocatoria, modal "Validar participación" de *Mi participación* y modal de aprobación del detalle del estudiante.
+
+- **Entradas:** `[(value)]` horas finales, `[proposed]` propuesta del sistema, `[max]` tope (horas pendientes) o `null`, `[detail]` cálculo ("1 h × 2, Apoyo a refugio · Paseo"), `[earnsHours]`, `inputId`, `label`.
+- **Campo:** etiqueta en versalitas de 9 px, caja de 150 px (100 % en móvil) con unidad "h"; texto del número a 16 px para evitar el zoom de iOS. Un clic selecciona el valor (`appAutoSelectOnClick`) para sobrescribirlo.
+- **Pista:** "Propuesto por el sistema: N h (cálculo) · tope M h. Da clic en el campo para sobrescribirlo."
+- **Ajuste:** si el valor difiere de la propuesta, aparece en ámbar "Ajuste manual: se registrará N h → M h en la bitácora de auditoría."
+- **Sobre el tope:** borde y texto rojizos (`input-over-limit`).
+- **Voluntariado General:** en lugar del campo, una nota gris "el reglamento no acredita horas. Solo se registra su desempeño".
 
