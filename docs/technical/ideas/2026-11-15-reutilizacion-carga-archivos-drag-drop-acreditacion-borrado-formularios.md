@@ -1,7 +1,7 @@
 ---
-title: "Estandarización y Reutilización de Componentes: Carga de Archivos Drag & Drop, Nueva Acreditación Contextual, Borrado Seguro en Tarjetas y Actualización Reactiva de Datos en Formularios"
+title: "Reutilización de Carga Drag & Drop, Acreditación y Borrado en Formularios (2026-11-15)"
 date: 2026-11-15
-icon: lucide/upload-cloud
+icon: lucide/circle-check
 author: "Equipo de Arquitectura e Ingeniería de Frontend ABAQ"
 status: "Implementado y Operativo"
 ---

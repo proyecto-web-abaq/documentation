@@ -1,3 +1,8 @@
+---
+title: "Perfil del Usuario y Flujo de Aprobación (2026-10-14)"
+date: 2026-10-14
+icon: lucide/circle-x
+---
 # Diseño de la Página de Perfil del Usuario
 
 **Estándar de referencia:** ISO/IEC/IEEE 29148:2018 (requisitos)

@@ -1,3 +1,8 @@
+---
+title: "Protección Perimetral Cloudflare: WAF y Turnstile (2026-11-03)"
+date: 2026-11-03
+icon: lucide/circle-x
+---
 # Arquitectura de Seguridad Perimetral: Cloudflare Turnstile y WAF
 
 **Documento Técnico:** SEC-2026-CF01

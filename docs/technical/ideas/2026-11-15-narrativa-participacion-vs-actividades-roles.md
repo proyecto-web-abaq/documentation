@@ -1,3 +1,8 @@
+---
+title: "Narrativa: Participación Individual vs. Actividades Colectivas y Roles (2026-11-15)"
+date: 2026-11-15
+icon: lucide/circle-check
+---
 # Gobernanza Narrativa: Separación Conceptual entre Actividades Colectivas Institucionales (1 de 11 opciones) y Participación Individual 1:1, Trilogía de Roles y Flujo de Verificación
 
 **Fecha:** 15 de Noviembre de 2026  

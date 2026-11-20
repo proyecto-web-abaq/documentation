@@ -1560,3 +1560,311 @@ flowchart TD
    - Manejo centralizado de excepciones operacionales (`AppError`).
    - Rollback transaccional ante fallos en creación de perfiles de usuario.
    - Limpieza automática de archivos huérfanos en GridFS ante fallos de persistencia en el cliente.
+
+---
+
+## 5. Módulo de Constancias de Plática para Público en General
+
+!!! info "Documento integrado"
+
+    Esta sección proviene de la antigua *SRS: Constancias de Plática (Público General)*. Aquí están la arquitectura, los flujos y el motor de renderizado; los requerimientos funcionales, no funcionales y criterios de aceptación están en el [SRS, sección 35](srs.md).
+
+### 5.1 Arquitectura y Flujos
+
+#### 5.1.1 Diagrama de Secuencia Integral
+El siguiente diagrama detalla el flujo de información de extremo a extremo: registro comunitario con protección Turnstile, persistencia, generación de tokens opacos y renderizado responsive en el cliente.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Asistente as Asistente / Promotor
+    participant Navegador as Navegador Web (Angular SPA)
+    participant CF as Cloudflare Turnstile
+    participant Backend as Backend Express API
+    participant Crypto as Motor Criptográfico (AES-256-GCM)
+    participant MongoDB as Base de Datos MongoDB
+    participant MotorCert as Motor de Constancias (certificates.js)
+
+    Note over Asistente,Backend: Fase 1: Registro Comunitario en /formularios/platicas
+    Asistente->>Navegador: Llena formulario de plática y asistentes
+    Navegador->>CF: Solicita token anti-bot
+    CF-->>Navegador: Retorna Turnstile Token
+    Navegador->>Backend: POST /talk/public (Datos + Turnstile Token)
+    Backend->>CF: Valida Turnstile Token en API Cloudflare
+    CF-->>Backend: Token válido (success: true)
+    
+    loop Por cada participante
+        Backend->>Backend: Genera Folio OP-TLK-YYMMDD-HEX
+    end
+
+    Backend->>MongoDB: Persiste documento Talk con participantes
+    MongoDB-->>Backend: Documento creado con IDs asignados
+    
+    loop Por cada participante
+        Backend->>Crypto: createCertificateHashToken(talkId, participantId, 'talk')
+        Crypto-->>Backend: Token opaco v2.<base64url>
+    end
+
+    Backend-->>Navegador: HTTP 201 Created (Confirmación + Enlaces seguros)
+    Navegador-->>Asistente: Pantalla de confirmación con enlaces y folios <app-folio-pill>
+
+    Note over Asistente,MotorCert: Fase 2: Consulta Pública de Constancia
+    Asistente->>Backend: GET /certificate/v/:hashToken
+    Backend->>Crypto: verifyCertificateHashToken(hashToken)
+    alt Token alterado o corrupto
+        Crypto-->>Backend: null (Fallo de integridad)
+        Backend-->>Navegador: HTTP 403 Forbidden (Constancia inválida)
+    else Token íntegro y válido
+        Crypto-->>Backend: { talkId, participantId, certType: 'talk' }
+        Backend->>MongoDB: Talk.findById(talkId)
+        MongoDB-->>Backend: Documento Talk y datos del participante
+        Backend->>MotorCert: renderTalkCertificateHtml(talk, participant, token)
+        MotorCert->>MotorCert: Inyecta assets en memoria (Base64) + escala nombre (nameFontSizePt)
+        MotorCert-->>Backend: HTML5 autocontenido con injectPrintToolbar
+        Backend-->>Navegador: HTTP 200 OK (text/html, TTFB < 200ms)
+    end
+
+    Note over Navegador,Asistente: Fase 3: Renderizado y Descarga
+    Navegador->>Navegador: Aplica auto-escalado bidimensional (--cert-scale)
+    Navegador-->>Asistente: Muestra constancia oficial membretada
+    alt Clic en "Descargar imagen (PNG)"
+        Asistente->>Navegador: Clic botón PNG
+        Navegador->>Navegador: html2canvas(element, scale: 2)
+        Navegador-->>Asistente: Descarga PNG nítido o activa Web Share API
+    else Clic en "Imprimir"
+        Asistente->>Navegador: Clic botón Imprimir
+        Navegador->>Navegador: window.print() con estilos @media print (A4 landscape)
+        Navegador-->>Asistente: Diálogo de impresión / Guardar como PDF
+    end
+```
+
+---
+
+#### 5.1.2 Diagrama de Arquitectura de Componentes Reutilizados (C4 Component)
+Este diagrama ilustra cómo las entidades de software interactúan y se reutilizan entre los diferentes dominios institucionales.
+
+```mermaid
+flowchart TD
+    subgraph Cliente["Capa de Presentación (Frontend Angular Standalone)"]
+        UI_Form["Formulario Público Pláticas\n(/formularios/platicas)"]
+        UI_AdminList["Lista Administrativa de Pláticas\n(TalkListComponent)"]
+        UI_AdminDetail["Detalle de Plática y Asistentes\n(TalkDetailComponent)"]
+        UI_Pill["<app-folio-pill>\n(FolioPillComponent)"]
+        UI_PrintBar["Toolbar Dinámico\n(injectPrintToolbar)"]
+    end
+
+    subgraph BackendApp["Capa de Servicios y Rutas (Backend Node.js / Express)"]
+        Router_Talk["Ruta Pláticas\n(talk.route.js)"]
+        Ctrl_Talk["Controlador Pláticas\n(talk.controller.js)"]
+        Router_Cert["Ruta Constancias\n(GET /certificate/v/:hashToken)"]
+        Ctrl_Cert["Validador y Despachador\n(student.controller.js)"]
+    end
+
+    subgraph CoreEngine["Motor Unificado de Constancias y Seguridad (utils/)"]
+        CertEngine["Motor de Constancias\n(certificates.js)"]
+        FolioGen["Generador Determinista\n(folio-generator.js)"]
+        AssetsMem["Memoria RAM de Activos\n(cachedAssets: Fonts, Logos, Watermark)"]
+        CryptoEngine["Criptografía AES-256-GCM\n(create/verifyCertificateHashToken)"]
+    end
+
+    subgraph Database["Capa de Persistencia (MongoDB Atlas)"]
+        Col_Talks["Colección 'talks'\n(TalkModel + TalkParticipantSchema)"]
+        Col_Students["Colección 'students'\n(Exclusivo SS)"]
+        Col_Volunteers["Colección 'volunteers'\n(Exclusivo VG)"]
+    end
+
+    UI_Form -->|POST /talk/public| Router_Talk
+    UI_AdminList -->|GET /talk| Router_Talk
+    UI_AdminDetail -->|GET /talk/:id| Router_Talk
+    
+    UI_AdminDetail -.->|Reutiliza| UI_Pill
+    
+    Router_Talk --> Ctrl_Talk
+    Ctrl_Talk --> FolioGen
+    Ctrl_Talk --> Col_Talks
+
+    Router_Cert --> Ctrl_Cert
+    Ctrl_Cert --> CryptoEngine
+    Ctrl_Cert --> Col_Talks
+    Ctrl_Cert --> CertEngine
+
+    CertEngine --> AssetsMem
+    CertEngine -.->|Inyecta en HTML| UI_PrintBar
+
+    Col_Students -.->|Desacoplado| Col_Talks
+    Col_Volunteers -.->|Desacoplado| Col_Talks
+```
+
+---
+
+#### 5.1.3 Modelo de Datos y Esquemas Mongoose
+
+##### Esquema de Participante de Plática (`TalkParticipantSchema`)
+```javascript
+const talkParticipantSchema = new mongoose.Schema(
+  {
+    name: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    sex: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+    age: {
+      type: Number,
+      min: 0,
+    },
+    email: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+    phone: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+    followUp: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+    // Folio determinista OP-TLK-YYMMDD-HEX asignado a cada asistente
+    interactionFolio: {
+      type: String,
+      trim: true,
+      index: true,
+    },
+  },
+  {
+    _id: true, // Subdocumento con identificador único para tokenización segura
+  }
+);
+```
+
+##### Esquema Principal de Plática (`TalkSchema`)
+```javascript
+const talkSchema = new mongoose.Schema(
+  {
+    name: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    date: {
+      type: Date,
+      required: true,
+    },
+    location: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+    participants: {
+      type: [talkParticipantSchema],
+      default: [],
+    },
+    entrySurvey: {
+      type: Boolean,
+      default: false,
+    },
+    exitSurvey: {
+      type: Boolean,
+      default: false,
+    },
+  },
+  {
+    timestamps: true,
+  }
+);
+```
+
+---
+
+#### 5.1.4 Matriz de Desacoplamiento y Comparación de Constancias Institucionales
+
+| Parámetro / Criterio | Constancia de Inicio (SS / VG) | Constancia de Término (SS 480h) | Constancia de Plática (Comunidad) |
+| :--- | :--- | :--- | :--- |
+| **Público Objetivo** | Alumnos de Servicio Social y Voluntarios Generales activos. | Alumnos universitarios que completaron 480 horas curriculares. | Ciudadanos, familias, estudiantes escolares y público general. |
+| **Requisito de Autenticación** | Requiere cuenta institucional y sesión iniciada (`userCanViewCertificate`). | Requiere cuenta institucional y sesión iniciada (`userCanViewCertificate`). | **Acceso público verificado** sin login (posesión del token criptográfico). |
+| **Cómputo de Horas Curriculares** | $0\text{ h}$ validadas (Inicio). | $480\text{ h}$ validadas y acreditadas. | **$0\text{ h}$** (Asistencia cívica y reconocimiento social). |
+| **Naturaleza del Folio** | Folio institucional de expediente escolar / voluntariado. | Folio institucional de conclusión de servicio. | Folio canónico de oportunidad: `OP-TLK-YYMMDD-HEX`. |
+| **Entidad de Persistencia** | Colección `students` / `volunteers`. | Colección `students`. | Colección `talks` (Subdocumento `participants`). |
+| **Impacto en Ciclo de Vida** | Transición a estatus `active`. | Transición a estatus `completed`. | **Sin impacto en ciclo de vida institucional.** |
+| **Motor de Renderizado** | `certificates.js` (`renderAcceptanceCertificateHtml`). | `certificates.js` (`renderCompletionCertificateHtml`). | `certificates.js` (`renderTalkCertificateHtml`). |
+| **Tecnología de Exportación** | PNG de alta fidelidad (html2canvas) y PDF (`@media print`). | PNG de alta fidelidad (html2canvas) y PDF (`@media print`). | PNG de alta fidelidad (html2canvas) y PDF (`@media print`). |
+| **Componente de Folio** | `<app-folio-pill>` (`interactionType="OP"`). | `<app-folio-pill>` (`interactionType="AC"` / `"OP"`). | `<app-folio-pill>` (`interactionType="OP"`, `showHours="false"`). |
+
+---
+
+### 5.2 Implementación del Motor de Renderizado Homologado
+
+A continuación se especifica la firma técnica y el comportamiento del método homologado a integrar en `backend/utils/certificates.js`:
+
+```javascript
+/**
+ * Genera el HTML autocontenido de la Constancia de Plática de Bienestar Animal
+ * para público en general con membrete, firmas institucionales y marca de agua oficial.
+ *
+ * @param {Object} params
+ * @param {string} params.nombre - Nombre completo del participante asistente.
+ * @param {string} params.tituloPlatica - Título o tema impartido en la plática.
+ * @param {Date|string} params.fecha - Fecha de realización del evento.
+ * @param {string} [params.lugar] - Ubicación o sede de la plática.
+ * @param {string} [params.folio] - Folio determinista OP-TLK-YYMMDD-HEX.
+ * @param {string} [params.token] - Token opaco de verificación criptográfica.
+ * @returns {string} Documento HTML5 autocontenido y responsive con toolbar inyectado.
+ */
+function renderTalkCertificateHtml({
+  nombre = "Participante ABAQ",
+  tituloPlatica = "Bienestar Animal y Tenencia Responsable",
+  fecha = new Date(),
+  lugar = "Querétaro, Qro., México",
+  folio = "",
+  token = "",
+}) {
+  const assets = loadSubmoduleAssets();
+  const { dia, mes, anio } = formatDateParts(fecha);
+
+  let html = applyCertificateAssets(assets.templateHtml, assets);
+  const safeName = escapeHtml(nombre);
+  const safeTalkTitle = escapeHtml(tituloPlatica);
+  const namePt = nameFontSizePt(nombre);
+
+  // Ajuste contextual del encabezado
+  html = html.replace(
+    '<h1 class="title">CONSTANCIA</h1>',
+    '<h1 class="title" style="font-size: 38pt; letter-spacing: 6px;">CONSTANCIA</h1>',
+  );
+  html = html.replace(
+    '<div class="subtitle">DE RECONOCIMIENTO A:</div>',
+    '<div class="subtitle">DE PARTICIPACIÓN Y ASISTENCIA A:</div>',
+  );
+
+  // Redacción comunitaria de bienestar animal
+  const talkText = `Por su valiosa participación y asistencia en la plática de Bienestar Animal y Tenencia Responsable:<br><strong>«${safeTalkTitle}»</strong>, promoviendo una cultura de respeto, empatía y protección hacia los animales.`;
+
+  html = html.replace(
+    /Por su participación, colaboración, apoyo, haber tomado la plática de Bienestar Animal<br>\s*con ABAQ, y concluir su Servicio Social\./,
+    talkText,
+  );
+
+  // Inyección de nombre adaptativo, fechas y sede
+  html = applyNameAndDate(html, safeName, namePt, dia, mes, anio, lugar);
+
+  // Inyección de folio visible si está disponible
+  if (folio) {
+    html = html.replace(
+      '</body>',
+      `<div class="cert-folio-tag" style="position: absolute; bottom: 18px; right: 28px; font-family: monospace; font-size: 11px; color: rgba(29,61,105,0.65);">Folio: ${escapeHtml(folio)}</div>\n</body>`
+    );
+  }
+
+  return injectPrintToolbar(html, `Constancia de Plática - ${safeName}`, folio, token);
+}
+```
+
+---

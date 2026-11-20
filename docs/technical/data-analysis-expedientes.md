@@ -1,3 +1,8 @@
+---
+title: "Big Data y Analítica de Expedientes (2026-10-31)"
+date: 2026-10-31
+icon: lucide/circle-x
+---
 # Propuesta de Data Analysis y Big Data: Analítica del Ciclo de Vida de Expedientes ABAQ
 
 > **Fecha:** 30 de Octubre de 2026  

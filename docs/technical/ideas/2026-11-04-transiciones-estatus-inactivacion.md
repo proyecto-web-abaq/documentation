@@ -1,7 +1,7 @@
 ---
-title: "Propuesta Técnica: Transiciones de Estatus, Modal Homologado de Inactivación y Sistema de Comentarios"
+title: "Transiciones de Estatus, Modal y Comentarios (2026-11-04)"
 date: 2026-11-04
-icon: lucide/shield-alert
+icon: lucide/circle-check
 author: "Equipo de Arquitectura e Ingeniería ABAQ"
 status: "Propuesta para Revisión y Autorización"
 ---

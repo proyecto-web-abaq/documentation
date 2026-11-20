@@ -1,7 +1,7 @@
 ---
-title: Vista Unificada de Participación y Acreditaciones, Agenda de 2 Semanas y Pipeline de 3 Fases sin Mutación de Backend (2026-11-13)
+title: "Vista Unificada de Participación, Agenda 2 Semanas y Pipeline 3 Fases (2026-11-13)"
 date: 2026-11-13
-icon: lucide/calendar-check-2
+icon: lucide/circle-check
 author: Equipo de Arquitectura e Ingeniería ABAQ
 status: Propuesta Técnica, SRS y Arquitectura Validados en Mockup Interactivo
 ---

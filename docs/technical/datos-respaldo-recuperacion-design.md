@@ -1,3 +1,8 @@
+---
+title: "Datos: Respaldo, Recuperación y Ciclo de Vida (2026-11-03)"
+date: 2026-11-03
+icon: lucide/circle-x
+---
 # Diseño de Datos: Ciclo de Vida, Respaldos y Recuperación
 
 **Proyecto:** Plataforma Web ABAQ (Servicio Social)

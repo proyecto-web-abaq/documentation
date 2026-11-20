@@ -1,7 +1,7 @@
 ---
-title: "Homologación Visual de Encabezados (Admin Heroes), Borrado Validado en Formularios de Servicio Social, Acreditación Desacoplada de Voluntarios Generales y Optimización Móvil (iPhone SE)"
+title: "Homologación Visual de Encabezados, Borrado Validado y Acreditación de Voluntarios (2026-11-12)"
 date: 2026-11-12
-icon: lucide/layout-template
+icon: lucide/circle-check
 author: "Antigravity Coding Agent & Equipo de Ingeniería ABAQ"
 status: "Implementado y Estable en Dev"
 ---

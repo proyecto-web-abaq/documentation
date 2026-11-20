@@ -1,6 +1,7 @@
 ---
-title: Estadísticas Duales (BD + Bucket S3), Costos Oficiales Railway, Respaldo Tri-Modal con Integridad Pre-Descarga, Blindaje de 8 Horas y Auditoría de Seguridad OWASP WSTG
+title: "Estadísticas Duales, Costos Railway, Respaldo Tri-Modal y Auditoría OWASP (2026-11-15)"
 date: 2026-11-15
+icon: lucide/circle-check
 status: Documentado para Validación (Sin Implementación en Código)
 author: Equipo de Arquitectura y Seguridad ABAQ
 ---

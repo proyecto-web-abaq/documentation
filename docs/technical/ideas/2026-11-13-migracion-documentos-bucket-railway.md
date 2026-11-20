@@ -1,7 +1,7 @@
 ---
-title: Migración de Documentos a Bucket Railway y Seguridad de Endpoints (2026-11-13)
+title: "Migración de Documentos a Bucket Railway (2026-11-13)"
 date: 2026-11-13
-icon: lucide/file-up
+icon: lucide/circle-x
 author: Equipo de Arquitectura e Ingeniería ABAQ
 status: Propuesta Técnica Validada
 ---

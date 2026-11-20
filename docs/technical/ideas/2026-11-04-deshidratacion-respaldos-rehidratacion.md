@@ -1,7 +1,7 @@
 ---
-title: "Propuesta Técnica: Estabilización de Deshidratación, Manifiesto Dual (.zip + .txt MD), Gobernanza de Rehidratación y Resiliencia de Respaldos"
+title: "Deshidratación, Manifiesto Dual y Rehidratación (2026-11-04)"
 date: 2026-11-04
-icon: lucide/database-backup
+icon: lucide/circle-check
 author: "Equipo de Arquitectura e Ingeniería ABAQ"
 status: "Implementada y Verificada al 100% — Fuente de Verdad"
 ---

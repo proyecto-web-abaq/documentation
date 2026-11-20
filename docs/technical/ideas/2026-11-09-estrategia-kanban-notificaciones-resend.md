@@ -1,7 +1,7 @@
 ---
-title: "Estrategia de Tablero Kanban, Gestión de Tareas y Notificaciones Mínimas con Resend"
+title: "Tablero Kanban y Notificaciones Mínimas con Resend (2026-11-09)"
 date: 2026-11-09
-icon: lucide/layout-grid
+icon: lucide/circle-check
 author: "Antigravity Coding Agent & Equipo de Ingeniería ABAQ"
 status: "Implementado y Estable en Dev"
 ---

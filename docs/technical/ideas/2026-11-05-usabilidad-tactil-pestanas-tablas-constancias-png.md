@@ -1,7 +1,7 @@
 ---
-title: "Refinamiento Integral de Usabilidad Táctil en Móviles y Tabletas: Unificación de Tablas por Pestañas, Píldoras Anti-Deformación, Desplazamiento Horizontal en Historial y Generación Fiel de Constancias en Imagen PNG"
+title: "Usabilidad Táctil: Pestañas, Tablas y Constancias PNG (2026-11-05)"
 date: 2026-11-05
-icon: lucide/smartphone
+icon: lucide/circle-x
 author: "Equipo de Arquitectura e Ingeniería de Frontend ABAQ"
 status: "Propuesta Aprobada — En Implementación"
 ---

@@ -1,3 +1,8 @@
+---
+title: "Sistema de Notificaciones (2026-11-03)"
+date: 2026-11-03
+icon: lucide/circle-check
+---
 # Diseño del Sistema de Notificaciones
 
 **Proyecto:** Plataforma Web ABAQ (Servicio Social)

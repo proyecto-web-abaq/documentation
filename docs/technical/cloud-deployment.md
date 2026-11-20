@@ -1,3 +1,8 @@
+---
+title: "Despliegue en la Nube (Azure): Tres Arquitecturas y Costeo (2026-10-18)"
+date: 2026-10-18
+icon: lucide/circle-x
+---
 # Despliegue en la Nube (Azure): Tres Arquitecturas y Costeo
 
 **Proyecto:** Plataforma Web ABAQ (Servicio Social)

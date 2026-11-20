@@ -1,3 +1,8 @@
+---
+title: "Carta Oficial, Constancias y Notificaciones en Pláticas (2026-11-15)"
+date: 2026-11-15
+icon: lucide/circle-check
+---
 # Carta Oficial, Constancias Individuales y Notificaciones por Correo en el Módulo de Pláticas
 
 - **Fecha:** 2026-11-15

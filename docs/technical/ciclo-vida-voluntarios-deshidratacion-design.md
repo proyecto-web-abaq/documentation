@@ -1,3 +1,8 @@
+---
+title: "Ciclo de Vida, Deshidratación y Folios (2026-11-03)"
+date: 2026-11-03
+icon: lucide/circle-check
+---
 # Propuesta Técnica: Sistema Integral de Gestión de Voluntarios — Ciclo de Vida, Inactivación, Deshidratación de BD, Folios de Interacción (AC/OP) y Mapeo de Vistas
 
 **Proyecto:** Plataforma Web ABAQ (Servicio Social y Voluntariado General)  

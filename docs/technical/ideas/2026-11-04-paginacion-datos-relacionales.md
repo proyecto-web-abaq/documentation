@@ -1,7 +1,7 @@
 ---
-title: "Propuesta Técnica: Estandarización de Paginación UI/UX, Cohesión Relacional de Datos y Publicador de Endpoints"
+title: "Paginación UI/UX y Datos Relacionales (2026-11-04)"
 date: 2026-11-04
-icon: lucide/layers
+icon: lucide/circle-check
 author: "Equipo de Arquitectura e Ingeniería ABAQ"
 status: "Propuesta Aprobada — Fuente de Verdad"
 ---

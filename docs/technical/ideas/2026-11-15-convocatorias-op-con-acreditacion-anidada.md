@@ -1,3 +1,8 @@
+---
+title: "Convocatorias OP con Acreditación Anidada (2026-11-15)"
+date: 2026-11-15
+icon: lucide/circle-check
+---
 # Convocatorias OP con Acreditación Anidada
 
 !!! success "Estado: Validada e implementada en rama de feature"

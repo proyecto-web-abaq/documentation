@@ -1,3 +1,8 @@
+---
+title: "Diseño de Pipelines CI/CD (2026-10-14)"
+date: 2026-10-14
+icon: lucide/circle-x
+---
 # Diseño de Pipelines CI/CD
 
 **Proyecto:** Plataforma Web ABAQ (Servicio Social)

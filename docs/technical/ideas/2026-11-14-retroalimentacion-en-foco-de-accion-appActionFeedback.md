@@ -1,7 +1,7 @@
 ---
-title: "Refactorización Integral del Sistema de Notificaciones en Foco de Acción ([appActionFeedback]): Mapeo Exhaustivo de Interfaces, Erradicación de Alertas Legadas y Cero Layout Shift (CLS = 0)"
+title: "Retroalimentación en Foco de Acción (appActionFeedback) (2026-11-14)"
 date: 2026-11-14
-icon: lucide/check-circle-2
+icon: lucide/circle-check
 author: "Equipo de Arquitectura e Ingeniería de Frontend ABAQ"
 status: "Propuesta Aprobada — En Implementación"
 ---

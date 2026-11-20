@@ -1,7 +1,7 @@
 ---
-title: "Integración Integral de Cloudflare Turnstile en Todas las Superficies Públicas, Configuración de Dominios y Despliegue Railway"
+title: "Turnstile Anti-Bot en Superficies Públicas y Despliegue Railway (2026-11-06)"
 date: 2026-11-06
-icon: lucide/shield-check
+icon: lucide/circle-check
 author: "Equipo de Arquitectura e Ingeniería ABAQ"
 status: "Propuesta Aprobada — En Implementación"
 ---

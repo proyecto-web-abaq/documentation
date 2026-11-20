@@ -1,4 +1,13 @@
-# Registro de implementación — Módulos de ciclo de vida, folios, deshidratación y notificaciones (M5)
+---
+title: "Registro de Implementación: Ciclo de Vida, Folios, Deshidratación y Notificaciones (2026-11-03)"
+date: 2026-11-03
+icon: lucide/circle-check
+---
+# 📋 Registro de Implementación: Ciclo de Vida, Folios, Deshidratación y Notificaciones
+
+!!! info "Antes «Implementación M5»"
+
+    Este documento se llamaba *Implementación M5 (Ciclo de Vida y Folios)* y vivía en la raíz de la documentación técnica. Se movió a Ideas y Propuestas porque registra el estado de una propuesta ya implementada.
 
 Este documento registra **lo que quedó implementado en código** para el spec
 `orden-de-trabajo-tcnica-frontend` (los 8 módulos del ciclo de vida de

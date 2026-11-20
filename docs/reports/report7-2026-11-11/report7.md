@@ -64,7 +64,7 @@ El presente reporte consolida los avances desarrollados durante el sprint de cie
 ## 5. Evidencia Visual y Arquitectura
 
 - **Documentación Técnica Maestra**:
-  - Publicación del documento formal [`srs-constancias-platicas.md`](../../technical/srs-constancias-platicas.md) bajo estándares ISO/IEC/IEEE 29148:2018 e ISO/IEC/IEEE 42010:2022.
+  - Publicación del documento formal [`srs.md`, sección 35](../../technical/srs.md) bajo estándares ISO/IEC/IEEE 29148:2018 e ISO/IEC/IEEE 42010:2022.
   - Diagrama de secuencia de registro, tokenización y renderizado autocontenido en Mermaid.
   - Matriz comparativa de desacoplamiento entre constancias de Estudiantes, Voluntarios y Comunidad.
 
@@ -77,7 +77,7 @@ El presente reporte consolida los avances desarrollados durante el sprint de cie
 | Motor de Constancias Criptográficas | Homologado | Verificación matemática AES-256-GCM activa |
 | Píldoras de Folio `<app-folio-pill>` | Operativo | Integrado en todas las vistas administrativas |
 | Formulario Público de Pláticas | En Producción | Protegido con Cloudflare Turnstile |
-| Documentación Técnica SRS | Aprobada | Disponible en portal Zensical (`/technical/srs-constancias-platicas`) |
+| Documentación Técnica SRS | Aprobada | Disponible en portal Zensical (`/technical/srs`, sección 35) |
 
 ---
 
